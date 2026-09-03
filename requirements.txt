@@ -1,0 +1,6 @@
+PySide6>=6.8
+enka>=2.5.20
+google-api-python-client>=2.180
+google-auth-httplib2>=0.2
+google-auth-oauthlib>=1.2
+keyring>=25.6

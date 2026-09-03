@@ -1,0 +1,2123 @@
+{
+  "source": "fribbels/hsr-optimizer",
+  "source_commit": "unknown",
+  "teams": {
+    "1001": {
+      "name": "Time padrão Fribbels · 7 de Março",
+      "members": [
+        {
+          "character_id": "1308",
+          "name": "Acheron",
+          "eidolon": 0,
+          "light_cone_id": "23024",
+          "light_cone": "Ao Longo da Margem Transitória",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1218",
+          "name": "Jiaoqiu",
+          "eidolon": 0,
+          "light_cone_id": "23029",
+          "light_cone": "Aquelas Incontáveis Primaveras",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1406",
+          "name": "Cipher",
+          "eidolon": 0,
+          "light_cone_id": "23043",
+          "light_cone": "Mentiras Dançando ao Vento",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1002": {
+      "name": "Time padrão Fribbels · Dan Heng",
+      "members": [
+        {
+          "character_id": "1101",
+          "name": "Bronya",
+          "eidolon": 0,
+          "light_cone_id": "23003",
+          "light_cone": "Mas a Batalha Não Acabou",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1309",
+          "name": "Robin",
+          "eidolon": 0,
+          "light_cone_id": "23026",
+          "light_cone": "Luzes Noturnas",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1217b1",
+          "name": "Huohuo",
+          "eidolon": 0,
+          "light_cone_id": "23017",
+          "light_cone": "Noite Aterrorizante",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1003": {
+      "name": "Time padrão Fribbels · Himeko",
+      "members": [
+        {
+          "character_id": "1225",
+          "name": "Fugue",
+          "eidolon": 0,
+          "light_cone_id": "23035",
+          "light_cone": "A Longa Estrada Leva para Casa",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1321",
+          "name": "A Dália",
+          "eidolon": 0,
+          "light_cone_id": "23050",
+          "light_cone": "Nunca Esqueça Sua Chama",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1008": {
+      "name": "Time padrão Fribbels · Arlan",
+      "members": [
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1309",
+          "name": "Robin",
+          "eidolon": 0,
+          "light_cone_id": "23026",
+          "light_cone": "Luzes Noturnas",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1013": {
+      "name": "Time padrão Fribbels · Herta",
+      "members": [
+        {
+          "character_id": "1401",
+          "name": "A Herta",
+          "eidolon": 0,
+          "light_cone_id": "23037",
+          "light_cone": "Ao Véu Inalcançável",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1014": {
+      "name": "Time padrão Fribbels · Saber",
+      "members": [
+        {
+          "character_id": "1507",
+          "name": "Mortenax Blade",
+          "eidolon": 0,
+          "light_cone_id": "23059",
+          "light_cone": "Reforjado nas Chamas do Inferno",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1509",
+          "name": "Gilgamesh",
+          "eidolon": 0,
+          "light_cone_id": "23062",
+          "light_cone": "Eu Sou Como Tu Me Vês",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1217b1",
+          "name": "Huohuo",
+          "eidolon": 0,
+          "light_cone_id": "23017",
+          "light_cone": "Noite Aterrorizante",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1015": {
+      "name": "Time padrão Fribbels · Archer",
+      "members": [
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "21018",
+          "light_cone": "Dance! Dance! Dance!",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1508",
+          "name": "Rin Tohsaka",
+          "eidolon": 0,
+          "light_cone_id": "23061",
+          "light_cone": "Estrelas Cintilantes",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1101": {
+      "name": "Time padrão Fribbels · Bronya",
+      "members": [
+        {
+          "character_id": "1408",
+          "name": "Phainon",
+          "eidolon": 0,
+          "light_cone_id": "23044",
+          "light_cone": "Assim Arde a Alvorada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1412",
+          "name": "Cerydra",
+          "eidolon": 0,
+          "light_cone_id": "23048",
+          "light_cone": "Era Gravada pelo Sangue Dourado",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1103": {
+      "name": "Time padrão Fribbels · Serval",
+      "members": [
+        {
+          "character_id": "1401",
+          "name": "A Herta",
+          "eidolon": 0,
+          "light_cone_id": "23037",
+          "light_cone": "Ao Véu Inalcançável",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1104": {
+      "name": "Time padrão Fribbels · Gepard",
+      "members": [
+        {
+          "character_id": "1408",
+          "name": "Phainon",
+          "eidolon": 0,
+          "light_cone_id": "23044",
+          "light_cone": "Assim Arde a Alvorada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1412",
+          "name": "Cerydra",
+          "eidolon": 0,
+          "light_cone_id": "23048",
+          "light_cone": "Era Gravada pelo Sangue Dourado",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1313",
+          "name": "Sunday",
+          "eidolon": 0,
+          "light_cone_id": "23034",
+          "light_cone": "Uma Ascensão Aterrada",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1105": {
+      "name": "Time padrão Fribbels · Natasha",
+      "members": [
+        {
+          "character_id": "1407",
+          "name": "Castorice",
+          "eidolon": 0,
+          "light_cone_id": "23040",
+          "light_cone": "O Adeus Mais Belo",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1406",
+          "name": "Cipher",
+          "eidolon": 0,
+          "light_cone_id": "23043",
+          "light_cone": "Mentiras Dançando ao Vento",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1107": {
+      "name": "Time padrão Fribbels · Clara",
+      "members": [
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "21018",
+          "light_cone": "Dance! Dance! Dance!",
+          "superimposition": 5
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1108": {
+      "name": "Time padrão Fribbels · Sampo",
+      "members": [
+        {
+          "character_id": "1005b1",
+          "name": "Kafka",
+          "eidolon": 0,
+          "light_cone_id": "23006",
+          "light_cone": "Você Só Precisa de Paciência",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1410",
+          "name": "Hysilens",
+          "eidolon": 0,
+          "light_cone_id": "23047",
+          "light_cone": "Por que o Oceano Canta?",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1109": {
+      "name": "Time padrão Fribbels · Hook",
+      "members": [
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "23003",
+          "light_cone": "Mas a Batalha Não Acabou",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1110": {
+      "name": "Time padrão Fribbels · Lynx",
+      "members": [
+        {
+          "character_id": "1407",
+          "name": "Castorice",
+          "eidolon": 0,
+          "light_cone_id": "23040",
+          "light_cone": "O Adeus Mais Belo",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1406",
+          "name": "Cipher",
+          "eidolon": 0,
+          "light_cone_id": "23043",
+          "light_cone": "Mentiras Dançando ao Vento",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1111": {
+      "name": "Time padrão Fribbels · Luka",
+      "members": [
+        {
+          "character_id": "1225",
+          "name": "Fugue",
+          "eidolon": 0,
+          "light_cone_id": "23035",
+          "light_cone": "A Longa Estrada Leva para Casa",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1321",
+          "name": "A Dália",
+          "eidolon": 0,
+          "light_cone_id": "23050",
+          "light_cone": "Nunca Esqueça Sua Chama",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1112": {
+      "name": "Time padrão Fribbels · Topaz e Dinheirinho",
+      "members": [
+        {
+          "character_id": "1220",
+          "name": "Feixiao",
+          "eidolon": 0,
+          "light_cone_id": "23031",
+          "light_cone": "Eu Me Aventuro para Caçar",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1201": {
+      "name": "Time padrão Fribbels · Qingque",
+      "members": [
+        {
+          "character_id": "1406",
+          "name": "Cipher",
+          "eidolon": 0,
+          "light_cone_id": "23043",
+          "light_cone": "Mentiras Dançando ao Vento",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "23034",
+          "light_cone": "Uma Ascensão Aterrada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1203": {
+      "name": "Time padrão Fribbels · Luocha",
+      "members": [
+        {
+          "character_id": "1407",
+          "name": "Castorice",
+          "eidolon": 0,
+          "light_cone_id": "23040",
+          "light_cone": "O Adeus Mais Belo",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1406",
+          "name": "Cipher",
+          "eidolon": 0,
+          "light_cone_id": "23043",
+          "light_cone": "Mentiras Dançando ao Vento",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1204": {
+      "name": "Time padrão Fribbels · Jing Yuan",
+      "members": [
+        {
+          "character_id": "1313",
+          "name": "Sunday",
+          "eidolon": 0,
+          "light_cone_id": "23034",
+          "light_cone": "Uma Ascensão Aterrada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1309",
+          "name": "Robin",
+          "eidolon": 0,
+          "light_cone_id": "23026",
+          "light_cone": "Luzes Noturnas",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1206": {
+      "name": "Time padrão Fribbels · Sushang",
+      "members": [
+        {
+          "character_id": "1225",
+          "name": "Fugue",
+          "eidolon": 0,
+          "light_cone_id": "23035",
+          "light_cone": "A Longa Estrada Leva para Casa",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1321",
+          "name": "A Dália",
+          "eidolon": 0,
+          "light_cone_id": "23050",
+          "light_cone": "Nunca Esqueça Sua Chama",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1209": {
+      "name": "Time padrão Fribbels · Yanqing",
+      "members": [
+        {
+          "character_id": "1101",
+          "name": "Bronya",
+          "eidolon": 0,
+          "light_cone_id": "23003",
+          "light_cone": "Mas a Batalha Não Acabou",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1309",
+          "name": "Robin",
+          "eidolon": 0,
+          "light_cone_id": "23026",
+          "light_cone": "Luzes Noturnas",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1211": {
+      "name": "Time padrão Fribbels · Bailu",
+      "members": [
+        {
+          "character_id": "1407",
+          "name": "Castorice",
+          "eidolon": 0,
+          "light_cone_id": "23040",
+          "light_cone": "O Adeus Mais Belo",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1406",
+          "name": "Cipher",
+          "eidolon": 0,
+          "light_cone_id": "23043",
+          "light_cone": "Mentiras Dançando ao Vento",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1213": {
+      "name": "Time padrão Fribbels · Embebidor Lunae",
+      "members": [
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "23034",
+          "light_cone": "Uma Ascensão Aterrada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1406",
+          "name": "Cipher",
+          "eidolon": 0,
+          "light_cone_id": "23043",
+          "light_cone": "Mentiras Dançando ao Vento",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1214": {
+      "name": "Time padrão Fribbels · Xueyi",
+      "members": [
+        {
+          "character_id": "1321",
+          "name": "A Dália",
+          "eidolon": 0,
+          "light_cone_id": "23050",
+          "light_cone": "Nunca Esqueça Sua Chama",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1225",
+          "name": "Fugue",
+          "eidolon": 0,
+          "light_cone_id": "23035",
+          "light_cone": "A Longa Estrada Leva para Casa",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1220": {
+      "name": "Time padrão Fribbels · Feixiao",
+      "members": [
+        {
+          "character_id": "1507",
+          "name": "Mortenax Blade",
+          "eidolon": 0,
+          "light_cone_id": "23059",
+          "light_cone": "Reforjado nas Chamas do Inferno",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1504",
+          "name": "Ashveil",
+          "eidolon": 0,
+          "light_cone_id": "23056",
+          "light_cone": "O Fim de uma Mentira",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1221": {
+      "name": "Time padrão Fribbels · Yunli",
+      "members": [
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "21018",
+          "light_cone": "Dance! Dance! Dance!",
+          "superimposition": 5
+        },
+        {
+          "character_id": "1202",
+          "name": "Tingyun",
+          "eidolon": 6,
+          "light_cone_id": "21004",
+          "light_cone": "Memórias do Passado",
+          "superimposition": 5
+        },
+        {
+          "character_id": "1217b1",
+          "name": "Huohuo",
+          "eidolon": 0,
+          "light_cone_id": "23017",
+          "light_cone": "Noite Aterrorizante",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1223": {
+      "name": "Time padrão Fribbels · Moze",
+      "members": [
+        {
+          "character_id": "1220",
+          "name": "Feixiao",
+          "eidolon": 0,
+          "light_cone_id": "23031",
+          "light_cone": "Eu Me Aventuro para Caçar",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1224": {
+      "name": "Time padrão Fribbels · 7 de Março",
+      "members": [
+        {
+          "character_id": "1321",
+          "name": "A Dália",
+          "eidolon": 0,
+          "light_cone_id": "23050",
+          "light_cone": "Nunca Esqueça Sua Chama",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1225",
+          "name": "Fugue",
+          "eidolon": 0,
+          "light_cone_id": "23035",
+          "light_cone": "A Longa Estrada Leva para Casa",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1225": {
+      "name": "Time padrão Fribbels · Fugue",
+      "members": [
+        {
+          "character_id": "1310b1",
+          "name": "Vaga-lume",
+          "eidolon": 0,
+          "light_cone_id": "23025",
+          "light_cone": "Onde os Sonhos Deveriam Repousar",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1321",
+          "name": "A Dália",
+          "eidolon": 0,
+          "light_cone_id": "23050",
+          "light_cone": "Nunca Esqueça Sua Chama",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1302": {
+      "name": "Time padrão Fribbels · Argenti",
+      "members": [
+        {
+          "character_id": "1401",
+          "name": "A Herta",
+          "eidolon": 0,
+          "light_cone_id": "23037",
+          "light_cone": "Ao Véu Inalcançável",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1304": {
+      "name": "Time padrão Fribbels · Aventurine",
+      "members": [
+        {
+          "character_id": "1220",
+          "name": "Feixiao",
+          "eidolon": 0,
+          "light_cone_id": "23031",
+          "light_cone": "Eu Me Aventuro para Caçar",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1112",
+          "name": "Topaz e Dinheirinho",
+          "eidolon": 0,
+          "light_cone_id": "23016",
+          "light_cone": "Inquietante, Extasiante",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1305": {
+      "name": "Time padrão Fribbels · Dr. Ratio",
+      "members": [
+        {
+          "character_id": "1507",
+          "name": "Mortenax Blade",
+          "eidolon": 0,
+          "light_cone_id": "23059",
+          "light_cone": "Reforjado nas Chamas do Inferno",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "21018",
+          "light_cone": "Dance! Dance! Dance!",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1308": {
+      "name": "Time padrão Fribbels · Acheron",
+      "members": [
+        {
+          "character_id": "1406",
+          "name": "Cipher",
+          "eidolon": 0,
+          "light_cone_id": "23043",
+          "light_cone": "Mentiras Dançando ao Vento",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1507",
+          "name": "Mortenax Blade",
+          "eidolon": 0,
+          "light_cone_id": "23059",
+          "light_cone": "Reforjado nas Chamas do Inferno",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1309": {
+      "name": "Time padrão Fribbels · Robin",
+      "members": [
+        {
+          "character_id": "1402",
+          "name": "Aglaea",
+          "eidolon": 0,
+          "light_cone_id": "23036",
+          "light_cone": "Tempo Tecido em Ouro",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1313",
+          "name": "Sunday",
+          "eidolon": 0,
+          "light_cone_id": "23034",
+          "light_cone": "Uma Ascensão Aterrada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1312": {
+      "name": "Time padrão Fribbels · Misha",
+      "members": [
+        {
+          "character_id": "1303",
+          "name": "Ruan Mei",
+          "eidolon": 0,
+          "light_cone_id": "23019",
+          "light_cone": "Meu Passado no Espelho",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "23003",
+          "light_cone": "Mas a Batalha Não Acabou",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1217b1",
+          "name": "Huohuo",
+          "eidolon": 0,
+          "light_cone_id": "23017",
+          "light_cone": "Noite Aterrorizante",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1313": {
+      "name": "Time padrão Fribbels · Sunday",
+      "members": [
+        {
+          "character_id": "1408",
+          "name": "Phainon",
+          "eidolon": 0,
+          "light_cone_id": "23044",
+          "light_cone": "Assim Arde a Alvorada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1412",
+          "name": "Cerydra",
+          "eidolon": 0,
+          "light_cone_id": "23048",
+          "light_cone": "Era Gravada pelo Sangue Dourado",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1314": {
+      "name": "Time padrão Fribbels · Jade",
+      "members": [
+        {
+          "character_id": "1401",
+          "name": "A Herta",
+          "eidolon": 0,
+          "light_cone_id": "23037",
+          "light_cone": "Ao Véu Inalcançável",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1315": {
+      "name": "Time padrão Fribbels · Boothill",
+      "members": [
+        {
+          "character_id": "1225",
+          "name": "Fugue",
+          "eidolon": 0,
+          "light_cone_id": "23035",
+          "light_cone": "A Longa Estrada Leva para Casa",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1321",
+          "name": "A Dália",
+          "eidolon": 0,
+          "light_cone_id": "23050",
+          "light_cone": "Nunca Esqueça Sua Chama",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1317": {
+      "name": "Time padrão Fribbels · Rappa",
+      "members": [
+        {
+          "character_id": "1225",
+          "name": "Fugue",
+          "eidolon": 0,
+          "light_cone_id": "23035",
+          "light_cone": "A Longa Estrada Leva para Casa",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1321",
+          "name": "A Dália",
+          "eidolon": 0,
+          "light_cone_id": "23050",
+          "light_cone": "Nunca Esqueça Sua Chama",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1321": {
+      "name": "Time padrão Fribbels · A Dália",
+      "members": [
+        {
+          "character_id": "1310b1",
+          "name": "Vaga-lume",
+          "eidolon": 0,
+          "light_cone_id": "23025",
+          "light_cone": "Onde os Sonhos Deveriam Repousar",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1225",
+          "name": "Fugue",
+          "eidolon": 0,
+          "light_cone_id": "23035",
+          "light_cone": "A Longa Estrada Leva para Casa",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1401": {
+      "name": "Time padrão Fribbels · A Herta",
+      "members": [
+        {
+          "character_id": "1314",
+          "name": "Jade",
+          "eidolon": 0,
+          "light_cone_id": "23028",
+          "light_cone": "A Esperança é Inestimável",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1402": {
+      "name": "Time padrão Fribbels · Aglaea",
+      "members": [
+        {
+          "character_id": "1313",
+          "name": "Sunday",
+          "eidolon": 0,
+          "light_cone_id": "23034",
+          "light_cone": "Uma Ascensão Aterrada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1415",
+          "name": "Cyrene",
+          "eidolon": 0,
+          "light_cone_id": "23052",
+          "light_cone": "Instante de Eterno Amor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1403": {
+      "name": "Time padrão Fribbels · Tribbie",
+      "members": [
+        {
+          "character_id": "1401",
+          "name": "A Herta",
+          "eidolon": 0,
+          "light_cone_id": "23037",
+          "light_cone": "Ao Véu Inalcançável",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1405",
+          "name": "Anaxa",
+          "eidolon": 0,
+          "light_cone_id": "23041",
+          "light_cone": "A Vida Forjada em Chamas",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1404": {
+      "name": "Time padrão Fribbels · Mydei",
+      "members": [
+        {
+          "character_id": "1415",
+          "name": "Cyrene",
+          "eidolon": 0,
+          "light_cone_id": "23052",
+          "light_cone": "Instante de Eterno Amor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1405": {
+      "name": "Time padrão Fribbels · Anaxa",
+      "members": [
+        {
+          "character_id": "1415",
+          "name": "Cyrene",
+          "eidolon": 0,
+          "light_cone_id": "23052",
+          "light_cone": "Instante de Eterno Amor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1412",
+          "name": "Cerydra",
+          "eidolon": 0,
+          "light_cone_id": "23048",
+          "light_cone": "Era Gravada pelo Sangue Dourado",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1406": {
+      "name": "Time padrão Fribbels · Cipher",
+      "members": [
+        {
+          "character_id": "1220",
+          "name": "Feixiao",
+          "eidolon": 0,
+          "light_cone_id": "23031",
+          "light_cone": "Eu Me Aventuro para Caçar",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1309",
+          "name": "Robin",
+          "eidolon": 0,
+          "light_cone_id": "23026",
+          "light_cone": "Luzes Noturnas",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1407": {
+      "name": "Time padrão Fribbels · Castorice",
+      "members": [
+        {
+          "character_id": "1415",
+          "name": "Cyrene",
+          "eidolon": 0,
+          "light_cone_id": "23052",
+          "light_cone": "Instante de Eterno Amor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1413",
+          "name": "Noite Eterna",
+          "eidolon": 0,
+          "light_cone_id": "23049",
+          "light_cone": "Ao Brilho Estelar da Noite Eterna",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1408": {
+      "name": "Time padrão Fribbels · Phainon",
+      "members": [
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "21018",
+          "light_cone": "Dance! Dance! Dance!",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1412",
+          "name": "Cerydra",
+          "eidolon": 0,
+          "light_cone_id": "23048",
+          "light_cone": "Era Gravada pelo Sangue Dourado",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1313",
+          "name": "Sunday",
+          "eidolon": 0,
+          "light_cone_id": "23034",
+          "light_cone": "Uma Ascensão Aterrada",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1409": {
+      "name": "Time padrão Fribbels · Hyacine",
+      "members": [
+        {
+          "character_id": "1407",
+          "name": "Castorice",
+          "eidolon": 0,
+          "light_cone_id": "23040",
+          "light_cone": "O Adeus Mais Belo",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1413",
+          "name": "Noite Eterna",
+          "eidolon": 0,
+          "light_cone_id": "23049",
+          "light_cone": "Ao Brilho Estelar da Noite Eterna",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1415",
+          "name": "Cyrene",
+          "eidolon": 0,
+          "light_cone_id": "23052",
+          "light_cone": "Instante de Eterno Amor",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1410": {
+      "name": "Time padrão Fribbels · Hysilens",
+      "members": [
+        {
+          "character_id": "1005b1",
+          "name": "Kafka",
+          "eidolon": 0,
+          "light_cone_id": "23006",
+          "light_cone": "Você Só Precisa de Paciência",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1307b1",
+          "name": "Cisne Negro",
+          "eidolon": 0,
+          "light_cone_id": "23022",
+          "light_cone": "Recordação Reforjada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1412": {
+      "name": "Time padrão Fribbels · Cerydra",
+      "members": [
+        {
+          "character_id": "1408",
+          "name": "Phainon",
+          "eidolon": 0,
+          "light_cone_id": "23044",
+          "light_cone": "Assim Arde a Alvorada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1313",
+          "name": "Sunday",
+          "eidolon": 0,
+          "light_cone_id": "23034",
+          "light_cone": "Uma Ascensão Aterrada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1413": {
+      "name": "Time padrão Fribbels · Noite Eterna",
+      "members": [
+        {
+          "character_id": "1415",
+          "name": "Cyrene",
+          "eidolon": 0,
+          "light_cone_id": "23052",
+          "light_cone": "Instante de Eterno Amor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1407",
+          "name": "Castorice",
+          "eidolon": 0,
+          "light_cone_id": "23040",
+          "light_cone": "O Adeus Mais Belo",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1414": {
+      "name": "Time padrão Fribbels · Permansor Terrae",
+      "members": [
+        {
+          "character_id": "1408",
+          "name": "Phainon",
+          "eidolon": 0,
+          "light_cone_id": "23044",
+          "light_cone": "Assim Arde a Alvorada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1313",
+          "name": "Sunday",
+          "eidolon": 0,
+          "light_cone_id": "23034",
+          "light_cone": "Uma Ascensão Aterrada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1415": {
+      "name": "Time padrão Fribbels · Cyrene",
+      "members": [
+        {
+          "character_id": "1407",
+          "name": "Castorice",
+          "eidolon": 0,
+          "light_cone_id": "23040",
+          "light_cone": "O Adeus Mais Belo",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1413",
+          "name": "Noite Eterna",
+          "eidolon": 0,
+          "light_cone_id": "23049",
+          "light_cone": "Ao Brilho Estelar da Noite Eterna",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1501": {
+      "name": "Time padrão Fribbels · Sparxie",
+      "members": [
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "23003",
+          "light_cone": "Mas a Batalha Não Acabou",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1502",
+          "name": "Yao Guang",
+          "eidolon": 0,
+          "light_cone_id": "21064",
+          "light_cone": "As Aventuras do Cogumelinho Fofinho",
+          "superimposition": 5
+        },
+        {
+          "character_id": "1217b1",
+          "name": "Huohuo",
+          "eidolon": 0,
+          "light_cone_id": "23017",
+          "light_cone": "Noite Aterrorizante",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1502": {
+      "name": "Time padrão Fribbels · Yao Guang",
+      "members": [
+        {
+          "character_id": "1501",
+          "name": "Sparxie",
+          "eidolon": 0,
+          "light_cone_id": "23053",
+          "light_cone": "Deslumbramento Por Um Mundo Florido",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "23003",
+          "light_cone": "Mas a Batalha Não Acabou",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1217b1",
+          "name": "Huohuo",
+          "eidolon": 0,
+          "light_cone_id": "23017",
+          "light_cone": "Noite Aterrorizante",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1503": {
+      "name": "Time padrão Fribbels · Pearl",
+      "members": [
+        {
+          "character_id": "1506",
+          "name": "Loba Prateada Nv. 999",
+          "eidolon": 0,
+          "light_cone_id": "23057",
+          "light_cone": "Bem-vindo à Cidade Cósmica",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1501",
+          "name": "Sparxie",
+          "eidolon": 0,
+          "light_cone_id": "23053",
+          "light_cone": "Deslumbramento Por Um Mundo Florido",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1502",
+          "name": "Yao Guang",
+          "eidolon": 0,
+          "light_cone_id": "23054",
+          "light_cone": "Quando Ela Decidiu Ver",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1504": {
+      "name": "Time padrão Fribbels · Ashveil",
+      "members": [
+        {
+          "character_id": "1507",
+          "name": "Mortenax Blade",
+          "eidolon": 0,
+          "light_cone_id": "23059",
+          "light_cone": "Reforjado nas Chamas do Inferno",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1505": {
+      "name": "Time padrão Fribbels · Evanescia",
+      "members": [
+        {
+          "character_id": "1502",
+          "name": "Yao Guang",
+          "eidolon": 0,
+          "light_cone_id": "21064",
+          "light_cone": "As Aventuras do Cogumelinho Fofinho",
+          "superimposition": 5
+        },
+        {
+          "character_id": "8010",
+          "name": "Stelle",
+          "eidolon": 6,
+          "light_cone_id": "24006",
+          "light_cone": "Euforia Repleta de Bênçãos",
+          "superimposition": 5
+        },
+        {
+          "character_id": "1217b1",
+          "name": "Huohuo",
+          "eidolon": 0,
+          "light_cone_id": "23017",
+          "light_cone": "Noite Aterrorizante",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1506": {
+      "name": "Time padrão Fribbels · Loba Prateada Nv. 999",
+      "members": [
+        {
+          "character_id": "1501",
+          "name": "Sparxie",
+          "eidolon": 0,
+          "light_cone_id": "23053",
+          "light_cone": "Deslumbramento Por Um Mundo Florido",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1502",
+          "name": "Yao Guang",
+          "eidolon": 0,
+          "light_cone_id": "21064",
+          "light_cone": "As Aventuras do Cogumelinho Fofinho",
+          "superimposition": 5
+        },
+        {
+          "character_id": "1217b1",
+          "name": "Huohuo",
+          "eidolon": 0,
+          "light_cone_id": "23017",
+          "light_cone": "Noite Aterrorizante",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1507": {
+      "name": "Time padrão Fribbels · Mortenax Blade",
+      "members": [
+        {
+          "character_id": "1504",
+          "name": "Ashveil",
+          "eidolon": 0,
+          "light_cone_id": "23056",
+          "light_cone": "O Fim de uma Mentira",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1403",
+          "name": "Tribbie",
+          "eidolon": 0,
+          "light_cone_id": "23038",
+          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1510": {
+      "name": "Time padrão Fribbels · Himeko - Nova",
+      "members": [
+        {
+          "character_id": "1313",
+          "name": "Sunday",
+          "eidolon": 0,
+          "light_cone_id": "23034",
+          "light_cone": "Uma Ascensão Aterrada",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1306b1",
+          "name": "Sparkle",
+          "eidolon": 0,
+          "light_cone_id": "21018",
+          "light_cone": "Dance! Dance! Dance!",
+          "superimposition": 5
+        },
+        {
+          "character_id": "1414",
+          "name": "Permansor Terrae",
+          "eidolon": 0,
+          "light_cone_id": "23051",
+          "light_cone": "Ainda que o Caminho Seja Longo",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1512": {
+      "name": "Time padrão Fribbels · Robin - Summeretto",
+      "members": [
+        {
+          "character_id": "1402",
+          "name": "Aglaea",
+          "eidolon": 0,
+          "light_cone_id": "23036",
+          "light_cone": "Tempo Tecido em Ouro",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1415",
+          "name": "Cyrene",
+          "eidolon": 0,
+          "light_cone_id": "23052",
+          "light_cone": "Instante de Eterno Amor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "1513": {
+      "name": "Time padrão Fribbels · Aventurine - Veraneio",
+      "members": [
+        {
+          "character_id": "1504",
+          "name": "Ashveil",
+          "eidolon": 0,
+          "light_cone_id": "23056",
+          "light_cone": "O Fim de uma Mentira",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1507",
+          "name": "Mortenax Blade",
+          "eidolon": 0,
+          "light_cone_id": "23059",
+          "light_cone": "Reforjado nas Chamas do Inferno",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "8001": {
+      "name": "Time padrão Fribbels · Caelus",
+      "members": [
+        {
+          "character_id": "1101",
+          "name": "Bronya",
+          "eidolon": 0,
+          "light_cone_id": "23003",
+          "light_cone": "Mas a Batalha Não Acabou",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1303",
+          "name": "Ruan Mei",
+          "eidolon": 0,
+          "light_cone_id": "23019",
+          "light_cone": "Meu Passado no Espelho",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1217b1",
+          "name": "Huohuo",
+          "eidolon": 0,
+          "light_cone_id": "23017",
+          "light_cone": "Noite Aterrorizante",
+          "superimposition": 1
+        }
+      ]
+    },
+    "8002": {
+      "name": "Time padrão Fribbels · Stelle",
+      "members": [
+        {
+          "character_id": "1101",
+          "name": "Bronya",
+          "eidolon": 0,
+          "light_cone_id": "23003",
+          "light_cone": "Mas a Batalha Não Acabou",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1303",
+          "name": "Ruan Mei",
+          "eidolon": 0,
+          "light_cone_id": "23019",
+          "light_cone": "Meu Passado no Espelho",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1217b1",
+          "name": "Huohuo",
+          "eidolon": 0,
+          "light_cone_id": "23017",
+          "light_cone": "Noite Aterrorizante",
+          "superimposition": 1
+        }
+      ]
+    },
+    "8003": {
+      "name": "Time padrão Fribbels · Caelus",
+      "members": [
+        {
+          "character_id": "1308",
+          "name": "Acheron",
+          "eidolon": 0,
+          "light_cone_id": "23024",
+          "light_cone": "Ao Longo da Margem Transitória",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1218",
+          "name": "Jiaoqiu",
+          "eidolon": 0,
+          "light_cone_id": "23029",
+          "light_cone": "Aquelas Incontáveis Primaveras",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1406",
+          "name": "Cipher",
+          "eidolon": 0,
+          "light_cone_id": "23043",
+          "light_cone": "Mentiras Dançando ao Vento",
+          "superimposition": 1
+        }
+      ]
+    },
+    "8004": {
+      "name": "Time padrão Fribbels · Stelle",
+      "members": [
+        {
+          "character_id": "1308",
+          "name": "Acheron",
+          "eidolon": 0,
+          "light_cone_id": "23024",
+          "light_cone": "Ao Longo da Margem Transitória",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1218",
+          "name": "Jiaoqiu",
+          "eidolon": 0,
+          "light_cone_id": "23029",
+          "light_cone": "Aquelas Incontáveis Primaveras",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1406",
+          "name": "Cipher",
+          "eidolon": 0,
+          "light_cone_id": "23043",
+          "light_cone": "Mentiras Dançando ao Vento",
+          "superimposition": 1
+        }
+      ]
+    },
+    "8005": {
+      "name": "Time padrão Fribbels · Caelus",
+      "members": [
+        {
+          "character_id": "1310b1",
+          "name": "Vaga-lume",
+          "eidolon": 0,
+          "light_cone_id": "23025",
+          "light_cone": "Onde os Sonhos Deveriam Repousar",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1225",
+          "name": "Fugue",
+          "eidolon": 0,
+          "light_cone_id": "23035",
+          "light_cone": "A Longa Estrada Leva para Casa",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "8006": {
+      "name": "Time padrão Fribbels · Stelle",
+      "members": [
+        {
+          "character_id": "1310b1",
+          "name": "Vaga-lume",
+          "eidolon": 0,
+          "light_cone_id": "23025",
+          "light_cone": "Onde os Sonhos Deveriam Repousar",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1225",
+          "name": "Fugue",
+          "eidolon": 0,
+          "light_cone_id": "23035",
+          "light_cone": "A Longa Estrada Leva para Casa",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1222",
+          "name": "Lingsha",
+          "eidolon": 0,
+          "light_cone_id": "23032",
+          "light_cone": "Só a Fragrância Permanece",
+          "superimposition": 1
+        }
+      ]
+    },
+    "8007": {
+      "name": "Time padrão Fribbels · Caelus",
+      "members": [
+        {
+          "character_id": "1413",
+          "name": "Noite Eterna",
+          "eidolon": 0,
+          "light_cone_id": "23049",
+          "light_cone": "Ao Brilho Estelar da Noite Eterna",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1415",
+          "name": "Cyrene",
+          "eidolon": 0,
+          "light_cone_id": "23052",
+          "light_cone": "Instante de Eterno Amor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    },
+    "8008": {
+      "name": "Time padrão Fribbels · Stelle",
+      "members": [
+        {
+          "character_id": "1413",
+          "name": "Noite Eterna",
+          "eidolon": 0,
+          "light_cone_id": "23049",
+          "light_cone": "Ao Brilho Estelar da Noite Eterna",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1415",
+          "name": "Cyrene",
+          "eidolon": 0,
+          "light_cone_id": "23052",
+          "light_cone": "Instante de Eterno Amor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1409",
+          "name": "Hyacine",
+          "eidolon": 0,
+          "light_cone_id": "23042",
+          "light_cone": "Que o Arco-Íris Permaneça no Céu",
+          "superimposition": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,3655 @@
+{
+  "source": "https://github.com/fribbels/hsr-optimizer",
+  "commit": "e227708a0f3dd2312f4440155a5f2e3a7aecc505",
+  "characters": {
+    "1001": {
+      "name": "March7th",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 1.0,
+        "DefenceAddedRatio": 1.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "DefenceAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "DefenceAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "DefenceAddedRatio"
+        ],
+        "ROPE": [
+          "DefenceAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1002": {
+      "name": "DanHeng",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "WindAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1003": {
+      "name": "Himeko",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "CriticalChance",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "FireAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1004": {
+      "name": "Welt",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "CriticalChance",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ImaginaryAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1004b1": {
+      "name": "WeltB1",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "CriticalChance",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ImaginaryAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1005": {
+      "name": "Kafka",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.5,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ThunderAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1005b1": {
+      "name": "KafkaB1",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ThunderAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1006": {
+      "name": "SilverWolf",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "CriticalChance",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "QuantumAddedRatio",
+          "AttackAddedRatio",
+          "HPAddedRatio",
+          "DefenceAddedRatio"
+        ],
+        "ROPE": [
+          "SPRatio",
+          "AttackAddedRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1006b1": {
+      "name": "SilverWolfB1",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "CriticalChance",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "QuantumAddedRatio",
+          "AttackAddedRatio",
+          "HPAddedRatio",
+          "DefenceAddedRatio"
+        ],
+        "ROPE": [
+          "SPRatio",
+          "AttackAddedRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1008": {
+      "name": "Arlan",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ThunderAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1009": {
+      "name": "Asta",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.25,
+        "DefenceAddedRatio": 0.25,
+        "HPDelta": 0.25,
+        "HPAddedRatio": 0.25,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1013": {
+      "name": "Herta",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "IceAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1014": {
+      "name": "Saber",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "WindAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1015": {
+      "name": "Archer",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 0.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "QuantumAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1101": {
+      "name": "Bronya",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio"
+        ]
+      }
+    },
+    "1102": {
+      "name": "Seele",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "QuantumAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1102b1": {
+      "name": "SeeleB1",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "QuantumAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1103": {
+      "name": "Serval",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "CriticalChance",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ThunderAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1104": {
+      "name": "Gepard",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 1.0,
+        "DefenceAddedRatio": 1.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.75,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "DefenceAddedRatio"
+        ],
+        "FOOT": [
+          "DefenceAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "DefenceAddedRatio"
+        ],
+        "ROPE": [
+          "DefenceAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1105": {
+      "name": "Natasha",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "HPAddedRatio",
+          "HealRatio"
+        ],
+        "FOOT": [
+          "HPAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "HPAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1106": {
+      "name": "Pela",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.25,
+        "DefenceAddedRatio": 0.25,
+        "HPDelta": 0.25,
+        "HPAddedRatio": 0.25,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "StatusProbability",
+          "HPAddedRatio",
+          "DefenceAddedRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "HPAddedRatio",
+          "DefenceAddedRatio",
+          "IceAddedRatio"
+        ],
+        "ROPE": [
+          "SPRatio"
+        ]
+      }
+    },
+    "1107": {
+      "name": "Clara",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "PhysicalAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1108": {
+      "name": "Sampo",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "WindAddedRatio"
+        ],
+        "ROPE": [
+          "SPRatio",
+          "AttackAddedRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1109": {
+      "name": "Hook",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "FireAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1110": {
+      "name": "Lynx",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "HPAddedRatio",
+          "HealRatio"
+        ],
+        "FOOT": [
+          "HPAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "HPAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1111": {
+      "name": "Luka",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "PhysicalAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1112": {
+      "name": "Topaz",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "FireAddedRatio",
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1201": {
+      "name": "Qingque",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "QuantumAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1202": {
+      "name": "Tingyun",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.25,
+        "DefenceAddedRatio": 0.25,
+        "HPDelta": 0.25,
+        "HPAddedRatio": 0.25,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "HPAddedRatio",
+          "DefenceAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "HPAddedRatio",
+          "DefenceAddedRatio",
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "SPRatio"
+        ]
+      }
+    },
+    "1203": {
+      "name": "Luocha",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "HealRatio",
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "HPAddedRatio",
+          "DefenceAddedRatio"
+        ],
+        "ROPE": [
+          "SPRatio"
+        ]
+      }
+    },
+    "1204": {
+      "name": "JingYuan",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ThunderAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1205": {
+      "name": "Blade",
+      "weights": {
+        "AttackDelta": 0.25,
+        "AttackAddedRatio": 0.25,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "CriticalChance"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "WindAddedRatio",
+          "HPAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio"
+        ]
+      }
+    },
+    "1205b1": {
+      "name": "BladeB1",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "CriticalChance",
+          "HPAddedRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "WindAddedRatio",
+          "HPAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio"
+        ]
+      }
+    },
+    "1206": {
+      "name": "Sushang",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "PhysicalAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1207": {
+      "name": "Yukong",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ImaginaryAddedRatio"
+        ],
+        "ROPE": [
+          "SPRatio",
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1208": {
+      "name": "FuXuan",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.75,
+        "DefenceAddedRatio": 0.75,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "HPAddedRatio",
+          "DefenceAddedRatio"
+        ],
+        "FOOT": [
+          "HPAddedRatio",
+          "DefenceAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "HPAddedRatio",
+          "DefenceAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio",
+          "DefenceAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1209": {
+      "name": "Yanqing",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "IceAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1210": {
+      "name": "Guinaifen",
+      "weights": {
+        "AttackDelta": 0.5,
+        "AttackAddedRatio": 0.5,
+        "DefenceDelta": 0.25,
+        "DefenceAddedRatio": 0.25,
+        "HPDelta": 0.25,
+        "HPAddedRatio": 0.25,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "FireAddedRatio"
+        ],
+        "ROPE": [
+          "SPRatio",
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1211": {
+      "name": "Bailu",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "HealRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "HPAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1212": {
+      "name": "Jingliu",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "IceAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1212b1": {
+      "name": "JingliuB1",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "HPAddedRatio"
+        ],
+        "FOOT": [
+          "HPAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "HPAddedRatio",
+          "IceAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1213": {
+      "name": "ImbibitorLunae",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ImaginaryAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1214": {
+      "name": "Xueyi",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "QuantumAddedRatio",
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1215": {
+      "name": "Hanya",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.25,
+        "DefenceAddedRatio": 0.25,
+        "HPDelta": 0.25,
+        "HPAddedRatio": 0.25,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio"
+        ]
+      }
+    },
+    "1217": {
+      "name": "Huohuo",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "HPAddedRatio",
+          "HealRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "HPAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1217b1": {
+      "name": "HuohuoB1",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "HPAddedRatio",
+          "HealRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "HPAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1218": {
+      "name": "Jiaoqiu",
+      "weights": {
+        "AttackDelta": 0.5,
+        "AttackAddedRatio": 0.5,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1220": {
+      "name": "Feixiao",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "WindAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1221": {
+      "name": "Yunli",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "PhysicalAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1222": {
+      "name": "Lingsha",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "HealRatio",
+          "DefenceAddedRatio",
+          "HPAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "DefenceAddedRatio",
+          "HPAddedRatio",
+          "FireAddedRatio"
+        ],
+        "ROPE": [
+          "BreakDamageAddedRatio",
+          "SPRatio",
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1223": {
+      "name": "Moze",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ThunderAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1224": {
+      "name": "March7thImaginary",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1225": {
+      "name": "Fugue",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1301": {
+      "name": "Gallagher",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [
+          "HealRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1302": {
+      "name": "Argenti",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "PhysicalAddedRatio",
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1303": {
+      "name": "RuanMei",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1304": {
+      "name": "Aventurine",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 1.0,
+        "DefenceAddedRatio": 1.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.25,
+        "CriticalDamage": 0.25,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "DefenceAddedRatio",
+          "CriticalChance",
+          "CriticalDamage"
+        ],
+        "FOOT": [
+          "DefenceAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "ImaginaryAddedRatio",
+          "DefenceAddedRatio"
+        ],
+        "ROPE": [
+          "DefenceAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1305": {
+      "name": "DrRatio",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ImaginaryAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1306": {
+      "name": "Sparkle",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio"
+        ]
+      }
+    },
+    "1306b1": {
+      "name": "SparkleB1",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio"
+        ]
+      }
+    },
+    "1307": {
+      "name": "BlackSwan",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "WindAddedRatio",
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1307b1": {
+      "name": "BlackSwanB1",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "WindAddedRatio",
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1308": {
+      "name": "Acheron",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "ThunderAddedRatio",
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1309": {
+      "name": "Robin",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "PhysicalAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1310": {
+      "name": "Firefly",
+      "weights": {
+        "AttackDelta": 0.5,
+        "AttackAddedRatio": 0.5,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1310b1": {
+      "name": "FireflyB1",
+      "weights": {
+        "AttackDelta": 0.5,
+        "AttackAddedRatio": 0.5,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1312": {
+      "name": "Misha",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "IceAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1313": {
+      "name": "Sunday",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage"
+        ],
+        "FOOT": [],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio"
+        ]
+      }
+    },
+    "1314": {
+      "name": "Jade",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "QuantumAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1315": {
+      "name": "Boothill",
+      "weights": {
+        "AttackDelta": 0.25,
+        "AttackAddedRatio": 0.25,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.25,
+        "CriticalDamage": 0.25,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1317": {
+      "name": "Rappa",
+      "weights": {
+        "AttackDelta": 0.5,
+        "AttackAddedRatio": 0.5,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1321": {
+      "name": "TheDahlia",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "1401": {
+      "name": "TheHerta",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "IceAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1402": {
+      "name": "Aglaea",
+      "weights": {
+        "AttackDelta": 0.5,
+        "AttackAddedRatio": 0.5,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ThunderAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1403": {
+      "name": "Tribbie",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "CriticalChance",
+          "HPAddedRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "QuantumAddedRatio",
+          "HPAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1404": {
+      "name": "Mydei",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "CriticalChance",
+          "HPAddedRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "ImaginaryAddedRatio",
+          "HPAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio"
+        ]
+      }
+    },
+    "1405": {
+      "name": "Anaxa",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "WindAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1406": {
+      "name": "Cipher",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.5,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "QuantumAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1407": {
+      "name": "Castorice",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 0.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "HPAddedRatio"
+        ],
+        "FOOT": [
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "HPAddedRatio",
+          "QuantumAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio"
+        ]
+      }
+    },
+    "1408": {
+      "name": "Phainon",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "PhysicalAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1409": {
+      "name": "Hyacine",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "HPAddedRatio",
+          "HealRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "HPAddedRatio",
+          "WindAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1410": {
+      "name": "Hysilens",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 1.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "PhysicalAddedRatio",
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1412": {
+      "name": "Cerydra",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.75,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "WindAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1413": {
+      "name": "Evernight",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "HPAddedRatio"
+        ],
+        "FOOT": [
+          "HPAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "HPAddedRatio",
+          "IceAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio"
+        ]
+      }
+    },
+    "1414": {
+      "name": "PermansorTerrae",
+      "weights": {
+        "AttackDelta": 1.0,
+        "AttackAddedRatio": 1.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "AttackAddedRatio",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "SPRatio",
+          "AttackAddedRatio"
+        ]
+      }
+    },
+    "1415": {
+      "name": "Cyrene",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "HPAddedRatio",
+          "CriticalChance",
+          "CriticalDamage"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "HPAddedRatio",
+          "IceAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio"
+        ]
+      }
+    },
+    "1501": {
+      "name": "Sparxie",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "AttackAddedRatio"
+        ],
+        "ORBIT": [
+          "FireAddedRatio",
+          "AttackAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1502": {
+      "name": "Yaoguang",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio"
+        ]
+      }
+    },
+    "1503": {
+      "name": "Pearl",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 1.0,
+        "DefenceAddedRatio": 1.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "DefenceAddedRatio",
+          "HealRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "DefenceAddedRatio"
+        ],
+        "ORBIT": [
+          "DefenceAddedRatio"
+        ],
+        "ROPE": [
+          "SPRatio",
+          "DefenceAddedRatio"
+        ]
+      }
+    },
+    "1504": {
+      "name": "Ashveil",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ThunderAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1505": {
+      "name": "Evanescia",
+      "weights": {
+        "AttackDelta": 0.25,
+        "AttackAddedRatio": 0.25,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 0.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage"
+        ],
+        "FOOT": [],
+        "ORBIT": [],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1506": {
+      "name": "SilverWolfLv999",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage"
+        ],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": []
+      }
+    },
+    "1507": {
+      "name": "MortenaxBlade",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "CriticalChance",
+          "HPAddedRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "FireAddedRatio",
+          "HPAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1508": {
+      "name": "RinTohsaka",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "AttackAddedRatio"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "QuantumAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1509": {
+      "name": "Gilgamesh",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "AttackAddedRatio"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "ThunderAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1510": {
+      "name": "HimekoNova",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "AttackAddedRatio"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "FireAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1512": {
+      "name": "RobinSummeretto",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 1.0,
+        "HPAddedRatio": 1.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "HPAddedRatio"
+        ],
+        "FOOT": [
+          "SpeedDelta",
+          "HPAddedRatio"
+        ],
+        "ORBIT": [
+          "HPAddedRatio",
+          "WindAddedRatio"
+        ],
+        "ROPE": [
+          "HPAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "1513": {
+      "name": "AventurineWaveflair",
+      "weights": {
+        "AttackDelta": 0.25,
+        "AttackAddedRatio": 0.25,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "8001": {
+      "name": "TrailblazerDestructionCaelus",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "PhysicalAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "8002": {
+      "name": "TrailblazerDestructionStelle",
+      "weights": {
+        "AttackDelta": 0.75,
+        "AttackAddedRatio": 0.75,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 1.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalChance",
+          "CriticalDamage",
+          "StatusProbability"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "AttackAddedRatio",
+          "PhysicalAddedRatio"
+        ],
+        "ROPE": [
+          "AttackAddedRatio",
+          "BreakDamageAddedRatio"
+        ]
+      }
+    },
+    "8003": {
+      "name": "TrailblazerPreservationCaelus",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 1.0,
+        "DefenceAddedRatio": 1.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.75,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "DefenceAddedRatio"
+        ],
+        "FOOT": [
+          "DefenceAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "DefenceAddedRatio"
+        ],
+        "ROPE": [
+          "DefenceAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "8004": {
+      "name": "TrailblazerPreservationStelle",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 1.0,
+        "DefenceAddedRatio": 1.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.75,
+        "StatusResistance": 0.5,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "DefenceAddedRatio"
+        ],
+        "FOOT": [
+          "DefenceAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [
+          "DefenceAddedRatio"
+        ],
+        "ROPE": [
+          "DefenceAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "8005": {
+      "name": "TrailblazerHarmonyCaelus",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "BreakDamageAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "8006": {
+      "name": "TrailblazerHarmonyStelle",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 0.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 1.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "BreakDamageAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "8007": {
+      "name": "TrailblazerRemembranceCaelus",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "HealRatio"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "8008": {
+      "name": "TrailblazerRemembranceStelle",
+      "weights": {
+        "AttackDelta": 0.0,
+        "AttackAddedRatio": 0.0,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.0,
+        "CriticalDamage": 1.0,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.25,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [
+          "CriticalDamage",
+          "HealRatio"
+        ],
+        "FOOT": [
+          "AttackAddedRatio",
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "AttackAddedRatio",
+          "SPRatio"
+        ]
+      }
+    },
+    "8009": {
+      "name": "TrailblazerElationCaelus",
+      "weights": {
+        "AttackDelta": 0.25,
+        "AttackAddedRatio": 0.25,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.25,
+        "CriticalDamage": 0.25,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio"
+        ]
+      }
+    },
+    "8010": {
+      "name": "TrailblazerElationStelle",
+      "weights": {
+        "AttackDelta": 0.25,
+        "AttackAddedRatio": 0.25,
+        "DefenceDelta": 0.0,
+        "DefenceAddedRatio": 0.0,
+        "HPDelta": 0.0,
+        "HPAddedRatio": 0.0,
+        "SpeedDelta": 1.0,
+        "CriticalChance": 0.25,
+        "CriticalDamage": 0.25,
+        "StatusProbability": 0.0,
+        "StatusResistance": 0.0,
+        "BreakDamageAddedRatio": 0.0
+      },
+      "main_stats": {
+        "BODY": [],
+        "FOOT": [
+          "SpeedDelta"
+        ],
+        "ORBIT": [],
+        "ROPE": [
+          "SPRatio"
+        ]
+      }
+    }
+  }
+}
