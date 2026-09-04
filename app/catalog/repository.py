@@ -12,6 +12,7 @@ from app.catalog.models import (
     CatalogLightCone,
     CatalogRank,
     CatalogSkill,
+    CatalogTrace,
 )
 from app.catalog.sync import catalog_cache_dir
 
@@ -105,6 +106,52 @@ class CatalogRepository:
                 icon=str(value.get("icon", "")),
             ))
         return sorted(result, key=lambda item: item.rank)
+
+    def traces_for(self, character: CatalogCharacter) -> list[CatalogTrace]:
+        source = self._data.get("character_skill_trees", {})
+        result: list[CatalogTrace] = []
+        for value in source.values():
+            if not isinstance(value, dict):
+                continue
+            trace_id = str(value.get("id", ""))
+            name = str(value.get("name", "")).strip()
+            if not trace_id.startswith(character.id) or not name:
+                continue
+            levels = value.get("levels", [])
+            unlock = next(
+                (level for level in levels if isinstance(level, dict)), {}
+            ) if isinstance(levels, list) else {}
+            raw_properties = unlock.get("properties", [])
+            properties: list[tuple[str, float]] = []
+            if isinstance(raw_properties, list):
+                for prop in raw_properties:
+                    if not isinstance(prop, dict):
+                        continue
+                    try:
+                        properties.append((
+                            str(prop.get("type", "")), float(prop.get("value", 0))
+                        ))
+                    except (TypeError, ValueError):
+                        continue
+            result.append(CatalogTrace(
+                id=trace_id,
+                name=name,
+                description=str(value.get("desc", "")),
+                parameters=self._parameters(value.get("params")),
+                icon=str(value.get("icon", "")),
+                properties=properties,
+                promotion=int(unlock.get("promotion", 0) or 0),
+                required_level=int(unlock.get("level", 0) or 0),
+            ))
+        return sorted(
+            result,
+            key=lambda item: (
+                item.is_stat_bonus,
+                item.promotion,
+                item.required_level,
+                item.id,
+            ),
+        )
 
     def character_stats(self, character_id: str) -> dict[str, float]:
         return self._promotion_stats("character_promotions", character_id, 80)

@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 APP_NAME = "Astral Optimizer"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 GITHUB_REPOSITORY = "CesarTOnishi/Astral-Optimizer"
 APP_USER_AGENT = f"AstralOptimizer/{APP_VERSION} (PySide6)"
 APP_ASSETS_DIR = Path(__file__).resolve().parent / "assets"
@@ -98,6 +98,19 @@ QLabel#brandMark { color: #78dcff; font-size: 28px; font-weight: 800; }
 QLabel#brandTitle { color: #f6f8ff; font-size: 20px; font-weight: 750; letter-spacing: 1px; }
 QLabel#muted, QLabel#footer, QLabel#characterMeta, QLabel#sectionHint { color: #8290aa; }
 QLabel#footer { font-size: 11px; }
+QLabel#syncStatus {
+    color: #8290aa; background-color: #0d1728; border: 1px solid #263a57;
+    border-radius: 8px; padding: 7px 8px; font-size: 9px; font-weight: 750;
+}
+QLabel#syncStatus[status="syncing"] {
+    color: #91e5ff; background-color: #10283a; border-color: #356985;
+}
+QLabel#syncStatus[status="success"] {
+    color: #8ce5b7; background-color: #102c28; border-color: #316a57;
+}
+QLabel#syncStatus[status="error"] {
+    color: #ff9cab; background-color: #321a26; border-color: #704052;
+}
 QFrame#searchPanel, QFrame#heroPanel, QFrame#contentPanel,
 QFrame#characterHero, QFrame#statCard {
     border: 1px solid #263452;
@@ -286,6 +299,42 @@ QLabel#lightConeBannerCaption {
 QFrame#statsPanel {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
         stop:0 #3e3767, stop:1 #292c59);
+}
+QFrame#buildHistoryBar {
+    background-color: rgba(12,20,37,205); border: 1px solid #40577a;
+    border-radius: 9px;
+}
+QFrame#buildHistoryPanel {
+    background-color: #171d35; border: 1px solid #424c73; border-radius: 11px;
+}
+QLabel#buildHistoryTitle {
+    color: #b9ddff; font-size: 9px; font-weight: 850;
+}
+QLabel#buildHistoryCounter {
+    color: #9deaff; background-color: #15364e; border: 1px solid #34708e;
+    border-radius: 7px; padding: 1px 7px; font-size: 8px; font-weight: 850;
+}
+QComboBox#buildHistorySelector {
+    min-height: 18px; padding: 5px 28px 5px 9px; border-radius: 7px;
+    font-size: 9px;
+}
+QPushButton#buildHistorySave, QPushButton#buildHistoryExport, QPushButton#buildHistoryCompare,
+QPushButton#buildHistoryDelete {
+    color: #dceaff; background-color: #172943; border: 1px solid #3a5679;
+    border-radius: 7px; padding: 6px 7px; font-size: 8px; font-weight: 800;
+}
+QPushButton#buildHistorySave:hover, QPushButton#buildHistoryExport:hover,
+QPushButton#buildHistoryCompare:hover {
+    color: #ffffff; background-color: #214268; border-color: #65b8e2;
+}
+QPushButton#buildHistoryDelete { color: #ffb0ba; }
+QPushButton#buildHistoryDelete:hover {
+    color: #ffffff; background-color: #58263a; border-color: #b65370;
+}
+QPushButton#buildHistorySave:disabled, QPushButton#buildHistoryExport:disabled,
+QPushButton#buildHistoryCompare:disabled,
+QPushButton#buildHistoryDelete:disabled {
+    color: #65738a; background-color: #111a2a; border-color: #29384f;
 }
 QFrame#relicsPanel { background-color: #242552; }
 QWidget#warpPage { background-color: #080d19; }
@@ -767,6 +816,61 @@ QDialog#authDialog QLineEdit[invalid="true"] {
     selection-background-color: #a8394c;
 }
 QDialog#rankRedirectDialog { background-color: transparent; }
+QDialog#buildComparisonDialog { color: #eaf1ff; background-color: transparent; }
+QFrame#buildComparisonModal {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #091322, stop:0.58 #101a2e, stop:1 #20172f);
+    border: 1px solid #50698f; border-radius: 16px;
+}
+QFrame#buildComparisonHeader {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #162a45, stop:0.6 #17213c, stop:1 #2a1c42);
+    border: 1px solid #3d587c; border-radius: 11px;
+}
+QLabel#buildComparisonIcon {
+    color: #a8ecff; background-color: #173b58; border: 1px solid #4b9fc4;
+    border-radius: 19px; font-size: 19px; font-weight: 900;
+}
+QDialog#buildDeleteDialog { background-color: transparent; }
+QFrame#buildDeleteCard {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #111c30, stop:1 #24182d);
+    border: 1px solid #75465d; border-radius: 13px;
+}
+QLabel#buildDeleteTitle { color: #ffb0ba; font-size: 15px; font-weight: 850; }
+QLabel#buildDeleteMessage { color: #c8d2e2; font-size: 11px; }
+QLabel#buildComparisonTitle { color: #ffffff; font-size: 17px; font-weight: 850; }
+QLabel#buildComparisonSubtitle { color: #8fa8c8; font-size: 10px; }
+QFrame#buildComparisonSummary {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #121f35, stop:0.5 #172540, stop:1 #201d3d);
+    border: 1px solid #3a557b; border-radius: 12px;
+}
+QLabel#buildComparisonMetricLabel { color: #8499b8; font-size: 9px; font-weight: 800; }
+QLabel#buildComparisonMetric {
+    color: #edf4ff; font-size: 19px; font-weight: 850; padding: 4px;
+}
+QLabel#buildComparisonMetric[metricType="old"] { color: #b9c9e3; }
+QLabel#buildComparisonMetric[metricType="gain"] { color: #88e8ad; }
+QLabel#buildComparisonMetric[metricType="loss"] { color: #ff8795; }
+QLabel#buildComparisonMetric[metricType="equal"] { color: #8996aa; }
+QLabel#buildComparisonMetric[metricType="new"] { color: #8edfff; }
+QLabel#buildComparisonCone, QLabel#buildComparisonTeam, QLabel#buildComparisonRelics {
+    color: #cfdaec; background-color: #101c30; border: 1px solid #304968;
+    border-radius: 9px; padding: 10px 12px; font-size: 10px; font-weight: 700;
+}
+QLabel#buildComparisonTeam { color: #9edfff; }
+QTableWidget#buildComparisonTable {
+    color: #e8eef9; background-color: #101a2d; alternate-background-color: #142139;
+    border: 1px solid #3a5277; border-radius: 10px; gridline-color: transparent;
+}
+QTableWidget#buildComparisonTable::item {
+    padding: 7px; border-bottom: 1px solid #213553;
+}
+QTableWidget#buildComparisonTable QHeaderView::section {
+    color: #bed0e8; background-color: #192944; border: none;
+    border-right: 1px solid #344b6e; padding: 8px; font-size: 10px; font-weight: 800;
+}
 QFrame#rankRedirectModal {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
         stop:0 #121e33, stop:0.58 #17213b, stop:1 #281d43);
@@ -961,6 +1065,9 @@ QLabel#characterSummaryBadge {
 QFrame#characterInfoSection {
     background-color: #0e182a; border: 1px solid #2e4362; border-radius: 12px;
 }
+QFrame#characterInfoSection[collapsed="true"] {
+    background-color: #0c1626; border-color: #263b58;
+}
 QLabel#characterSectionTitle {
     color: #f1f6ff; font-size: 15px; font-weight: 900; letter-spacing: 1px;
 }
@@ -968,6 +1075,27 @@ QLabel#characterSectionHint { color: #8297b5; font-size: 10px; }
 QLabel#characterSectionCount {
     color: #9be5ff; background-color: #17334d; border: 1px solid #35617f;
     border-radius: 10px; padding: 4px 9px; font-size: 9px; font-weight: 900;
+}
+QPushButton#characterSectionToggle {
+    color: #9fdff5; background-color: #132a42; border: 1px solid #315a79;
+    border-radius: 8px; padding: 5px 10px; font-size: 9px; font-weight: 850;
+}
+QPushButton#characterSectionToggle:hover {
+    color: #ffffff; background-color: #1b3b59; border-color: #4d83a7;
+}
+QFrame#characterDetailTabBar {
+    background-color: #0b1424; border: 1px solid #2b405e; border-radius: 11px;
+}
+QPushButton#characterDetailTab {
+    min-height: 30px; color: #8fa3c0; background-color: transparent;
+    border: 1px solid transparent; border-radius: 7px; font-size: 10px;
+    font-weight: 850;
+}
+QPushButton#characterDetailTab:hover {
+    color: #dff7ff; background-color: #132740; border-color: #294c6b;
+}
+QPushButton#characterDetailTab:checked {
+    color: #ffffff; background-color: #1b4968; border-color: #55a4cc;
 }
 QFrame#coneAnalysisPanel {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,

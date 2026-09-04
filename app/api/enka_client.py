@@ -57,12 +57,18 @@ class EnkaClient(QObject):
         super().__init__(parent)
         self.worker: AccountFetchWorker | None = None
         self.cache: dict[str, tuple[float, AccountSummary]] = {}
+        self.pending_request: tuple[str, bool] | None = None
 
     @property
     def is_busy(self) -> bool:
         return self.worker is not None and self.worker.isRunning()
 
     def fetch_account(self, uid: str, *, force: bool = False) -> None:
+        if self.is_busy:
+            if self.worker is not None and self.worker.uid == uid:
+                return
+            self.pending_request = (uid, force)
+            return
         cached = None if force else self.cache.get(uid)
         if cached and cached[0] > time.time():
             remaining = max(round(cached[0] - time.time()), 1)
@@ -71,9 +77,6 @@ class EnkaClient(QObject):
                 35,
                 lambda: self._emit_cached_account(uid, cached[1], remaining),
             )
-            return
-
-        if self.is_busy:
             return
 
         self.loading_changed.emit(True)
@@ -98,6 +101,8 @@ class EnkaClient(QObject):
 
     def _account_ready(self, uid: str, account: AccountSummary) -> None:
         self.cache[uid] = (time.time() + account.ttl, account)
+        if self.pending_request is not None and self.pending_request[0] != uid:
+            return
         if account.characters:
             message = f"{len(account.characters)} personagem(ns) carregado(s) do Showcase."
         else:
@@ -108,4 +113,10 @@ class EnkaClient(QObject):
         if self.worker is not None:
             self.worker.deleteLater()
             self.worker = None
+        pending = self.pending_request
+        self.pending_request = None
+        if pending is not None:
+            uid, force = pending
+            self.fetch_account(uid, force=force)
+            return
         self.loading_changed.emit(False)

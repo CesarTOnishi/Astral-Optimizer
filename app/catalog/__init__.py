@@ -1,4 +1,10 @@
-from app.catalog.models import CatalogCharacter, CatalogLightCone, CatalogRank, CatalogSkill
+from app.catalog.models import (
+    CatalogCharacter,
+    CatalogLightCone,
+    CatalogRank,
+    CatalogSkill,
+    CatalogTrace,
+)
 from app.catalog.repository import CatalogRepository
 from app.catalog.sync import CatalogSyncWorker
 
@@ -9,4 +15,5 @@ __all__ = [
     "CatalogRepository",
     "CatalogSkill",
     "CatalogSyncWorker",
+    "CatalogTrace",
 ]

@@ -5,10 +5,11 @@ import json
 import time
 import unicodedata
 
-from PySide6.QtCore import QSettings, QTimer, Qt, QUrl
+from PySide6.QtCore import QSettings, QStandardPaths, QTimer, Qt, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
+    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -31,6 +32,7 @@ from app.auth import AuthService
 from app.benchmark import BenchmarkEngine
 from app.benchmark.fribbels_client import FribbelsBenchmarkWorker, engine_available
 from app.benchmark.teams import default_team
+from app.build_history import BuildHistoryDatabase
 from app.cloud import GoogleDriveService, GoogleDriveWorker
 from app.config import (
     APP_HOME_BACKGROUND,
@@ -41,7 +43,14 @@ from app.config import (
 )
 from app.models import AccountSummary, CharacterStat, CharacterSummary
 from app.relics import RelicDatabase
+from app.sync_manager import BackgroundSyncManager
 from app.ui.auth_dialogs import AuthDialog, SettingsDialog
+from app.ui.build_history import (
+    BuildComparisonDialog,
+    BuildHistoryBar,
+    ConfirmBuildDeleteDialog,
+)
+from app.ui.build_share import render_build_share_card
 from app.ui.catalog_panel import CatalogPanel
 from app.ui.friends_panel import FriendsPanel
 from app.ui.home_panel import HomePanel
@@ -187,6 +196,7 @@ class MainWindow(QMainWindow):
         self.benchmark_engine = BenchmarkEngine()
         self.image_loader = ImageLoader(self)
         self.relic_database = RelicDatabase()
+        self.build_history_database = BuildHistoryDatabase()
         self.current_characters: list[CharacterSummary] = []
         self.current_character_id = ""
         self.current_uid = ""
@@ -196,6 +206,13 @@ class MainWindow(QMainWindow):
         self.own_account_user_id: int | None = None
         self.pending_account_target = "builds"
         self.sidebar_expanded = True
+        self.account_sync_failed = False
+        self.failed_sync_tasks: set[str] = set()
+        self.sync_manager = BackgroundSyncManager(self)
+        self.sync_state = "idle"
+        self.sync_message = "Sincronizado"
+        self.sync_task_count = 0
+        self.sync_spinner_frame = 0
         self.benchmark_workers: set[FribbelsBenchmarkWorker] = set()
         self.drive_workers: set[GoogleDriveWorker] = set()
         self.update_check_worker: UpdateCheckWorker | None = None
@@ -215,9 +232,17 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self.setStyleSheet(APP_STYLESHEET)
+        self.sync_manager.changed.connect(self._sync_status_changed)
+        self.sync_spinner_timer = QTimer(self)
+        self.sync_spinner_timer.setInterval(320)
+        self.sync_spinner_timer.timeout.connect(self._advance_sync_spinner)
+        self.sync_spinner_timer.start()
         self.enka_client.loading_changed.connect(self._set_loading)
         self.enka_client.request_failed.connect(self._request_failed)
         self.enka_client.account_loaded.connect(self._account_loaded)
+        self.catalog_panel.background_sync_changed.connect(
+            self._catalog_sync_changed
+        )
         QTimer.singleShot(2600, self._check_updates_automatically)
 
     def _build_ui(self) -> None:
@@ -287,6 +312,7 @@ class MainWindow(QMainWindow):
         )
         self.content_splitter.setMinimumHeight(790)
         build_layout.addWidget(self.content_splitter)
+        build_layout.addWidget(self._build_build_history_panel())
         build_layout.addWidget(self._build_benchmark_section())
         self.build_scroll.setWidget(build_content)
         layout.addWidget(self.build_scroll, 1)
@@ -540,6 +566,14 @@ class MainWindow(QMainWindow):
         self.side_source.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.side_source)
 
+        self.sync_status = QLabel("●  Sincronizado")
+        self.sync_status.setObjectName("syncStatus")
+        self.sync_status.setProperty("status", "idle")
+        self.sync_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.sync_status.setWordWrap(True)
+        self.sync_status.setToolTip("Nenhuma tarefa em segundo plano")
+        layout.addWidget(self.sync_status)
+
         self.auth_guest_button = QPushButton("◎   Entrar / Cadastrar")
         self.auth_guest_button.setObjectName("authButton")
         self.auth_guest_button.setToolTip("Entrar ou criar um perfil local")
@@ -656,12 +690,14 @@ class MainWindow(QMainWindow):
             )
         worker = UpdateCheckWorker(self)
         self.update_check_worker = worker
+        self.sync_manager.begin("update-check", "Verificando atualizações…")
         worker.succeeded.connect(self._update_check_succeeded)
         worker.failed.connect(self._update_check_failed)
         worker.finished.connect(self._update_check_finished)
         worker.start()
 
     def _update_check_succeeded(self, value: object) -> None:
+        self.sync_manager.finish("update-check", "Atualizações verificadas")
         self.update_settings.setValue("last_check", int(time.time()))
         release = value if isinstance(value, ReleaseInfo) else None
         if release is None:
@@ -683,6 +719,7 @@ class MainWindow(QMainWindow):
         self._show_update_available(release)
 
     def _update_check_failed(self, message: str) -> None:
+        self.sync_manager.fail("update-check", "Falha ao verificar atualizações")
         if self.update_check_manual:
             if self.settings_dialog:
                 self.settings_dialog.set_update_status(
@@ -767,15 +804,27 @@ class MainWindow(QMainWindow):
             return
         payload = self.warp_panel.database.export_owner(owner_id)
         worker = GoogleDriveWorker(lambda: service.upload_backup(payload))
+        sync_key = f"drive-backup:{owner_id}"
+        self.sync_manager.begin(sync_key, "Salvando backup no Google Drive…")
         self.drive_workers.add(worker)
         worker.succeeded.connect(
             lambda message: self.warp_panel._set_status(
                 f"{message} Importação e nuvem sincronizadas.", "success"
             )
         )
+        worker.succeeded.connect(
+            lambda _message: self.sync_manager.finish(
+                sync_key, "Backup salvo no Google Drive"
+            )
+        )
         worker.failed.connect(
             lambda message: self.warp_panel._set_status(
                 f"Importação salva localmente, mas o backup falhou: {message}", "error"
+            )
+        )
+        worker.failed.connect(
+            lambda _message: self.sync_manager.fail(
+                sync_key, "Falha no backup do Google Drive"
             )
         )
         worker.finished.connect(lambda: self._release_drive_worker(worker))
@@ -828,6 +877,8 @@ class MainWindow(QMainWindow):
             self.relic_inventory_panel.set_user(user)
         if hasattr(self, "friends_panel"):
             self.friends_panel.set_user(user)
+        if hasattr(self, "build_history_bar"):
+            self._refresh_build_history()
         if hasattr(self, "add_friend_button"):
             self._refresh_friend_action()
         if hasattr(self, "account_page"):
@@ -912,12 +963,9 @@ class MainWindow(QMainWindow):
     def _defer_with_loading(
         self, key: str, message: str, operation: Callable[[], None]
     ) -> None:
-        if not hasattr(self, "loading_overlay"):
-            operation()
-            return
-        self.loading_overlay.start(key, message)
+        self.sync_manager.begin(key, message)
         QTimer.singleShot(
-            35, lambda: self._finish_loading_operation(key, operation)
+            0, lambda: self._finish_loading_operation(key, operation)
         )
 
     def _finish_loading_operation(
@@ -926,15 +974,23 @@ class MainWindow(QMainWindow):
         try:
             operation()
         finally:
-            self.loading_overlay.stop(key)
+            self.sync_manager.finish(key)
 
     def _warp_busy_changed(self, busy: bool) -> None:
         if busy:
-            self.loading_overlay.start(
+            self.sync_manager.begin(
                 "warp-import", "Importando e organizando o histórico de Saltos…"
             )
         else:
-            self.loading_overlay.stop("warp-import")
+            self.sync_manager.finish("warp-import", "Saltos sincronizados")
+
+    def _catalog_sync_changed(self, busy: bool, message: str) -> None:
+        if busy:
+            self.sync_manager.begin("catalog", message)
+        elif message.startswith("Falha"):
+            self.sync_manager.fail("catalog", message)
+        else:
+            self.sync_manager.finish("catalog", message)
 
     def _show_build_content(self, loaded: bool) -> None:
         self.page_stack.setCurrentIndex(0)
@@ -966,12 +1022,46 @@ class MainWindow(QMainWindow):
             button.setText(f"{icon}   {text}" if expanded else icon)
             button.setStyleSheet("text-align:left;" if expanded else "text-align:center;")
         self._refresh_auth_sidebar()
+        self._render_sync_status()
+
+    def _sync_status_changed(self, state: str, message: str, count: int) -> None:
+        self.sync_state = state
+        self.sync_message = message
+        self.sync_task_count = count
+        self._render_sync_status()
+
+    def _advance_sync_spinner(self) -> None:
+        if self.sync_state != "syncing":
+            return
+        self.sync_spinner_frame = (self.sync_spinner_frame + 1) % 4
+        self._render_sync_status()
+
+    def _render_sync_status(self) -> None:
+        if not hasattr(self, "sync_status"):
+            return
+        if self.sync_state == "syncing":
+            icon = ("◌", "◔", "◑", "◕")[self.sync_spinner_frame]
+        else:
+            icon = {"success": "✓", "error": "!"}.get(self.sync_state, "●")
+        suffix = (
+            f" · {self.sync_task_count} tarefas" if self.sync_task_count > 1 else ""
+        )
+        full_message = f"{self.sync_message}{suffix}"
+        self.sync_status.setText(
+            f"{icon}  {full_message}" if self.sidebar_expanded else icon
+        )
+        self.sync_status.setToolTip(full_message)
+        self.sync_status.setProperty("status", self.sync_state)
+        self.sync_status.style().unpolish(self.sync_status)
+        self.sync_status.style().polish(self.sync_status)
 
     def _build_selector(self) -> QFrame:
         frame = QFrame()
         frame.setObjectName("selectorPanel")
-        layout = QHBoxLayout(frame)
+        layout = QVBoxLayout(frame)
         layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(7)
+        character_row = QHBoxLayout()
         title = QLabel("Personagens")
         title.setObjectName("sectionTitle")
         title.setFixedWidth(100)
@@ -982,8 +1072,9 @@ class MainWindow(QMainWindow):
         self.character_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.character_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.character_list.currentRowChanged.connect(self.show_character_details)
-        layout.addWidget(title)
-        layout.addWidget(self.character_list, 1)
+        character_row.addWidget(title)
+        character_row.addWidget(self.character_list, 1)
+        layout.addLayout(character_row)
         return frame
 
     def _build_art_panel(self) -> QFrame:
@@ -1117,6 +1208,7 @@ class MainWindow(QMainWindow):
         frame.setMinimumWidth(225)
         outer = QVBoxLayout(frame)
         outer.setContentsMargins(8, 8, 8, 8)
+
         header = QHBoxLayout()
         title = QLabel("RELÍQUIAS EQUIPADAS")
         title.setObjectName("sectionTitle")
@@ -1139,13 +1231,25 @@ class MainWindow(QMainWindow):
         self.relic_grid.setContentsMargins(0, 4, 0, 0)
         self.relic_grid.setHorizontalSpacing(7)
         self.relic_grid.setVerticalSpacing(7)
-        self.relic_grid.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.relic_empty = QLabel("As relíquias do personagem aparecerão aqui.")
         self.relic_empty.setObjectName("muted")
         self.relic_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.relic_grid.addWidget(self.relic_empty, 0, 0, 1, 2)
         self.relic_scroll.setWidget(content)
         outer.addWidget(self.relic_scroll, 1)
+        return frame
+
+    def _build_build_history_panel(self) -> QFrame:
+        frame = QFrame()
+        frame.setObjectName("buildHistoryPanel")
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(8, 8, 8, 8)
+        self.build_history_bar = BuildHistoryBar(wide=True)
+        self.build_history_bar.save_requested.connect(self.save_current_build)
+        self.build_history_bar.export_requested.connect(self.export_current_build)
+        self.build_history_bar.compare_requested.connect(self.compare_saved_build)
+        self.build_history_bar.delete_requested.connect(self.delete_saved_build)
+        layout.addWidget(self.build_history_bar)
         return frame
 
     def search_uid(self, requested_uid: str | None = None) -> None:
@@ -1220,8 +1324,8 @@ class MainWindow(QMainWindow):
         self.enka_client.fetch_account(uid)
 
     def _set_loading(self, loading: bool) -> None:
-        self.uid_input.setEnabled(not loading)
-        self.search_button.setEnabled(not loading)
+        self.uid_input.setEnabled(True)
+        self.search_button.setEnabled(True)
         user = self.auth_service.current_user
         self.account_load_button.setEnabled(
             not loading and bool(user and user.game_uid)
@@ -1231,15 +1335,21 @@ class MainWindow(QMainWindow):
             "Atualizando…" if loading and self.build_source == "own"
             else "↻  Atualizar conta"
         )
-        self.search_button.setText("Carregando…" if loading else "Pesquisar UID")
+        self.search_button.setText("Pesquisar UID")
         if loading:
-            self.loading_overlay.start(
+            self.account_sync_failed = False
+            self.sync_manager.begin(
                 "account", "Consultando personagens, builds e relíquias…"
             )
         else:
-            self.loading_overlay.stop("account")
+            if self.account_sync_failed:
+                self.account_sync_failed = False
+            else:
+                self.sync_manager.finish("account", "Conta sincronizada")
 
     def _request_failed(self, message: str) -> None:
+        self.account_sync_failed = True
+        self.sync_manager.fail("account", "Falha ao sincronizar a conta")
         if self.pending_account_target == "account":
             self.account_status.setObjectName("statusError")
             self.account_status.setText(message)
@@ -1362,11 +1472,11 @@ class MainWindow(QMainWindow):
             return
         self._detail_request += 1
         request = self._detail_request
-        self.loading_overlay.start(
+        self.sync_manager.begin(
             "character", f"Preparando a build de {self.current_characters[row].name}…"
         )
         QTimer.singleShot(
-            35, lambda: self._finish_character_details(row, request)
+            0, lambda: self._finish_character_details(row, request)
         )
 
     def _finish_character_details(self, row: int, request: int) -> None:
@@ -1375,13 +1485,14 @@ class MainWindow(QMainWindow):
         try:
             self._show_character_details(row)
         finally:
-            self.loading_overlay.stop("character")
+            self.sync_manager.finish("character", "Build preparada")
 
     def _show_character_details(self, row: int) -> None:
         if row < 0 or row >= len(self.current_characters):
             return
         character = self.current_characters[row]
         self.current_character_id = character.avatar_id
+        self._refresh_build_history()
         self.detail_name.setText(character.name)
         self.detail_rarity.setText("★" * character.rarity)
         self.level_badge.setText(f"NV. {character.level}")
@@ -1497,7 +1608,7 @@ class MainWindow(QMainWindow):
             return
         for index, relic in enumerate(character.relics):
             rating = self.benchmark_engine.rate_relic(character, relic)
-            card = RelicCard(relic, rating)
+            card = RelicCard(relic, rating, expand_vertical=True)
             self.current_relic_cards.append(card)
             self.image_loader.load(relic.icon_url, card.icon.set_image)
         self._reflow_relic_cards()
@@ -1507,6 +1618,8 @@ class MainWindow(QMainWindow):
             return
         while self.relic_grid.count():
             self.relic_grid.takeAt(0)
+        for row in range(6):
+            self.relic_grid.setRowStretch(row, 0)
         available_width = self.relics_panel.width() - 24
         columns = 2 if available_width >= 417 else 1
         self.relic_scroll.setVerticalScrollBarPolicy(
@@ -1515,6 +1628,9 @@ class MainWindow(QMainWindow):
         )
         for index, card in enumerate(self.current_relic_cards):
             self.relic_grid.addWidget(card, index // columns, index % columns)
+        used_rows = (len(self.current_relic_cards) + columns - 1) // columns
+        for row in range(used_rows):
+            self.relic_grid.setRowStretch(row, 1)
         self.relic_grid.setColumnStretch(0, 1)
         self.relic_grid.setColumnStretch(1, 1 if columns == 2 else 0)
 
@@ -1698,6 +1814,9 @@ class MainWindow(QMainWindow):
             return
         self.benchmark_card.set_loading()
         worker = FribbelsBenchmarkWorker(character, teammates, cache_key)
+        self.sync_manager.begin(
+            f"benchmark:{cache_key}", f"Calculando benchmark de {character.name}…"
+        )
         self.benchmark_workers.add(worker)
         self.active_benchmark_ids.add(cache_key)
         worker.succeeded.connect(self._fribbels_benchmark_ready)
@@ -1714,6 +1833,202 @@ class MainWindow(QMainWindow):
         self.upgrade_comparison_table.set_comparisons(result.upgrades)
         self.main_upgrade_comparison_table.set_comparisons(result.main_upgrades)
         self.ability_breakdown_card.set_result(result)
+        self._refresh_build_history()
+
+    def _current_character(self) -> CharacterSummary | None:
+        return next(
+            (
+                item for item in self.current_characters
+                if str(item.avatar_id) == self.current_character_id
+            ),
+            None,
+        )
+
+    def _build_snapshot_payload(self) -> dict[str, object] | None:
+        character = self._current_character()
+        result = self.benchmark_results.get(self.current_character_id)
+        if character is None or result is None:
+            return None
+        stats_by_key = {stat.key: stat for stat in character.stats}
+        snapshot_stats = [
+            stats_by_key[key] for key in PRIMARY_STATS if key in stats_by_key
+        ]
+        element_key = ELEMENT_STATS.get(character.element)
+        if element_key and element_key in stats_by_key:
+            snapshot_stats.append(stats_by_key[element_key])
+        return {
+            "character": {
+                "name": character.name,
+                "level": character.level,
+                "eidolon": character.eidolon,
+            },
+            "light_cone": {
+                "name": character.light_cone,
+                "level": character.light_cone_level,
+                "rank": character.light_cone_rank,
+            },
+            "stats": [
+                {
+                    "key": stat.key,
+                    "name": stat.name,
+                    "value": stat.value,
+                    "formatted": stat.formatted_value,
+                    "percentage": stat.is_percentage,
+                }
+                for stat in snapshot_stats
+            ],
+            "relics": [
+                {
+                    "fingerprint": self.relic_database.fingerprint(relic),
+                    "slot": relic.slot,
+                    "set": relic.set_name,
+                    "level": relic.level,
+                    "main_stat": relic.main_stat.formatted_value,
+                }
+                for relic in character.relics
+            ],
+            "benchmark": {
+                "score": result.score,
+                "grade": result.grade,
+                "damage_index": result.damage_index,
+                "source": result.engine_source,
+                "exact": result.exact_simulation,
+            },
+            "team": {
+                "name": result.team_name,
+                "custom": self._uses_custom_team(self.current_character_id),
+                "members": list(result.team_members),
+                "details": list(result.team_details),
+            },
+        }
+
+    def _history_context(self) -> tuple[int, str, str]:
+        user = self.auth_service.current_user
+        uid = self.current_account.uid if self.current_account is not None else self.current_uid
+        return (user.id if user is not None else 0, uid, self.current_character_id)
+
+    def _refresh_build_history(self) -> None:
+        if not hasattr(self, "build_history_bar"):
+            return
+        owner_id, uid, character_id = self._history_context()
+        snapshots = self.build_history_database.snapshots(owner_id, uid, character_id)
+        self.build_history_bar.set_snapshots(
+            snapshots, logged_in=self.auth_service.current_user is not None
+        )
+        self.build_history_bar.export_button.setEnabled(
+            bool(character_id and character_id in self.benchmark_results)
+        )
+
+    def save_current_build(self) -> None:
+        character = self._current_character()
+        payload = self._build_snapshot_payload()
+        if character is None or payload is None:
+            self.set_status("A build ainda não terminou de carregar.", "error")
+            return
+        cache_key = self._benchmark_cache_key(character)
+        if cache_key in self.active_benchmark_ids:
+            self.set_status(
+                "Aguarde o DPS Benchmark terminar antes de salvar a build.", "error"
+            )
+            return
+        owner_id, uid, character_id = self._history_context()
+        try:
+            self.build_history_database.save(
+                owner_id, uid, character_id, character.name, payload
+            )
+        except (ValueError, RuntimeError) as error:
+            self.set_status(str(error), "error")
+            return
+        self._refresh_build_history()
+        self.set_status(
+            f"Build de {character.name} salva com o DPS Benchmark atual.", "success"
+        )
+
+    def export_current_build(self) -> None:
+        character = self._current_character()
+        payload = self._build_snapshot_payload()
+        result = self.benchmark_results.get(self.current_character_id)
+        if character is None or payload is None or result is None:
+            self.set_status("A build atual ainda não terminou de carregar.", "error")
+            return
+        if self._benchmark_cache_key(character) in self.active_benchmark_ids:
+            self.set_status(
+                "Aguarde o DPS Benchmark terminar antes de exportar a imagem.", "error"
+            )
+            return
+
+        relic_visuals = []
+        for index, relic in enumerate(character.relics):
+            icon = QPixmap()
+            if index < len(self.current_relic_cards):
+                current_icon = self.current_relic_cards[index].icon.pixmap()
+                if current_icon is not None:
+                    icon = current_icon
+            relic_visuals.append(
+                (relic, self.benchmark_engine.rate_relic(character, relic), icon)
+            )
+        card = render_build_share_card(
+            character,
+            result,
+            self.current_uid,
+            self.character_art.source,
+            self.light_cone_banner.source,
+            list(payload.get("stats", [])),
+            relic_visuals,
+            custom_team=self._uses_custom_team(self.current_character_id),
+        )
+        safe_name = "".join(
+            value if value.isalnum() else "_" for value in character.name
+        ).strip("_") or character.avatar_id
+        pictures = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.PicturesLocation
+        )
+        suggested = f"{pictures}/AstralOptimizer_{safe_name}_{self.current_uid}.png"
+        path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Exportar build como imagem",
+            suggested,
+            "Imagem PNG (*.png)",
+        )
+        if not path:
+            return
+        if not path.casefold().endswith(".png"):
+            path += ".png"
+        if not card.save(path, "PNG"):
+            self.set_status("Não foi possível salvar a imagem da build.", "error")
+            return
+        self.set_status("Cartão da build exportado e pronto para compartilhar.", "success")
+
+    def compare_saved_build(self, snapshot_id: int) -> None:
+        payload = self._build_snapshot_payload()
+        owner_id, uid, character_id = self._history_context()
+        if payload is None:
+            self.set_status("A build atual ainda não terminou de carregar.", "error")
+            return
+        snapshot = next(
+            (
+                item for item in self.build_history_database.snapshots(
+                    owner_id, uid, character_id
+                )
+                if item.id == snapshot_id
+            ),
+            None,
+        )
+        if snapshot is None:
+            self._refresh_build_history()
+            self.set_status("Essa build salva não foi encontrada.", "error")
+            return
+        BuildComparisonDialog(snapshot, payload, self).exec()
+
+    def delete_saved_build(self, snapshot_id: int) -> None:
+        owner_id, _uid, _character_id = self._history_context()
+        if not ConfirmBuildDeleteDialog(self).exec():
+            return
+        if self.build_history_database.delete(owner_id, snapshot_id):
+            self._refresh_build_history()
+            self.set_status("Build salva excluída.", "success")
+        else:
+            self.set_status("Não foi possível encontrar a build salva.", "error")
 
     def _fribbels_benchmark_ready(self, cache_key: str, payload: object) -> None:
         if not isinstance(payload, dict):
@@ -1736,6 +2051,7 @@ class MainWindow(QMainWindow):
             self._render_benchmark(result)
 
     def _fribbels_benchmark_failed(self, cache_key: str, message: str) -> None:
+        sync_key = f"benchmark:{cache_key}"
         character = next(
             (
                 item for item in self.current_characters
@@ -1746,6 +2062,8 @@ class MainWindow(QMainWindow):
         if character is not None and self.current_character_id == str(character.avatar_id):
             character_id = str(character.avatar_id)
             if "não possui DPS Benchmark" in message:
+                self.failed_sync_tasks.add(sync_key)
+                self.sync_manager.finish(sync_key, "Benchmark indisponível para esta build")
                 self.unsupported_benchmark_characters.add(character_id)
                 result = self.benchmark_results.get(character_id)
                 if result is not None:
@@ -1753,6 +2071,8 @@ class MainWindow(QMainWindow):
                     self._render_benchmark(result)
                 return
             self.benchmark_card.set_engine_error(message)
+        self.failed_sync_tasks.add(sync_key)
+        self.sync_manager.fail(sync_key, "Falha ao calcular o benchmark")
 
     @staticmethod
     def _mark_benchmark_unsupported(result) -> None:  # type: ignore[no-untyped-def]
@@ -1768,6 +2088,11 @@ class MainWindow(QMainWindow):
         result.engine_source = "unsupported"
 
     def _benchmark_worker_finished(self, worker: FribbelsBenchmarkWorker) -> None:
+        sync_key = f"benchmark:{worker.request_key}"
+        if sync_key in self.failed_sync_tasks:
+            self.failed_sync_tasks.discard(sync_key)
+        else:
+            self.sync_manager.finish(sync_key, "Benchmark calculado")
         self.active_benchmark_ids.discard(worker.request_key)
         self.benchmark_workers.discard(worker)
         worker.deleteLater()

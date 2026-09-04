@@ -24,7 +24,9 @@ from app.catalog import (
     CatalogCharacter,
     CatalogLightCone,
     CatalogRepository,
+    CatalogSkill,
     CatalogSyncWorker,
+    CatalogTrace,
 )
 from app.ui.image_loader import ImageLoader
 from app.ui.widgets import FadeComboBox, FRIBBELS_ASSETS
@@ -199,6 +201,8 @@ class InfoCard(QFrame):
 
 
 class CatalogPanel(QWidget):
+    background_sync_changed = Signal(bool, str)
+
     def __init__(
         self,
         image_loader: ImageLoader,
@@ -209,6 +213,7 @@ class CatalogPanel(QWidget):
         self.image_loader = image_loader
         self.repository = CatalogRepository()
         self.sync_worker: CatalogSyncWorker | None = None
+        self.sync_failed = False
         self.mode = "characters"
         self.cards: list[CatalogCard] = []
         self.card_cache: dict[str, dict[str, CatalogCard]] = {
@@ -533,9 +538,14 @@ class CatalogPanel(QWidget):
         ))
 
     def _build_character_detail(self, character: CatalogCharacter) -> None:
-        skills = self.repository.skills_for(character)
+        skills = self._deduplicate_character_skills(
+            self.repository.skills_for(character)
+        )
+        traces = self.repository.traces_for(character)
         ranks = self.repository.ranks_for(character)
-        self.detail_layout.addWidget(self._character_hero(character, len(skills), len(ranks)))
+        self.detail_layout.addWidget(self._character_hero(
+            character, len(skills), len(traces), len(ranks)
+        ))
 
         skill_cards: list[InfoCard] = []
         for skill in skills:
@@ -546,12 +556,42 @@ class CatalogPanel(QWidget):
             )
             self._load_remote(skill.icon, card.set_icon)
             skill_cards.append(card)
-        if skill_cards:
-            self.detail_layout.addWidget(self._info_section(
-                "HABILIDADES",
-                "Kit completo no nível máximo disponível no catálogo.",
+        skill_page = (
+            self._info_section(
+                "KIT PRINCIPAL",
+                "Habilidades e variações do personagem no nível máximo.",
                 skill_cards,
+            ) if skill_cards else self._details_missing()
+        )
+
+        trace_page = QWidget()
+        trace_layout = QVBoxLayout(trace_page)
+        trace_layout.setContentsMargins(0, 0, 0, 0)
+        trace_layout.setSpacing(9)
+        major_trace_cards: list[InfoCard] = []
+        stat_trace_cards: list[InfoCard] = []
+        for trace in traces:
+            card = InfoCard(
+                "BÔNUS" if trace.is_stat_bonus else "RASTRO",
+                trace.name,
+                self._trace_description(trace),
+            )
+            self._load_remote(trace.icon, card.set_icon)
+            (stat_trace_cards if trace.is_stat_bonus else major_trace_cards).append(card)
+        if major_trace_cards:
+            trace_layout.addWidget(self._info_section(
+                "RASTROS PRINCIPAIS",
+                "Novas passivas desbloqueadas durante a progressão.",
+                major_trace_cards,
             ))
+        if stat_trace_cards:
+            trace_layout.addWidget(self._info_section(
+                "BÔNUS DE ATRIBUTO",
+                "Atributos permanentes concedidos pela árvore de Rastros.",
+                stat_trace_cards,
+            ))
+        if not traces:
+            trace_layout.addWidget(self._details_missing())
 
         rank_cards: list[InfoCard] = []
         for rank in ranks:
@@ -562,17 +602,26 @@ class CatalogPanel(QWidget):
             )
             self._load_remote(rank.icon, card.set_icon)
             rank_cards.append(card)
-        if rank_cards:
-            self.detail_layout.addWidget(self._info_section(
+        rank_page = (
+            self._info_section(
                 "EIDOLONS",
                 "Efeitos adicionais desbloqueados por Eidolon.",
                 rank_cards,
-            ))
-        if not skill_cards:
-            self.detail_layout.addWidget(self._details_missing())
+            ) if rank_cards else self._details_missing()
+        )
+
+        self.detail_layout.addWidget(self._character_detail_tabs([
+            ("Kit principal", skill_page),
+            ("Rastros", trace_page),
+            ("Eidolons", rank_page),
+        ]))
 
     def _character_hero(
-        self, character: CatalogCharacter, skill_count: int, rank_count: int
+        self,
+        character: CatalogCharacter,
+        skill_count: int,
+        trace_count: int,
+        rank_count: int,
     ) -> QFrame:
         hero = QFrame()
         hero.setObjectName("characterAnalysisPanel")
@@ -626,18 +675,20 @@ class CatalogPanel(QWidget):
         identity.addStretch(1)
         information.addLayout(identity)
 
-        summary = QHBoxLayout()
+        summary = QGridLayout()
         summary.setSpacing(7)
-        for text in (
+        summary_items = [
             "NÍVEL 80",
             f"{skill_count} HABILIDADES",
+            f"{trace_count} RASTROS",
             f"{rank_count} EIDOLONS",
             f"ID {character.id}",
-        ):
+        ]
+        for index, text in enumerate(summary_items):
             badge = QLabel(text)
             badge.setObjectName("characterSummaryBadge")
-            summary.addWidget(badge)
-        summary.addStretch(1)
+            summary.addWidget(badge, index // 3, index % 3)
+        summary.setColumnStretch(3, 1)
         information.addLayout(summary)
 
         stats_title = QLabel("ATRIBUTOS NO NÍVEL 80")
@@ -675,7 +726,92 @@ class CatalogPanel(QWidget):
         return chip
 
     @staticmethod
-    def _info_section(title: str, subtitle: str, cards: list[InfoCard]) -> QFrame:
+    def _deduplicate_character_skills(
+        skills: list[CatalogSkill],
+    ) -> list[CatalogSkill]:
+        """Preserva o kit completo, removendo apenas entradas idênticas."""
+        unique: list[CatalogSkill] = []
+        seen: set[tuple[str, str, str]] = set()
+        for skill in skills:
+            key = (
+                skill.type_name.strip().casefold(),
+                skill.name.strip().casefold(),
+                " ".join(skill.description.split()).casefold(),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(skill)
+        return unique
+
+    def _trace_description(self, trace: CatalogTrace) -> str:
+        params = trace.parameters[-1] if trace.parameters else []
+        details = self.repository.format_description(trace.description, params).strip()
+        if trace.properties:
+            values = []
+            for property_name, value in trace.properties:
+                rendered = f"+{value:g}" if property_name == "SpeedDelta" else f"+{value * 100:g}%"
+                values.append(rendered)
+            details = f"Valor concedido: {' · '.join(values)}"
+
+        requirements: list[str] = []
+        if trace.promotion:
+            requirements.append(f"Ascensão {trace.promotion}")
+        if trace.required_level:
+            requirements.append(f"Nível {trace.required_level}")
+        unlock = " · ".join(requirements) if requirements else "Disponível inicialmente"
+        return f"{details}\nDesbloqueio: {unlock}" if details else f"Desbloqueio: {unlock}"
+
+    @staticmethod
+    def _character_detail_tabs(
+        pages: list[tuple[str, QWidget]],
+    ) -> QFrame:
+        container = QFrame()
+        container.setObjectName("characterDetailTabs")
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(9)
+
+        navigation = QFrame()
+        navigation.setObjectName("characterDetailTabBar")
+        navigation_layout = QHBoxLayout(navigation)
+        navigation_layout.setContentsMargins(5, 5, 5, 5)
+        navigation_layout.setSpacing(5)
+        buttons: list[QPushButton] = []
+
+        def activate(selected: int) -> None:
+            for index, ((_label, page), button) in enumerate(zip(pages, buttons)):
+                active = index == selected
+                page.setVisible(active)
+                button.setChecked(active)
+            container.updateGeometry()
+
+        for index, (label, page) in enumerate(pages):
+            button = QPushButton(label)
+            button.setObjectName("characterDetailTab")
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.clicked.connect(
+                lambda _checked=False, selected=index: activate(selected)
+            )
+            navigation_layout.addWidget(button, 1)
+            buttons.append(button)
+            layout.addWidget(page)
+            page.setVisible(index == 0)
+        layout.insertWidget(0, navigation)
+        if buttons:
+            buttons[0].setChecked(True)
+        return container
+
+    @staticmethod
+    def _info_section(
+        title: str,
+        subtitle: str,
+        cards: list[InfoCard],
+        *,
+        collapsible: bool = False,
+        expanded: bool = True,
+    ) -> QFrame:
         section = QFrame()
         section.setObjectName("characterInfoSection")
         outer = QVBoxLayout(section)
@@ -695,9 +831,17 @@ class CatalogPanel(QWidget):
         header.addLayout(headings)
         header.addStretch(1)
         header.addWidget(count, alignment=Qt.AlignmentFlag.AlignTop)
+        toggle: QPushButton | None = None
+        if collapsible:
+            toggle = QPushButton("▾  Recolher" if expanded else "›  Mostrar")
+            toggle.setObjectName("characterSectionToggle")
+            toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+            header.addWidget(toggle, alignment=Qt.AlignmentFlag.AlignTop)
         outer.addLayout(header)
 
-        columns = QHBoxLayout()
+        content = QWidget()
+        content.setObjectName("characterSectionContent")
+        columns = QHBoxLayout(content)
         columns.setContentsMargins(0, 0, 0, 0)
         columns.setSpacing(8)
         left = QVBoxLayout()
@@ -710,7 +854,20 @@ class CatalogPanel(QWidget):
         right.addStretch(1)
         columns.addLayout(left, 1)
         columns.addLayout(right, 1)
-        outer.addLayout(columns)
+        outer.addWidget(content)
+        content.setVisible(expanded)
+        section.setProperty("collapsed", not expanded)
+
+        if toggle is not None:
+            def toggle_content() -> None:
+                visible = not content.isVisible()
+                content.setVisible(visible)
+                toggle.setText("▾  Recolher" if visible else "›  Mostrar")
+                section.setProperty("collapsed", not visible)
+                section.style().unpolish(section)
+                section.style().polish(section)
+
+            toggle.clicked.connect(toggle_content)
         return section
 
     def _build_cone_detail(self, cone: CatalogLightCone) -> None:
@@ -946,7 +1103,9 @@ class CatalogPanel(QWidget):
     def synchronize(self) -> None:
         if self.sync_worker is not None and self.sync_worker.isRunning():
             return
+        self.sync_failed = False
         self.sync_button.setEnabled(False)
+        self.background_sync_changed.emit(True, "Atualizando catálogo…")
         self.sync_button.setText("Atualizando…")
         self.sync_worker = CatalogSyncWorker(self)
         self.sync_worker.progress.connect(self._set_status)
@@ -969,6 +1128,7 @@ class CatalogPanel(QWidget):
         self._set_status(f"Catálogo em português atualizado · versão {sha[:8]}", "success")
 
     def _sync_failed(self, message: str) -> None:
+        self.sync_failed = True
         self._set_status(f"Não foi possível atualizar: {message}. Usando os dados locais.", "error")
 
     def _sync_finished(self) -> None:
@@ -977,6 +1137,8 @@ class CatalogPanel(QWidget):
         if self.sync_worker is not None:
             self.sync_worker.deleteLater()
         self.sync_worker = None
+        message = "Falha ao atualizar o catálogo" if self.sync_failed else "Catálogo sincronizado"
+        self.background_sync_changed.emit(False, message)
 
     def _reset_card_cache(self) -> None:
         self._image_timer.stop()

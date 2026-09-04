@@ -1144,6 +1144,7 @@ class RelicCard(QFrame):
         *,
         holder_name: str = "",
         previous_holder_name: str = "",
+        expand_vertical: bool = False,
     ) -> None:
         super().__init__()
         self.setObjectName("relicCard")
@@ -1153,8 +1154,14 @@ class RelicCard(QFrame):
             202 if holder_name or previous_holder_name else 176
         )
         self.setMinimumSize(205, card_height)
-        self.setMaximumHeight(card_height)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        if expand_vertical:
+            # Na grade equipada, três linhas ocupam a coluna sem criar um
+            # rodapé vazio, mas o limite evita cartões exageradamente altos.
+            self.setMaximumHeight(max(card_height, 232))
+            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        else:
+            self.setMaximumHeight(card_height)
+            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(9, 7, 9, 7)
         layout.setSpacing(4)
@@ -1230,6 +1237,8 @@ class RelicCard(QFrame):
             # cartão. Antes disso, o Qt o trata como uma janela independente.
             upgrades.setVisible(stat.upgrades > 0)
         if rating is not None:
+            if expand_vertical:
+                layout.addStretch(1)
             score_band = QFrame()
             score_band.setObjectName("relicScoreBand")
             score_row = QHBoxLayout(score_band)

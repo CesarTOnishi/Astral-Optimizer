@@ -91,3 +91,19 @@ class CatalogRank:
     description: str
     parameters: list[list[float]] = field(default_factory=list)
     icon: str = ""
+
+
+@dataclass(slots=True)
+class CatalogTrace:
+    id: str
+    name: str
+    description: str
+    parameters: list[list[float]] = field(default_factory=list)
+    icon: str = ""
+    properties: list[tuple[str, float]] = field(default_factory=list)
+    promotion: int = 0
+    required_level: int = 0
+
+    @property
+    def is_stat_bonus(self) -> bool:
+        return bool(self.properties)

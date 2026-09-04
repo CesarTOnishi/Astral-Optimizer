@@ -1,8 +1,7 @@
 # Astral Optimizer
 
-O aplicativo usa um ícone próprio e telas de carregamento durante a abertura,
-consulta de contas, troca de personagens, importação de Saltos e montagem das
-abas com maior volume de dados.
+O aplicativo usa um ícone próprio, abertura animada e um indicador discreto de
+sincronização na barra lateral para tarefas executadas em segundo plano.
 
 Aplicativo PySide6 para consultar builds públicas de Honkai: Star Rail pelo
 UID. O DPS Benchmark e os atributos em combate usam o motor do
@@ -58,6 +57,18 @@ powershell -ExecutionPolicy Bypass -File scripts/build_executable.ps1
 O aplicativo portátil será criado em `AstralOptimizer\AstralOptimizer.exe`.
 O pacote já inclui o Node.js usado pelo benchmark; quem receber essa pasta não
 precisa instalar Python, Node.js ou as dependências do projeto.
+
+## Sincronização em segundo plano
+
+Consultas de UID, atualização do catálogo, benchmark, verificação de novas
+versões e backup no Google Drive usam workers separados da interface. O estado
+aparece no rodapé da barra lateral como sincronizando, concluído ou com falha;
+se houver mais de uma tarefa, o contador também é exibido.
+
+Durante uma consulta, a pesquisa de UID continua disponível. Se outra UID for
+pesquisada antes do fim, ela entra na fila como a próxima consulta e um resultado
+anterior não substitui a conta solicitada mais recentemente. Apenas a instalação
+de uma atualização bloqueia a janela, para evitar interromper a troca de arquivos.
 
 ## Versões e atualização automática
 
@@ -129,8 +140,9 @@ pontuação, atualização recente ou nome do personagem.
 ## Catálogo de personagens e Cones de Luz
 
 A opção “Personagens e Cones” funciona sem UID e apresenta pesquisa, filtros
-por Caminho e raridade, atributos no nível 80, habilidades, eidolons e efeitos
-de sobreposição S1–S5. O catálogo básico reutiliza os dados e imagens já
+por Caminho e raridade, atributos no nível 80, habilidades, Rastros, eidolons e
+efeitos de sobreposição S1–S5. Nos personagens, Kit principal, Rastros e
+Eidolons ficam separados em guias. O catálogo básico reutiliza os dados e imagens já
 presentes no Fribbels. Ao abrir a página pela primeira vez ou selecionar
 “Atualizar catálogo”, os detalhes em português são sincronizados do
 StarRailRes e guardados em `%LOCALAPPDATA%\AstralOptimizer\catalog`.
