@@ -8,6 +8,7 @@ from PySide6.QtCore import (
     QPoint,
     QPropertyAnimation,
     QRegularExpression,
+    Signal,
     QTimer,
     Qt,
 )
@@ -32,6 +33,7 @@ from app.cloud import (
     GoogleDriveWorker,
     install_google_credentials,
 )
+from app.config import APP_VERSION
 from app.warp import WarpDatabase
 
 
@@ -257,6 +259,8 @@ class AuthDialog(QDialog):
 
 
 class SettingsDialog(QDialog):
+    update_requested = Signal()
+
     def __init__(
         self,
         user: AuthUser,
@@ -358,11 +362,49 @@ class SettingsDialog(QDialog):
         self._set_drive_checking()
         QTimer.singleShot(0, self._refresh_drive)
 
+        update_panel = QFrame()
+        update_panel.setObjectName("settingsUpdatePanel")
+        update_panel.setMinimumHeight(76)
+        update_layout = QHBoxLayout(update_panel)
+        update_layout.setContentsMargins(12, 10, 9, 10)
+        update_layout.setSpacing(10)
+        update_info = QVBoxLayout()
+        update_info.setSpacing(3)
+        update_title = QLabel("ASTRAL OPTIMIZER")
+        update_title.setObjectName("metricTitle")
+        self.update_status = QLabel(f"Versão {APP_VERSION}")
+        self.update_status.setObjectName("settingsVersion")
+        self.update_status.setWordWrap(True)
+        self.update_status.setMinimumHeight(30)
+        self.update_status.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+        update_info.addWidget(update_title)
+        update_info.addWidget(self.update_status)
+        self.update_button = QPushButton("Verificar atualização")
+        self.update_button.setObjectName("secondaryButton")
+        self.update_button.clicked.connect(self._request_update)
+        update_layout.addLayout(update_info, 1)
+        update_layout.addWidget(
+            self.update_button, alignment=Qt.AlignmentFlag.AlignVCenter
+        )
+        content.addWidget(update_panel)
+
         logout = QPushButton("Sair da conta")
         logout.setObjectName("dangerButton")
         logout.clicked.connect(self._logout)
         content.addWidget(logout)
         layout.addWidget(modal)
+
+    def _request_update(self) -> None:
+        self.update_button.setEnabled(False)
+        self.update_status.setText("Verificando nova versão…")
+        self.update_requested.emit()
+
+    def set_update_status(self, message: str, checking: bool = False) -> None:
+        self.update_status.setText(message)
+        self.update_button.setEnabled(not checking)
+        QTimer.singleShot(0, self.adjustSize)
 
     def _logout(self) -> None:
         self.logout_requested = True

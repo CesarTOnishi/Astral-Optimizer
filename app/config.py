@@ -1,7 +1,10 @@
 from pathlib import Path
 
 
-APP_USER_AGENT = "HonkaiBenchmark/0.2 (PySide6)"
+APP_NAME = "Astral Optimizer"
+APP_VERSION = "1.0.0"
+GITHUB_REPOSITORY = "CesarTOnishi/Astral-Optimizer"
+APP_USER_AGENT = f"AstralOptimizer/{APP_VERSION} (PySide6)"
 APP_ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 APP_ICON_PNG = APP_ASSETS_DIR / "astral_optimizer.png"
 APP_ICON_ICO = APP_ASSETS_DIR / "astral_optimizer.ico"
@@ -232,6 +235,16 @@ QLabel#statusInfo, QLabel#statusSuccess, QLabel#statusError {
 QLabel#statusInfo { color: #a8c8e8; background-color: #11243a; }
 QLabel#statusSuccess { color: #83e2b1; background-color: #102d29; }
 QLabel#statusError { color: #ff9b9b; background-color: #321b27; }
+QFrame#settingsUpdatePanel {
+    background-color: #101a2d; border: 1px solid #2d4263; border-radius: 10px;
+}
+QLabel#settingsVersion {
+    color: #8edfff; font-size: 10px; font-weight: 750;
+}
+QLabel#updateVersion {
+    color: #8ee1ff; background-color: #14283f; border: 1px solid #315572;
+    border-radius: 8px; padding: 8px 10px; font-size: 11px; font-weight: 800;
+}
 QScrollArea, QWidget#scrollContent { background-color: #0e1627; border: none; }
 QScrollArea QWidget#qt_scrollarea_viewport { background-color: #0e1627; }
 QScrollArea#buildScroll, QWidget#buildScrollContent { background-color: #080d19; border: none; }

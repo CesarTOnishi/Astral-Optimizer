@@ -44,6 +44,42 @@ submódulo antes da compilação; não é necessário alterar o Fribbels manualm
 Durante a consulta, a interface mostra primeiro o fallback local e o substitui
 assincronamente pelo resultado oficial do Fribbels.
 
+## Criar o executável no Windows
+
+Depois de compilar o motor Fribbels, instale o PyInstaller e execute a receita
+de empacotamento:
+
+```powershell
+python -m pip install pyinstaller
+powershell -ExecutionPolicy Bypass -File scripts/build_fribbels_engine.ps1
+powershell -ExecutionPolicy Bypass -File scripts/build_executable.ps1
+```
+
+O aplicativo portátil será criado em `AstralOptimizer\AstralOptimizer.exe`.
+O pacote já inclui o Node.js usado pelo benchmark; quem receber essa pasta não
+precisa instalar Python, Node.js ou as dependências do projeto.
+
+## Versões e atualização automática
+
+A versão atual fica em `APP_VERSION`, dentro de `app/config.py`, e aparece nas
+configurações abertas pela engrenagem. O aplicativo consulta em segundo plano a
+Release mais recente de `CesarTOnishi/Astral-Optimizer` no GitHub. A consulta
+automática ocorre no máximo uma vez a cada seis horas; também existe um botão
+para verificar manualmente.
+
+Para preparar os arquivos de uma nova Release, atualize `APP_VERSION`, recrie o
+executável e execute:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/package_release.ps1
+```
+
+Depois crie uma Release com a tag correspondente, como `v1.1.0`, e anexe os
+dois arquivos gerados em `release`: o ZIP e o `.sha256`. No executável Windows,
+o app valida, extrai e instala o ZIP após a confirmação do usuário, reiniciando
+em seguida. Bancos, login e configurações permanecem em
+`%LOCALAPPDATA%\AstralOptimizer` e não são substituídos.
+
 ## Perfis locais
 
 O aplicativo permite criar um perfil com nome de usuário, e-mail e senha. É

@@ -20,3 +20,6 @@ backups/
 third_party/fribbels-hsr-optimizer/node_modules/
 third_party/fribbels-hsr-optimizer/.leaderboard-build/
 third_party/fribbels-hsr-optimizer/.honkai-engine/
+build/
+/AstralOptimizer/
+/release/

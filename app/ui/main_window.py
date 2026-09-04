@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import json
+import time
 import unicodedata
 
 from PySide6.QtCore import QSettings, QTimer, Qt, QUrl
@@ -36,6 +37,7 @@ from app.config import (
     APP_ICON_ICO,
     APP_ICON_PNG,
     APP_STYLESHEET,
+    APP_VERSION,
 )
 from app.models import AccountSummary, CharacterStat, CharacterSummary
 from app.relics import RelicDatabase
@@ -48,6 +50,7 @@ from app.ui.loading import LoadingOverlay, load_icon_pixmap
 from app.ui.planner_panel import PlannerPanel
 from app.ui.rank_dialog import RankRedirectDialog
 from app.ui.team_dialog import CustomTeamDialog
+from app.ui.update_dialog import UpdateAvailableDialog
 from app.ui.relic_inventory_panel import RelicInventoryPanel
 from app.ui.warp_panel import WarpPanel
 from app.ui.widgets import (
@@ -64,6 +67,15 @@ from app.ui.widgets import (
     TeamCard,
     UpgradeComparisonTable,
     FRIBBELS_ASSETS,
+)
+from app.updater import (
+    PreparedUpdate,
+    ReleaseInfo,
+    UpdateCheckWorker,
+    UpdateDownloadWorker,
+    is_newer_version,
+    launch_installer,
+    running_from_bundle,
 )
 
 
@@ -186,11 +198,18 @@ class MainWindow(QMainWindow):
         self.sidebar_expanded = True
         self.benchmark_workers: set[FribbelsBenchmarkWorker] = set()
         self.drive_workers: set[GoogleDriveWorker] = set()
+        self.update_check_worker: UpdateCheckWorker | None = None
+        self.update_download_worker: UpdateDownloadWorker | None = None
+        self.prepared_update: PreparedUpdate | None = None
+        self.settings_dialog: SettingsDialog | None = None
+        self.update_check_manual = False
+        self.update_prompt_open = False
         self.benchmark_results = {}
         self.fribbels_cache: dict[str, dict[str, object]] = {}
         self.active_benchmark_ids: set[str] = set()
         self.unsupported_benchmark_characters: set[str] = set()
         self.team_settings = QSettings("Astral Optimizer", "Custom Teams")
+        self.update_settings = QSettings("Astral Optimizer", "Updates")
         self.current_relic_cards: list[RelicCard] = []
         self._detail_request = 0
 
@@ -199,6 +218,7 @@ class MainWindow(QMainWindow):
         self.enka_client.loading_changed.connect(self._set_loading)
         self.enka_client.request_failed.connect(self._request_failed)
         self.enka_client.account_loaded.connect(self._account_loaded)
+        QTimer.singleShot(2600, self._check_updates_automatically)
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -595,7 +615,10 @@ class MainWindow(QMainWindow):
             drive_service=GoogleDriveService(user),
             warp_database=self.warp_panel.database,
         )
+        self.settings_dialog = dialog
+        dialog.update_requested.connect(lambda: self.check_for_updates(manual=True))
         dialog.exec()
+        self.settings_dialog = None
         if dialog.cloud_changed:
             self.warp_panel.refresh()
         if dialog.logout_requested:
@@ -610,6 +633,130 @@ class MainWindow(QMainWindow):
             self._refresh_auth_sidebar()
             if dialog.uid_to_save:
                 self.set_status("UID principal salva. Abra Conta para carregá-la.")
+
+    def _check_updates_automatically(self) -> None:
+        try:
+            last_check = int(self.update_settings.value("last_check", 0) or 0)
+        except (TypeError, ValueError):
+            last_check = 0
+        if int(time.time()) - last_check >= 6 * 60 * 60:
+            self.check_for_updates(manual=False)
+
+    def check_for_updates(self, manual: bool = False) -> None:
+        if self.update_check_worker and self.update_check_worker.isRunning():
+            if manual and self.settings_dialog:
+                self.settings_dialog.set_update_status(
+                    "A verificação já está em andamento…", checking=True
+                )
+            return
+        self.update_check_manual = manual
+        if manual and self.settings_dialog:
+            self.settings_dialog.set_update_status(
+                "Consultando as Releases do GitHub…", checking=True
+            )
+        worker = UpdateCheckWorker(self)
+        self.update_check_worker = worker
+        worker.succeeded.connect(self._update_check_succeeded)
+        worker.failed.connect(self._update_check_failed)
+        worker.finished.connect(self._update_check_finished)
+        worker.start()
+
+    def _update_check_succeeded(self, value: object) -> None:
+        self.update_settings.setValue("last_check", int(time.time()))
+        release = value if isinstance(value, ReleaseInfo) else None
+        if release is None:
+            if self.update_check_manual and self.settings_dialog:
+                self.settings_dialog.set_update_status(
+                    f"Versão {APP_VERSION} · Nenhuma Release publicada no GitHub."
+                )
+            return
+        if not is_newer_version(release.version):
+            if self.update_check_manual and self.settings_dialog:
+                self.settings_dialog.set_update_status(
+                    f"Versão {APP_VERSION} · Você está usando a versão mais recente."
+                )
+            return
+        if self.settings_dialog:
+            self.settings_dialog.set_update_status(
+                f"Nova versão {release.version} disponível."
+            )
+        self._show_update_available(release)
+
+    def _update_check_failed(self, message: str) -> None:
+        if self.update_check_manual:
+            if self.settings_dialog:
+                self.settings_dialog.set_update_status(
+                    "Não foi possível verificar atualizações."
+                )
+            self.set_status(message, "error")
+
+    def _update_check_finished(self) -> None:
+        if self.update_check_worker:
+            self.update_check_worker.deleteLater()
+        self.update_check_worker = None
+
+    def _show_update_available(self, release: ReleaseInfo) -> None:
+        if self.update_prompt_open:
+            return
+        self.update_prompt_open = True
+        can_install = running_from_bundle() and bool(release.download_url)
+        parent = self.settings_dialog or self
+        dialog = UpdateAvailableDialog(release, can_install, parent)
+        accepted = bool(dialog.exec())
+        self.update_prompt_open = False
+        if not accepted:
+            return
+        if not can_install:
+            if release.page_url and not QDesktopServices.openUrl(QUrl(release.page_url)):
+                self.set_status("Não foi possível abrir a Release no navegador.", "error")
+            return
+        if self.settings_dialog:
+            self.settings_dialog.accept()
+        self._download_update(release)
+
+    def _download_update(self, release: ReleaseInfo) -> None:
+        if self.update_download_worker and self.update_download_worker.isRunning():
+            return
+        self.loading_overlay.start(
+            "app-update", f"Baixando o Astral Optimizer {release.version}…"
+        )
+        self.set_status(
+            "Baixando e preparando a atualização. O app reiniciará ao concluir."
+        )
+        self.prepared_update = None
+        worker = UpdateDownloadWorker(release)
+        self.update_download_worker = worker
+        worker.succeeded.connect(self._update_download_succeeded)
+        worker.failed.connect(self._update_download_failed)
+        worker.finished.connect(self._update_download_finished)
+        worker.start()
+
+    def _update_download_succeeded(self, value: object) -> None:
+        if not isinstance(value, PreparedUpdate):
+            self._update_download_failed("A atualização preparada é inválida.")
+            return
+        self.prepared_update = value
+
+    def _update_download_failed(self, message: str) -> None:
+        self.loading_overlay.stop("app-update")
+        self.set_status(f"Não foi possível atualizar: {message}", "error")
+
+    def _update_download_finished(self) -> None:
+        prepared = self.prepared_update
+        self.prepared_update = None
+        if self.update_download_worker:
+            self.update_download_worker.deleteLater()
+        self.update_download_worker = None
+        if prepared is None:
+            return
+        try:
+            launch_installer(prepared)
+        except Exception as error:
+            self._update_download_failed(str(error))
+            return
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
 
     def _backup_warps_to_drive(self, owner_id: int) -> None:
         user = self.auth_service.current_user

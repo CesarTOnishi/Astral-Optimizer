@@ -26,6 +26,9 @@ def engine_available() -> bool:
 
 
 def _node_executable() -> str:
+    bundled = PROJECT_ROOT / "runtime" / ("node.exe" if os.name == "nt" else "node")
+    if bundled.is_file():
+        return str(bundled)
     executable = shutil.which("node")
     if executable is None:
         raise FribbelsError("Node.js não foi encontrado no computador.")
