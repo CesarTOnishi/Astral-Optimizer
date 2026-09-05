@@ -1,5 +1,4 @@
 <div align="center">
-  <img src="app/assets/astral_optimizer.png" alt="Ícone do Astral Optimizer" width="112">
 
   # Astral Optimizer
 
