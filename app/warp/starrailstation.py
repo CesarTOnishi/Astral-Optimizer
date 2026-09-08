@@ -12,6 +12,7 @@ from app.warp.models import WarpRecord, WarpSummary
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 NS = {"m": MAIN_NS, "r": REL_NS}
+MAX_XLSX_SIZE = 5 * 1024 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,6 +124,12 @@ def import_starrailstation_xlsx(path: Path, uid: str) -> StarRailStationImport:
         raise ValueError("Defina uma UID principal de 9 números antes de importar o Excel.")
     if path.suffix.casefold() != ".xlsx":
         raise ValueError("Selecione um backup .xlsx do Star Rail Station.")
+    try:
+        file_size = path.stat().st_size
+    except OSError as error:
+        raise ValueError("Não foi possível acessar o arquivo XLSX selecionado.") from error
+    if file_size > MAX_XLSX_SIZE:
+        raise ValueError("O arquivo XLSX excede o limite de 5 MB.")
 
     reader = _WorkbookReader(path)
     try:
@@ -175,6 +182,7 @@ def import_starrailstation_xlsx(path: Path, uid: str) -> StarRailStationImport:
                     rank_type=rank,
                     time=_excel_time(row["E"]),
                     banner_title=banner_name,
+                    banner_id=_banner_id.strip(),
                     featured_name=_featured_name_for_record(
                         banners_by_title,
                         banner_name,

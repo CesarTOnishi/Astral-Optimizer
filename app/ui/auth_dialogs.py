@@ -12,8 +12,9 @@ from PySide6.QtCore import (
     QTimer,
     Qt,
 )
-from PySide6.QtGui import QRegularExpressionValidator
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QRegularExpressionValidator
 from PySide6.QtWidgets import (
+    QCheckBox,
     QDialog,
     QFileDialog,
     QFrame,
@@ -34,6 +35,7 @@ from app.cloud import (
     install_google_credentials,
 )
 from app.config import APP_VERSION
+from app.privacy import hide_uid_in_shared_images, set_hide_uid_in_shared_images
 from app.warp import WarpDatabase
 
 
@@ -258,6 +260,52 @@ class AuthDialog(QDialog):
         self.accept()
 
 
+class PrivacyCheckBox(QCheckBox):
+    """Checkbox consistente com o tema, sem depender do indicador do Windows."""
+
+    def __init__(self, text: str, parent: QWidget | None = None) -> None:
+        super().__init__(text, parent)
+        self.setMinimumHeight(26)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - API Qt
+        del event
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        box_size = 18.0
+        top = (self.height() - box_size) / 2.0
+        border = QColor("#8ddcf5" if self.isChecked() else "#527098")
+        if self.underMouse() or self.hasFocus():
+            border = QColor("#9be6ff")
+        painter.setPen(QPen(border, 1.2))
+        painter.setBrush(QColor("#498dc2" if self.isChecked() else "#0b1424"))
+        painter.drawRoundedRect(1.0, top, box_size, box_size, 5.0, 5.0)
+
+        if self.isChecked():
+            check = QPainterPath()
+            check.moveTo(5.0, top + 9.5)
+            check.lineTo(8.5, top + 13.0)
+            check.lineTo(15.2, top + 5.5)
+            pen = QPen(QColor("#ffffff"), 2.2)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPath(check)
+
+        painter.setPen(QColor("#eaf2ff" if self.isEnabled() else "#718099"))
+        painter.setFont(self.font())
+        painter.drawText(
+            29,
+            0,
+            max(0, self.width() - 29),
+            self.height(),
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            self.text(),
+        )
+        painter.end()
+
+
 class SettingsDialog(QDialog):
     update_requested = Signal()
 
@@ -337,6 +385,38 @@ class SettingsDialog(QDialog):
         content.addWidget(self.uid_input)
         content.addWidget(save_uid)
         content.addWidget(self.settings_message)
+
+        privacy_panel = QFrame()
+        privacy_panel.setObjectName("settingsPrivacyPanel")
+        privacy_layout = QVBoxLayout(privacy_panel)
+        privacy_layout.setContentsMargins(13, 11, 13, 12)
+        privacy_layout.setSpacing(7)
+        privacy_title = QLabel("PRIVACIDADE")
+        privacy_title.setObjectName("metricTitle")
+        self.hide_uid_checkbox = PrivacyCheckBox(
+            "Ocultar UID nas imagens compartilhadas"
+        )
+        self.hide_uid_checkbox.setObjectName("privacyCheckBox")
+        self.hide_uid_checkbox.setChecked(hide_uid_in_shared_images(user.id))
+        self.hide_uid_checkbox.setToolTip(
+            "Substitui os números da UID por pontos no cartão exportado."
+        )
+        self.hide_uid_checkbox.toggled.connect(
+            lambda hidden: set_hide_uid_in_shared_images(user.id, hidden)
+        )
+        privacy_hint = QLabel(
+            "Quando ativado, o cartão e o nome sugerido do arquivo não expõem sua UID."
+        )
+        privacy_hint.setObjectName("privacyHint")
+        privacy_hint.setWordWrap(True)
+        privacy_hint.setMinimumHeight(28)
+        privacy_hint.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+        )
+        privacy_layout.addWidget(privacy_title)
+        privacy_layout.addWidget(self.hide_uid_checkbox)
+        privacy_layout.addWidget(privacy_hint)
+        content.addWidget(privacy_panel)
 
         drive_label = QLabel("BACKUP NO GOOGLE DRIVE")
         drive_label.setObjectName("metricTitle")

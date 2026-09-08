@@ -6,7 +6,7 @@ from app.catalog.models import (
     CatalogTrace,
 )
 from app.catalog.repository import CatalogRepository
-from app.catalog.sync import CatalogSyncWorker
+from app.catalog.sync import CatalogSyncWorker, CatalogVersionCheckWorker
 
 __all__ = [
     "CatalogCharacter",
@@ -15,5 +15,6 @@ __all__ = [
     "CatalogRepository",
     "CatalogSkill",
     "CatalogSyncWorker",
+    "CatalogVersionCheckWorker",
     "CatalogTrace",
 ]

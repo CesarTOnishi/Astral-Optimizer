@@ -97,6 +97,10 @@ def _score_color(grade: str) -> str:
     return "#c5cde0"
 
 
+def share_uid_text(uid: str, hidden: bool) -> str:
+    return "UID •••••••••" if hidden else f"UID {uid}"
+
+
 def render_build_share_card(
     character: CharacterSummary,
     result: BenchmarkResult,
@@ -107,6 +111,7 @@ def render_build_share_card(
     relics: list[tuple[RelicSummary, RelicRating, QPixmap]],
     *,
     custom_team: bool,
+    hide_uid: bool = False,
 ) -> QPixmap:
     """Renderiza um cartão 16:9 pronto para compartilhar no Discord."""
     canvas = QPixmap(*CARD_SIZE)
@@ -139,7 +144,13 @@ def render_build_share_card(
         f"Nível {character.level}  ·  E{character.eidolon}  ·  {character.element}  ·  {character.path}",
         13, "#bcd0e9",
     )
-    _text(painter, QRectF(44, 557, 330, 22), f"UID {uid}", 12, "#80cfee")
+    _text(
+        painter,
+        QRectF(44, 557, 330, 22),
+        share_uid_text(uid, hide_uid),
+        12,
+        "#80cfee",
+    )
 
     cone_rect = QRectF(40, 586, 338, 51)
     painter.setBrush(QColor(10, 18, 33, 220))

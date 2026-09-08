@@ -43,13 +43,27 @@ def _download_json(url: str) -> dict[str, object]:
     return payload
 
 
-def synchronize_catalog(progress: Callable[[str], None] | None = None) -> str:
-    notify = progress or (lambda _message: None)
-    notify("Verificando a versão mais recente do catálogo…")
+def local_catalog_commit() -> str:
+    metadata_path = catalog_cache_dir() / "metadata.json"
+    try:
+        payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return ""
+    return str(payload.get("commit", "")).strip() if isinstance(payload, dict) else ""
+
+
+def latest_catalog_commit() -> str:
     commit = _download_json(API_COMMIT_URL)
     sha = str(commit.get("sha", "")).strip()
     if len(sha) != 40:
         raise ValueError("Não foi possível identificar a versão do StarRailRes.")
+    return sha
+
+
+def synchronize_catalog(progress: Callable[[str], None] | None = None) -> str:
+    notify = progress or (lambda _message: None)
+    notify("Verificando a versão mais recente do catálogo…")
+    sha = latest_catalog_commit()
 
     target = catalog_cache_dir()
     staging = target.parent / ".pt-staging"
@@ -94,3 +108,17 @@ class CatalogSyncWorker(QThread):
             self.failed.emit(str(error))
         else:
             self.succeeded.emit(sha)
+
+
+class CatalogVersionCheckWorker(QThread):
+    succeeded = Signal(bool, str)
+    failed = Signal(str)
+
+    def run(self) -> None:
+        try:
+            latest = latest_catalog_commit()
+            outdated = local_catalog_commit() != latest
+        except Exception as error:  # noqa: BLE001 - consulta opcional em segundo plano
+            self.failed.emit(str(error))
+        else:
+            self.succeeded.emit(outdated, latest)

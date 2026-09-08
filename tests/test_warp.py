@@ -6,7 +6,11 @@ import unittest
 from app.warp.database import WarpDatabase
 from app.warp.importer import extract_warp_url
 from app.warp.models import WarpRecord, WarpSummary
-from app.warp.starrailstation import _featured_name_for_record
+from app.warp.starrailstation import (
+    MAX_XLSX_SIZE,
+    _featured_name_for_record,
+    import_starrailstation_xlsx,
+)
 from app.warp.statistics import (
     STANDARD_CHARACTER_IDS,
     classify_five_star_history,
@@ -35,6 +39,15 @@ def warp(
 
 
 class WarpTests(unittest.TestCase):
+    def test_rejects_xlsx_larger_than_five_megabytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "large-backup.xlsx"
+            with path.open("wb") as output:
+                output.seek(MAX_XLSX_SIZE)
+                output.write(b"\0")
+            with self.assertRaisesRegex(ValueError, "limite de 5 MB"):
+                import_starrailstation_xlsx(path, "600000001")
+
     def test_exports_and_restores_owner_cloud_backup(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = WarpDatabase(Path(directory) / "source.db")

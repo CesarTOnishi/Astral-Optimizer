@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from collections import Counter
 
 from PySide6.QtCore import Signal, QSize, QTimer, Qt
 from PySide6.QtGui import QColor, QIcon, QPixmap
@@ -47,6 +48,7 @@ BANNER_CONFIG = (
 )
 BANNER_CAPS = {gacha_type: cap for gacha_type, _name, cap in BANNER_CONFIG}
 BANNER_TITLES = {gacha_type: name for gacha_type, name, _cap in BANNER_CONFIG}
+ALL_BANNERS = "__all__"
 
 
 def banner_button_name(name: str) -> str:
@@ -309,6 +311,26 @@ class WarpPanel(QWidget):
         self.selected_banner_title.setWordWrap(True)
         details_layout.addWidget(self.selected_banner_title)
 
+        edition_label = QLabel("EDIÇÃO DO BANNER")
+        edition_label.setObjectName("metricTitle")
+        details_layout.addWidget(edition_label)
+        self.edition_selector = FadeComboBox(details)
+        self.edition_selector.setMinimumWidth(0)
+        self.edition_selector.setIconSize(QSize(36, 36))
+        self.edition_selector.setMinimumHeight(46)
+        self.edition_selector.setSizePolicy(
+            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed
+        )
+        self.edition_selector.currentIndexChanged.connect(
+            lambda _index: self._render_records(self.current_records)
+        )
+        self._edition_context = None
+        details_layout.addWidget(self.edition_selector)
+        self.edition_hint = QLabel()
+        self.edition_hint.setObjectName("sectionHint")
+        self.edition_hint.setWordWrap(True)
+        details_layout.addWidget(self.edition_hint)
+
         summary = QGridLayout()
         summary.setHorizontalSpacing(8)
         summary.setVerticalSpacing(8)
@@ -346,10 +368,11 @@ class WarpPanel(QWidget):
         self.recent_list.setMaximumHeight(340)
         details_layout.addWidget(self.recent_list)
 
-        table_title = QLabel("HISTÓRICO DE 5★")
-        table_title.setObjectName("sectionTitle")
-        details_layout.addWidget(table_title)
+        self.history_title = QLabel("HISTÓRICO DE 5★")
+        self.history_title.setObjectName("sectionTitle")
+        details_layout.addWidget(self.history_title)
         self.table = QTableWidget(0, 6)
+        self.table.setMinimumHeight(180)
         self.table.setObjectName("warpTable")
         self.table.setHorizontalHeaderLabels(
             ["Item", "Banner", "Data", "Pity", "Resultado", "Raridade"]
@@ -550,6 +573,78 @@ class WarpPanel(QWidget):
             record for record in records
             if record.gacha_type == self.selected_gacha_type
         ]
+        context = (self.owner_id, self.current_uid, self.selected_gacha_type)
+        edition = (
+            self.edition_selector.currentData()
+            if context == self._edition_context
+            else ALL_BANNERS
+        )
+        self._edition_context = context
+        groups: dict[str, list[WarpRecord]] = {}
+        for record in selected:
+            groups.setdefault(record.banner_id or "unknown", []).append(record)
+        self.edition_selector.blockSignals(True)
+        self.edition_selector.clear()
+        category_summary = self.current_summaries.get(self.selected_gacha_type)
+        total_in_category = category_summary.total if category_summary else len(selected)
+        self.edition_selector.addItem(
+            f"Todos os saltos · {total_in_category} tiros",
+            ALL_BANNERS,
+        )
+        for key, group in sorted(
+            groups.items(),
+            key=lambda pair: max(r.time for r in pair[1]),
+            reverse=True,
+        ):
+            five_stars = [
+                record
+                for record in group
+                if record.rank_type == 5
+            ]
+            if not five_stars:
+                continue
+            sample = next((r for r in group if r.banner_title), group[0])
+            title = sample.banner_title or f"Banner {key}"
+            featured_names = list(dict.fromkeys(
+                record.featured_name for record in group if record.featured_name
+            ))
+            names = Counter(record.name for record in five_stars)
+            obtained_names = ", ".join(
+                f"{name} ×{count}" if count > 1 else name
+                for name, count in names.items()
+            )
+            if key == "unknown":
+                title = "Banner não identificado"
+            focus = (
+                ""
+                if self.selected_gacha_type in {"11", "21"}
+                else ", ".join(featured_names) or obtained_names
+            )
+            label = " · ".join(part for part in (
+                focus,
+                title,
+                min(r.time for r in group)[:10],
+                f"{len(group)} tiros",
+            ) if part)
+            portrait = next(
+                (record for record in five_stars if record.name == record.featured_name),
+                five_stars[0],
+            )
+            icon_path = FRIBBELS_ASSETS / "icon" / "avatar" / f"{portrait.item_id}.webp"
+            if not icon_path.exists():
+                icon_path = (
+                    FRIBBELS_ASSETS / "icon" / "light_cone" / f"{portrait.item_id}.webp"
+                )
+            self.edition_selector.addItem(
+                QIcon(str(icon_path)) if icon_path.exists() else QIcon(),
+                label,
+                key,
+            )
+        index = self.edition_selector.findData(edition)
+        self.edition_selector.setCurrentIndex(max(index, 0))
+        self.edition_selector.blockSignals(False)
+        edition = self.edition_selector.currentData()
+        filtered = selected if edition == ALL_BANNERS else groups.get(edition, [])
         cap = BANNER_CAPS[self.selected_gacha_type]
         summary = self.current_summaries.get(self.selected_gacha_type)
         if summary is not None:
@@ -618,6 +713,31 @@ class WarpPanel(QWidget):
             self._standard_ids(self.selected_gacha_type),
             contest,
         )
+        self.character_card.set_title("Pity 5★ atual")
+        self.cone_card.set_title("Pity 4★ atual")
+        self.total_card.set_title(
+            "Total de Saltos" if edition == ALL_BANNERS else "Tiros na edição"
+        )
+        self.edition_selector.setEnabled(
+            self.edition_selector.count() > 1 and summary is None
+        )
+        if summary is not None:
+            self.edition_hint.setText(
+                "Resumo do Excel: não há registros individuais para separar as edições e cópias."
+            )
+        else:
+            self.edition_hint.setText(
+                "Selecione Todos os saltos ou uma edição que contenha um 5★. "
+                "Pity atual e garantia consideram todo o histórico da categoria."
+            )
+        if edition != ALL_BANNERS and summary is None:
+            outcomes = [result for result in outcomes if (result.record.banner_id or "unknown") == edition]
+            self.total_card.value.setText(str(len(filtered)))
+            five_count = sum(r.rank_type == 5 for r in filtered)
+            four_count = sum(r.rank_type == 4 for r in filtered)
+            self.total_card.detail.setText(f"{five_count} itens 5★ · {four_count} itens 4★")
+            self.character_card.detail.setText("Acumulado da categoria, após todos os tiros")
+            self.cone_card.detail.setText("Acumulado da categoria, após todos os tiros")
         self._fill_recent(outcomes, cap)
         self._fill_history(outcomes)
 
@@ -684,7 +804,7 @@ class WarpPanel(QWidget):
                 row,
                 1,
                 QTableWidgetItem(
-                    BANNER_TITLES.get(record.gacha_type, record.banner_name)
+                    record.banner_title or BANNER_TITLES.get(record.gacha_type, record.banner_name)
                 ),
             )
             self.table.setItem(row, 2, QTableWidgetItem(record.time))
@@ -696,7 +816,8 @@ class WarpPanel(QWidget):
             pity_item.setBackground(background)
             pity_item.setForeground(foreground)
             self.table.setItem(row, 3, pity_item)
-            outcome_item = QTableWidgetItem(OUTCOME_ICONS[result.outcome])
+            outcome = result.outcome
+            outcome_item = QTableWidgetItem(OUTCOME_ICONS[outcome])
             outcome_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             outcome_item.setToolTip(result.label)
             _background, outcome_color = {
@@ -704,7 +825,7 @@ class WarpPanel(QWidget):
                 "guaranteed": (QColor(), QColor("#ffc866")),
                 "lost": (QColor(), QColor("#ff7b88")),
                 "neutral": (QColor(), QColor("#8d9ab0")),
-            }[result.outcome]
+            }[outcome]
             outcome_item.setForeground(outcome_color)
             self.table.setItem(row, 4, outcome_item)
             rarity = QTableWidgetItem("★★★★★")

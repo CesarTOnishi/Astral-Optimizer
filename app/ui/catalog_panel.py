@@ -202,6 +202,7 @@ class InfoCard(QFrame):
 
 class CatalogPanel(QWidget):
     background_sync_changed = Signal(bool, str)
+    catalog_updated = Signal(str)
 
     def __init__(
         self,
@@ -1126,6 +1127,7 @@ class CatalogPanel(QWidget):
         self._populate_filters()
         self._render()
         self._set_status(f"Catálogo em português atualizado · versão {sha[:8]}", "success")
+        self.catalog_updated.emit(sha)
 
     def _sync_failed(self, message: str) -> None:
         self.sync_failed = True

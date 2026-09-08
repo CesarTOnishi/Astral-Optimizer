@@ -92,6 +92,36 @@ QPushButton#windowButton, QPushButton#closeWindowButton {
 }
 QPushButton#windowButton:hover { background-color: #263550; color: #ffffff; }
 QPushButton#closeWindowButton:hover { background-color: #c94f68; color: #ffffff; }
+QPushButton#notificationBell {
+    color: #aebbd0; background-color: transparent; border: 1px solid transparent;
+    border-radius: 8px; padding: 3px 9px; font-size: 13px; font-weight: 750;
+}
+QPushButton#notificationBell:hover {
+    color: #ffffff; background-color: #263550; border-color: #3d5274;
+}
+QPushButton#notificationBell[unread="true"] {
+    color: #fff0b0; background-color: #322a20; border-color: #7a6334;
+}
+QMenu#notificationMenu {
+    color: #eef4ff; background-color: #10192b; border: 1px solid #40567a;
+    border-radius: 10px; padding: 5px;
+}
+QFrame#notificationRow { background-color: #131f34; border-radius: 8px; }
+QFrame#notificationRow:hover { background-color: #192a45; }
+QLabel#notificationIcon {
+    color: #9bddff; background-color: #193550; border: 1px solid #326080;
+    border-radius: 12px; font-weight: 850;
+}
+QFrame#notificationRow[kind="success"] QLabel#notificationIcon {
+    color: #91e6b8; background-color: #17372e; border-color: #34735c;
+}
+QFrame#notificationRow[kind="warning"] QLabel#notificationIcon,
+QFrame#notificationRow[kind="error"] QLabel#notificationIcon {
+    color: #ffd39a; background-color: #3a2a24; border-color: #7e5841;
+}
+QLabel#notificationTitle { color: #f5f8ff; font-size: 11px; font-weight: 800; }
+QLabel#notificationMessage { color: #9cabc2; font-size: 10px; }
+QLabel#notificationEmpty { color: #8d9db5; background-color: #10192b; }
 QSizeGrip#windowSizeGrip { background-color: transparent; }
 QLabel { background: transparent; }
 QLabel#brandMark { color: #78dcff; font-size: 28px; font-weight: 800; }
@@ -251,6 +281,13 @@ QLabel#statusError { color: #ff9b9b; background-color: #321b27; }
 QFrame#settingsUpdatePanel {
     background-color: #101a2d; border: 1px solid #2d4263; border-radius: 10px;
 }
+QFrame#settingsPrivacyPanel {
+    background-color: #101a2d; border: 1px solid #2d4263; border-radius: 10px;
+}
+QCheckBox#privacyCheckBox {
+    color: #eaf2ff; spacing: 9px; font-size: 11px; font-weight: 700;
+}
+QLabel#privacyHint { color: #8392aa; font-size: 10px; }
 QLabel#settingsVersion {
     color: #8edfff; font-size: 10px; font-weight: 750;
 }

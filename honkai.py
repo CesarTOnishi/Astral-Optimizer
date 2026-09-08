@@ -70,9 +70,20 @@ def main() -> int:
         app.processEvents()
         window = MainWindow()
         state["window"] = window
-        splash.set_stage("Finalizando os últimos detalhes…", 88)
-        app.processEvents()
-        splash.transition_to(window)
+
+        def finish_opening() -> None:
+            splash.set_stage("Finalizando os últimos detalhes…", 92)
+            app.processEvents()
+            splash.transition_to(window)
+
+        window.initial_account_sync_finished.connect(finish_opening)
+        if window.start_initial_account_sync():
+            splash.set_stage(
+                "Sincronizando sua conta, personagens e relíquias…", 68
+            )
+            app.processEvents()
+        else:
+            finish_opening()
 
     # Deixa a primeira animação ser desenhada antes da inicialização mais pesada.
     QTimer.singleShot(180, open_main_window)

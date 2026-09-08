@@ -25,6 +25,7 @@ class WarpRecord:
     time: str
     banner_title: str = ""
     featured_name: str = ""
+    banner_id: str = ""
 
     @property
     def banner_name(self) -> str:
@@ -43,6 +44,7 @@ class WarpRecord:
             time=str(data.get("time", "")),
             banner_title=str(data.get("banner_title", "")),
             featured_name=str(data.get("featured_name", "")),
+            banner_id=str(data.get("gacha_id") or data.get("banner_id") or ""),
         )
 
 

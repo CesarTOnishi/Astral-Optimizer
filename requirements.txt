@@ -4,3 +4,4 @@ google-api-python-client>=2.180
 google-auth-httplib2>=0.2
 google-auth-oauthlib>=1.2
 keyring>=25.6
+click>=8.3.3

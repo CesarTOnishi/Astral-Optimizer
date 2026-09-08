@@ -52,6 +52,10 @@ class WarpDatabase:
                 columns = {
                     str(row[1]) for row in connection.execute("PRAGMA table_info(warps)")
                 }
+                if "banner_id" not in columns:
+                    connection.execute(
+                        "ALTER TABLE warps ADD COLUMN banner_id TEXT NOT NULL DEFAULT ''"
+                    )
                 if "banner_title" not in columns:
                     connection.execute(
                         "ALTER TABLE warps ADD COLUMN banner_title TEXT NOT NULL DEFAULT ''"
@@ -124,6 +128,7 @@ class WarpDatabase:
                 time TEXT NOT NULL,
                 banner_title TEXT NOT NULL DEFAULT '',
                 featured_name TEXT NOT NULL DEFAULT '',
+                banner_id TEXT NOT NULL DEFAULT '',
                 PRIMARY KEY (owner_id, uid, id)
             )
             """
@@ -142,13 +147,15 @@ class WarpDatabase:
                 """
                 INSERT INTO warps
                     (owner_id, uid, id, gacha_type, item_id, name,
-                     item_type, rank_type, time, banner_title, featured_name)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     item_type, rank_type, time, banner_title, featured_name, banner_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(owner_id, uid, id) DO UPDATE SET
                     banner_title = CASE WHEN excluded.banner_title <> ''
                         THEN excluded.banner_title ELSE warps.banner_title END,
                     featured_name = CASE WHEN excluded.featured_name <> ''
-                        THEN excluded.featured_name ELSE warps.featured_name END
+                        THEN excluded.featured_name ELSE warps.featured_name END,
+                    banner_id = CASE WHEN excluded.banner_id <> ''
+                        THEN excluded.banner_id ELSE warps.banner_id END
                 """,
                 [
                     (
@@ -163,6 +170,7 @@ class WarpDatabase:
                         record.time,
                         record.banner_title,
                         record.featured_name,
+                        record.banner_id,
                     )
                     for record in records
                     if record.uid and record.id
@@ -204,7 +212,7 @@ class WarpDatabase:
             rows = connection.execute(
                 """
                 SELECT id, uid, gacha_type, item_id, name, item_type, rank_type,
-                       time, banner_title, featured_name
+                       time, banner_title, featured_name, banner_id
                 FROM warps WHERE owner_id = ? AND uid = ?
                 ORDER BY time ASC, length(id) ASC, id ASC
                 """,
@@ -273,7 +281,7 @@ class WarpDatabase:
             records = connection.execute(
                 """
                 SELECT uid, id, gacha_type, item_id, name, item_type,
-                       rank_type, time, banner_title, featured_name
+                       rank_type, time, banner_title, featured_name, banner_id
                 FROM warps WHERE owner_id = ?
                 ORDER BY time ASC, length(id) ASC, id ASC
                 """,

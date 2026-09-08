@@ -5,7 +5,7 @@ import json
 import time
 import unicodedata
 
-from PySide6.QtCore import QSettings, QStandardPaths, QTimer, Qt, QUrl
+from PySide6.QtCore import QEvent, QSettings, QStandardPaths, QTimer, Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -33,6 +33,7 @@ from app.benchmark import BenchmarkEngine
 from app.benchmark.fribbels_client import FribbelsBenchmarkWorker, engine_available
 from app.benchmark.teams import default_team
 from app.build_history import BuildHistoryDatabase
+from app.catalog import CatalogVersionCheckWorker
 from app.cloud import GoogleDriveService, GoogleDriveWorker
 from app.config import (
     APP_HOME_BACKGROUND,
@@ -42,6 +43,7 @@ from app.config import (
     APP_VERSION,
 )
 from app.models import AccountSummary, CharacterStat, CharacterSummary
+from app.privacy import hide_uid_in_shared_images
 from app.relics import RelicDatabase
 from app.sync_manager import BackgroundSyncManager
 from app.ui.auth_dialogs import AuthDialog, SettingsDialog
@@ -51,11 +53,13 @@ from app.ui.build_history import (
     ConfirmBuildDeleteDialog,
 )
 from app.ui.build_share import render_build_share_card
+from app.ui.account_dashboard import AccountDashboard
 from app.ui.catalog_panel import CatalogPanel
 from app.ui.friends_panel import FriendsPanel
 from app.ui.home_panel import HomePanel
 from app.ui.image_loader import ImageLoader
 from app.ui.loading import LoadingOverlay, load_icon_pixmap
+from app.ui.notifications import NotificationBell, NotificationCenter
 from app.ui.planner_panel import PlannerPanel
 from app.ui.rank_dialog import RankRedirectDialog
 from app.ui.team_dialog import CustomTeamDialog
@@ -135,6 +139,9 @@ class AppTitleBar(QFrame):
         layout.addWidget(subtitle)
         layout.addStretch(1)
 
+        self.notification_bell = NotificationBell(window.notification_center, self)
+        layout.addWidget(self.notification_bell)
+
         self.minimize_button = QPushButton("—")
         self.maximize_button = QPushButton("□")
         self.close_button = QPushButton("×")
@@ -182,6 +189,8 @@ class AppTitleBar(QFrame):
 
 
 class MainWindow(QMainWindow):
+    initial_account_sync_finished = Signal()
+
     def __init__(self) -> None:
         super().__init__()
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
@@ -193,6 +202,7 @@ class MainWindow(QMainWindow):
 
         self.enka_client = EnkaClient(self)
         self.auth_service = AuthService()
+        self.notification_center = NotificationCenter(self)
         self.benchmark_engine = BenchmarkEngine()
         self.image_loader = ImageLoader(self)
         self.relic_database = RelicDatabase()
@@ -216,6 +226,7 @@ class MainWindow(QMainWindow):
         self.benchmark_workers: set[FribbelsBenchmarkWorker] = set()
         self.drive_workers: set[GoogleDriveWorker] = set()
         self.update_check_worker: UpdateCheckWorker | None = None
+        self.catalog_version_worker: CatalogVersionCheckWorker | None = None
         self.update_download_worker: UpdateDownloadWorker | None = None
         self.prepared_update: PreparedUpdate | None = None
         self.settings_dialog: SettingsDialog | None = None
@@ -229,6 +240,7 @@ class MainWindow(QMainWindow):
         self.update_settings = QSettings("Astral Optimizer", "Updates")
         self.current_relic_cards: list[RelicCard] = []
         self._detail_request = 0
+        self._initial_account_sync_active = False
 
         self._build_ui()
         self.setStyleSheet(APP_STYLESHEET)
@@ -243,7 +255,10 @@ class MainWindow(QMainWindow):
         self.catalog_panel.background_sync_changed.connect(
             self._catalog_sync_changed
         )
+        self.catalog_panel.catalog_updated.connect(self._catalog_updated)
+        QTimer.singleShot(0, self._check_soft_pity_notifications)
         QTimer.singleShot(2600, self._check_updates_automatically)
+        QTimer.singleShot(3400, self._check_catalog_version)
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -320,6 +335,10 @@ class MainWindow(QMainWindow):
         self.warp_panel = WarpPanel()
         self.warp_panel.set_user(self.auth_service.current_user)
         self.warp_panel.import_completed.connect(self._backup_warps_to_drive)
+        self.warp_panel.import_completed.connect(lambda _owner: self._refresh_dashboard())
+        self.warp_panel.import_completed.connect(
+            lambda _owner: self._check_soft_pity_notifications()
+        )
         self.page_stack.addWidget(self.warp_panel)
         self.planner_panel = PlannerPanel(self.warp_panel.database)
         self.planner_panel.set_user(self.auth_service.current_user)
@@ -390,10 +409,10 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(18, 14, 18, 18)
         layout.setSpacing(12)
 
-        title = QLabel("CONTA")
+        title = QLabel("DASHBOARD DA CONTA")
         title.setObjectName("brandTitle")
         subtitle = QLabel(
-            "Sua UID principal é consultada quando você abre esta opção."
+            "Seus personagens, Saltos e relíquias em um só lugar."
         )
         subtitle.setObjectName("muted")
         layout.addWidget(title)
@@ -402,9 +421,9 @@ class MainWindow(QMainWindow):
         card = QFrame()
         card.setObjectName("accountProfilePanel")
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(28, 28, 28, 28)
+        card_layout.setContentsMargins(16, 14, 16, 14)
         card_layout.setSpacing(8)
-        self.account_profile_avatar = QLabel("✦")
+        self.account_profile_avatar = AvatarLabel(78)
         self.account_profile_avatar.setObjectName("accountProfileAvatar")
         self.account_profile_avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.account_profile_avatar.setFixedSize(78, 78)
@@ -445,8 +464,14 @@ class MainWindow(QMainWindow):
         )
         card_layout.addWidget(self.account_status)
         layout.addWidget(card)
+        self.account_dashboard = AccountDashboard(self.image_loader)
+        layout.addWidget(self.account_dashboard)
         layout.addStretch(1)
-        return page
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(page)
+        return scroll
 
     def _build_header(self) -> QHBoxLayout:
         layout = QHBoxLayout()
@@ -533,10 +558,10 @@ class MainWindow(QMainWindow):
         self.nav_buttons: list[tuple[QPushButton, str, str]] = []
         for icon, text in (
             ("⌂", "Início"),
+            ("◆", "Builds"),
             ("◉", "Conta"),
             ("♧", "Amigos"),
             ("◈", "Personagens e Cones"),
-            ("◆", "Builds"),
             ("⬡", "Relíquias"),
             ("✦", "Saltos"),
             ("◎", "Planejador"),
@@ -585,7 +610,7 @@ class MainWindow(QMainWindow):
         user_layout = QHBoxLayout(self.auth_user_frame)
         user_layout.setContentsMargins(7, 7, 5, 7)
         user_layout.setSpacing(7)
-        self.auth_avatar = QLabel("?")
+        self.auth_avatar = AvatarLabel(34)
         self.auth_avatar.setObjectName("sidebarAvatar")
         self.auth_avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.auth_avatar.setFixedSize(34, 34)
@@ -593,10 +618,15 @@ class MainWindow(QMainWindow):
         info_layout = QVBoxLayout(self.auth_user_info)
         info_layout.setContentsMargins(0, 0, 0, 0)
         info_layout.setSpacing(0)
+        for profile_widget in (self.auth_user_frame, self.auth_avatar, self.auth_user_info):
+            profile_widget.setCursor(Qt.CursorShape.PointingHandCursor)
+            profile_widget.installEventFilter(self)
         self.auth_username = QLabel("Visitante")
         self.auth_username.setObjectName("sidebarUsername")
         self.auth_status = QLabel("Perfil local")
         self.auth_status.setObjectName("sidebarUserStatus")
+        for profile_label in (self.auth_username, self.auth_status):
+            profile_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         info_layout.addWidget(self.auth_username)
         info_layout.addWidget(self.auth_status)
         self.settings_button = QPushButton("⚙")
@@ -620,7 +650,7 @@ class MainWindow(QMainWindow):
             self.open_auth_dialog()
             return
         if not user.game_uid:
-            self._navigate("Conta")
+            self._load_saved_uid()
             self._refresh_account_page()
             self.account_status.setText(
                 "Defina sua UID principal na engrenagem para abrir o ranking."
@@ -712,6 +742,12 @@ class MainWindow(QMainWindow):
                     f"Versão {APP_VERSION} · Você está usando a versão mais recente."
                 )
             return
+        self.notification_center.add(
+            "app-update",
+            "Nova versão disponível",
+            f"Astral Optimizer {release.version} já pode ser instalado.",
+            "info",
+        )
         if self.settings_dialog:
             self.settings_dialog.set_update_status(
                 f"Nova versão {release.version} disponível."
@@ -817,6 +853,14 @@ class MainWindow(QMainWindow):
                 sync_key, "Backup salvo no Google Drive"
             )
         )
+        worker.succeeded.connect(
+            lambda _message: self.notification_center.add(
+                f"backup:{owner_id}",
+                "Backup concluído",
+                "O histórico de Saltos foi salvo no Google Drive.",
+                "success",
+            )
+        )
         worker.failed.connect(
             lambda message: self.warp_panel._set_status(
                 f"Importação salva localmente, mas o backup falhou: {message}", "error"
@@ -825,6 +869,14 @@ class MainWindow(QMainWindow):
         worker.failed.connect(
             lambda _message: self.sync_manager.fail(
                 sync_key, "Falha no backup do Google Drive"
+            )
+        )
+        worker.failed.connect(
+            lambda message: self.notification_center.add(
+                f"backup:{owner_id}",
+                "Erro no backup",
+                f"Os dados locais estão seguros, mas o Drive falhou: {message}",
+                "error",
             )
         )
         worker.finished.connect(lambda: self._release_drive_worker(worker))
@@ -836,6 +888,8 @@ class MainWindow(QMainWindow):
 
     def _load_saved_uid(self, *, force: bool = False) -> None:
         self.page_stack.setCurrentIndex(4)
+        for button, _icon, _text in self.nav_buttons:
+            button.setChecked(False)
         self._refresh_account_page()
         user = self.auth_service.current_user
         if user is None or not user.game_uid:
@@ -847,12 +901,25 @@ class MainWindow(QMainWindow):
         self.account_status.style().polish(self.account_status)
         self.enka_client.fetch_account(user.game_uid, force=force)
 
+    def start_initial_account_sync(self) -> bool:
+        user = self.auth_service.current_user
+        if user is None or not user.game_uid or self.enka_client.is_busy:
+            return False
+        self._initial_account_sync_active = True
+        self.pending_account_target = "auto_account"
+        self.account_status.setObjectName("statusInfo")
+        self.account_status.setText("Sincronizando sua conta automaticamente…")
+        self.account_status.style().unpolish(self.account_status)
+        self.account_status.style().polish(self.account_status)
+        self.enka_client.fetch_account(user.game_uid, force=True)
+        return True
+
     def refresh_loaded_account(self) -> None:
         user = self.auth_service.current_user
         if user is None or not user.game_uid:
             self.set_status("Defina sua UID principal nas configurações.", "error")
             return
-        self.pending_account_target = "account"
+        self.pending_account_target = "own_builds"
         self.set_status("Atualizando personagens e relíquias da sua conta…")
         self.enka_client.fetch_account(user.game_uid, force=True)
 
@@ -861,16 +928,18 @@ class MainWindow(QMainWindow):
         logged_in = user is not None
         self.auth_guest_button.setVisible(not logged_in)
         self.auth_user_frame.setVisible(logged_in)
+        self.auth_avatar.clear_image()
         if user is not None:
             self.auth_username.setText(user.username)
             self.auth_avatar.setText(user.username[:1].upper())
-            self.auth_user_frame.setToolTip(user.email or "Perfil local")
+            self.auth_user_frame.setToolTip("Abrir dashboard da conta")
         expanded = self.sidebar_expanded
         self.auth_guest_button.setText("◎   Entrar / Cadastrar" if expanded else "◎")
         self.auth_user_info.setVisible(expanded)
         self.auth_avatar.setVisible(expanded)
         if hasattr(self, "warp_panel"):
             self.warp_panel.set_user(user)
+            self._check_soft_pity_notifications()
         if hasattr(self, "planner_panel"):
             self.planner_panel.set_user(user)
         if hasattr(self, "relic_inventory_panel"):
@@ -887,14 +956,82 @@ class MainWindow(QMainWindow):
                 self.own_account_user_id = None
             self._refresh_account_page()
 
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
+            if watched in (getattr(self, "auth_user_frame", None), getattr(self, "auth_avatar", None), getattr(self, "auth_user_info", None)):
+                self._load_saved_uid()
+                return True
+        return super().eventFilter(watched, event)
+
+    def _open_own_character_builds(self, character_id: str) -> None:
+        user = self.auth_service.current_user
+        account = self.own_account
+        if user is None or account is None or account.uid != user.game_uid or self.own_account_user_id != user.id:
+            return
+        self.build_source = "own"
+        self.display_account(account)
+        self._show_build_content(bool(account.characters))
+        for index, character in enumerate(account.characters):
+            if character.avatar_id == character_id:
+                self.character_list.setCurrentRow(index)
+                break
+
+    def _open_own_account_builds(self) -> None:
+        user = self.auth_service.current_user
+        if user is None:
+            self.build_source = None
+            self._show_build_content(False)
+            self.set_status(
+                "Entre em um perfil para carregar seus personagens e benchmarks.",
+                "error",
+            )
+            return
+        if not user.game_uid:
+            self.build_source = None
+            self._show_build_content(False)
+            self.set_status(
+                "Defina sua UID principal na engrenagem do perfil.", "error"
+            )
+            return
+        if (
+            self.own_account is not None
+            and self.own_account_user_id == user.id
+            and self.own_account.uid == user.game_uid
+        ):
+            self._open_own_character_builds(self.current_character_id)
+            return
+        self.pending_account_target = "own_builds"
+        self.build_source = "own"
+        self._show_build_content(False)
+        self.set_status("Carregando seus personagens e benchmarks…")
+        self.enka_client.fetch_account(user.game_uid)
+
+    def _refresh_dashboard(self) -> None:
+        self.account_dashboard.refresh(
+            self.auth_service.current_user, self.own_account,
+            self.warp_panel.database, self.relic_database, self.benchmark_engine,
+        )
+
     def _refresh_account_page(self) -> None:
         user = self.auth_service.current_user
+        if user is None or self.own_account_user_id != user.id or (self.own_account and self.own_account.uid != user.game_uid):
+            self.own_account = None
+            self.own_account_user_id = None
+        self._refresh_dashboard()
+        if self.own_account is None:
+            self.account_profile_avatar.clear_image()
+            self.auth_avatar.clear_image()
+            self.account_profile_name.setText(user.username if user else "Conta não carregada")
+            self.account_profile_uid.setText(f"UID {user.game_uid}" if user and user.game_uid else "—")
+            self.account_profile_signature.clear()
+            self.account_profile_meta.setText("Defina sua UID principal pela engrenagem do perfil.")
         if user is None:
             self.account_load_button.setEnabled(False)
             self.account_status.setText("Entre ou crie um perfil para abrir Conta.")
             return
         self.account_load_button.setEnabled(bool(user.game_uid))
         if self.own_account is not None and self.own_account_user_id == user.id:
+            self._refresh_own_profile_icon()
             return
         self.account_profile_name.setText("Conta não carregada")
         self.account_profile_uid.setText("—")
@@ -944,7 +1081,7 @@ class MainWindow(QMainWindow):
                 lambda: self.catalog_panel.set_active(True),
             )
         elif destination == "Conta":
-            self._load_saved_uid()
+            self._open_own_account_builds()
         else:
             if destination == "Builds" and self.build_source == "own":
                 self.build_source = None
@@ -991,6 +1128,71 @@ class MainWindow(QMainWindow):
             self.sync_manager.fail("catalog", message)
         else:
             self.sync_manager.finish("catalog", message)
+
+    def _check_catalog_version(self) -> None:
+        if self.catalog_version_worker and self.catalog_version_worker.isRunning():
+            return
+        worker = CatalogVersionCheckWorker(self)
+        self.catalog_version_worker = worker
+        worker.succeeded.connect(self._catalog_version_checked)
+        worker.finished.connect(self._catalog_version_check_finished)
+        worker.start()
+
+    def _catalog_version_checked(self, outdated: bool, sha: str) -> None:
+        if outdated:
+            self.notification_center.add(
+                "catalog-outdated",
+                "Catálogo desatualizado",
+                f"Há novos dados do jogo disponíveis · versão {sha[:8]}.",
+                "warning",
+            )
+        else:
+            self.notification_center.remove("catalog-outdated")
+
+    def _catalog_version_check_finished(self) -> None:
+        if self.catalog_version_worker:
+            self.catalog_version_worker.deleteLater()
+        self.catalog_version_worker = None
+
+    def _catalog_updated(self, _sha: str) -> None:
+        self.notification_center.remove("catalog-outdated")
+
+    def _check_soft_pity_notifications(self) -> None:
+        if not hasattr(self, "warp_panel"):
+            return
+        from app.warp.statistics import pity_state
+
+        panel = self.warp_panel
+        categories = {
+            "1": ("Banner permanente", 70, 90),
+            "11": ("Evento de personagem", 70, 90),
+            "12": ("Evento de Cone de Luz", 60, 80),
+            "21": ("Colaboração de personagem", 70, 90),
+            "22": ("Colaboração de Cone de Luz", 60, 80),
+        }
+        for gacha_type, (name, alert_at, cap) in categories.items():
+            key = f"soft-pity:{panel.owner_id}:{panel.current_uid}:{gacha_type}"
+            summary = panel.current_summaries.get(gacha_type)
+            if summary is not None:
+                pity = summary.five_star_pity
+            else:
+                pity = pity_state(
+                    panel.current_records,
+                    {gacha_type},
+                    panel._standard_ids(gacha_type),
+                ).five_star
+            if panel.owner_id is not None and panel.current_uid and alert_at <= pity < cap:
+                message = f"{name}: pity {pity}/{cap}, perto da faixa de soft pity."
+                current = next(
+                    (item for item in self.notification_center.items if item.key == key),
+                    None,
+                )
+                if current is None or current.message != message:
+                    self.notification_center.add(
+                        key, "Pity próximo do soft pity", message, "warning"
+                    )
+            else:
+                self.notification_center.remove(key)
 
     def _show_build_content(self, loaded: bool) -> None:
         self.page_stack.setCurrentIndex(0)
@@ -1346,11 +1548,14 @@ class MainWindow(QMainWindow):
                 self.account_sync_failed = False
             else:
                 self.sync_manager.finish("account", "Conta sincronizada")
+            if self._initial_account_sync_active:
+                self._initial_account_sync_active = False
+                self.initial_account_sync_finished.emit()
 
     def _request_failed(self, message: str) -> None:
         self.account_sync_failed = True
         self.sync_manager.fail("account", "Falha ao sincronizar a conta")
-        if self.pending_account_target == "account":
+        if self.pending_account_target in {"account", "auto_account"}:
             self.account_status.setObjectName("statusError")
             self.account_status.setText(message)
             self.account_status.style().unpolish(self.account_status)
@@ -1360,26 +1565,34 @@ class MainWindow(QMainWindow):
 
     def _account_loaded(self, account: AccountSummary, message: str) -> None:
         self._capture_relic_inventory(account)
-        if self.pending_account_target == "account":
-            self.own_account = account
+        if self.pending_account_target in {"account", "own_builds", "auto_account"}:
             user = self.auth_service.current_user
-            self.own_account_user_id = user.id if user else None
+            if user is None or account.uid != user.game_uid:
+                return
+            automatic = self.pending_account_target == "auto_account"
+            self.own_account = account
+            self.own_account_user_id = user.id
             self._render_own_account(account)
-            self.build_source = "own"
-            self.display_account(account)
-            self._show_build_content(bool(account.characters))
-            for button, _icon, text in self.nav_buttons:
-                button.setChecked(text == "Conta")
+            self._refresh_dashboard()
+            if self.pending_account_target == "own_builds":
+                self._open_own_character_builds(self.current_character_id)
+            if self.pending_account_target == "own_builds":
+                for button, _icon, text in self.nav_buttons:
+                    button.setChecked(text == "Conta")
+            elif self.pending_account_target == "account":
+                for button, _icon, _text in self.nav_buttons:
+                    button.setChecked(False)
             self.account_status.setObjectName(
                 "statusSuccess" if account.characters else "statusError"
             )
             self.account_status.setText(message)
             self.account_status.style().unpolish(self.account_status)
             self.account_status.style().polish(self.account_status)
-            self.set_status(
-                "Builds da sua conta principal. Use Builds para pesquisar outras UIDs.",
-                "success" if account.characters else "error",
-            )
+            if not automatic and self.pending_account_target != "account":
+                self.set_status(
+                    "Seus personagens e benchmarks foram atualizados.",
+                    "success" if account.characters else "error",
+                )
             return
         self.build_source = (
             "friend" if self.pending_account_target == "friend" else "manual"
@@ -1401,7 +1614,38 @@ class MainWindow(QMainWindow):
         user = self.auth_service.current_user
         if user is None or not user.game_uid or account.uid != user.game_uid:
             return
+        before = {
+            item.fingerprint: item.current_character_id
+            for item in self.relic_database.relics(user.id, account.uid)
+            if item.current_character_id
+        }
         self.relic_database.sync_account(user.id, account, self.benchmark_engine)
+        after = {
+            item.fingerprint: item.current_character_id
+            for item in self.relic_database.relics(user.id, account.uid)
+            if item.current_character_id
+        }
+        if before and before != after:
+            added = len(after.keys() - before.keys())
+            removed = len(before.keys() - after.keys())
+            moved = sum(
+                before[key] != after[key] for key in before.keys() & after.keys()
+            )
+            details = []
+            if added:
+                details.append(f"{added} nova{'s' if added != 1 else ''}")
+            if removed:
+                details.append(f"{removed} removida{'s' if removed != 1 else ''}")
+            if moved:
+                details.append(
+                    f"{moved} trocada{'s' if moved != 1 else ''} de personagem"
+                )
+            self.notification_center.add(
+                f"relics:{user.id}:{account.uid}",
+                "Relíquias alteradas",
+                "Após atualizar a conta: " + ", ".join(details) + ".",
+                "info",
+            )
         self.relic_inventory_panel.mark_dirty()
 
     def _render_own_account(self, account: AccountSummary) -> None:
@@ -1409,10 +1653,37 @@ class MainWindow(QMainWindow):
         self.account_profile_uid.setText(f"UID {account.uid}")
         self.account_profile_meta.setText(
             f"Nível {account.level} · Equilíbrio {account.world_level} · "
-            f"{len(account.characters)} personagens públicos"
+            f"{account.achievement_count} conquistas · {len(account.characters)} personagens públicos"
         )
         self.account_profile_signature.setText(account.signature)
-        self.account_profile_avatar.setText(account.nickname[:1].upper() if account.nickname else "✦")
+        self._refresh_own_profile_icon()
+
+    def _refresh_own_profile_icon(self) -> None:
+        user = self.auth_service.current_user
+        account = self.own_account
+        self.account_profile_avatar.clear_image()
+        self.auth_avatar.clear_image()
+        if user is None or account is None or self.own_account_user_id != user.id or account.uid != user.game_uid:
+            return
+        if account.profile_icon_url:
+            self.image_loader.load(
+                account.profile_icon_url,
+                lambda pixmap, owner=user.id, uid=account.uid, url=account.profile_icon_url:
+                    self._set_own_profile_icon_if_current(owner, uid, url, pixmap),
+            )
+
+    def _set_own_profile_icon_if_current(
+        self, owner_id: int, uid: str, url: str, pixmap: QPixmap,
+    ) -> None:
+        user = self.auth_service.current_user
+        account = self.own_account
+        if (
+            user is not None and user.id == owner_id and user.game_uid == uid
+            and self.own_account_user_id == owner_id and account is not None
+            and account.uid == uid and account.profile_icon_url == url
+        ):
+            self.account_profile_avatar.set_image(pixmap)
+            self.auth_avatar.set_image(pixmap)
 
     def set_status(self, message: str, kind: str = "info") -> None:
         object_name = {"success": "statusSuccess", "error": "statusError"}.get(
@@ -1967,6 +2238,8 @@ class MainWindow(QMainWindow):
             relic_visuals.append(
                 (relic, self.benchmark_engine.rate_relic(character, relic), icon)
             )
+        user = self.auth_service.current_user
+        privacy_enabled = bool(user and hide_uid_in_shared_images(user.id))
         card = render_build_share_card(
             character,
             result,
@@ -1976,6 +2249,7 @@ class MainWindow(QMainWindow):
             list(payload.get("stats", [])),
             relic_visuals,
             custom_team=self._uses_custom_team(self.current_character_id),
+            hide_uid=privacy_enabled,
         )
         safe_name = "".join(
             value if value.isalnum() else "_" for value in character.name
@@ -1983,7 +2257,8 @@ class MainWindow(QMainWindow):
         pictures = QStandardPaths.writableLocation(
             QStandardPaths.StandardLocation.PicturesLocation
         )
-        suggested = f"{pictures}/AstralOptimizer_{safe_name}_{self.current_uid}.png"
+        suffix = "privada" if privacy_enabled else self.current_uid
+        suggested = f"{pictures}/AstralOptimizer_{safe_name}_{suffix}.png"
         path, _selected_filter = QFileDialog.getSaveFileName(
             self,
             "Exportar build como imagem",
