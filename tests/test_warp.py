@@ -69,6 +69,9 @@ class WarpTests(unittest.TestCase):
                     "starlight": 40,
                     "refund": "high",
                     "strategy": "E4",
+                    "goal_sequence": "E0,S1,E2",
+                    "daily_jades": 90,
+                    "target_date": "2026-12-01",
                 },
             )
             payload = source.export_owner(7)
@@ -81,6 +84,13 @@ class WarpTests(unittest.TestCase):
             self.assertEqual(target.planner_settings(12)["jades"], 3200)
             self.assertEqual(target.planner_settings(12)["refund"], "high")
             self.assertEqual(target.planner_settings(12)["strategy"], "E4")
+            self.assertEqual(
+                target.planner_settings(12)["goal_sequence"], "E0,S1,E2"
+            )
+            self.assertEqual(target.planner_settings(12)["daily_jades"], 90)
+            self.assertEqual(
+                target.planner_settings(12)["target_date"], "2026-12-01"
+            )
 
     def test_resolves_reused_light_cone_banner_by_date_and_pulled_item(self) -> None:
         banners = {

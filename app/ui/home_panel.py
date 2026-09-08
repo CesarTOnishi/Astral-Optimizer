@@ -29,17 +29,22 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.preferences import motion_duration, reduce_motion_enabled
+
 
 class AnimatedSearchButton(QPushButton):
     def __init__(self, text: str, parent: QWidget | None = None) -> None:
         super().__init__(text, parent)
         self._hover_progress = 0.0
         self._animation = QVariantAnimation(self)
-        self._animation.setDuration(190)
+        self._animation.setDuration(motion_duration(190))
         self._animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._animation.valueChanged.connect(self._set_hover)
 
     def _animate(self, target: float) -> None:
+        if reduce_motion_enabled():
+            self._set_hover(target)
+            return
         self._animation.stop()
         self._animation.setStartValue(self._hover_progress)
         self._animation.setEndValue(target)
@@ -162,12 +167,12 @@ class HomePanel(QWidget):
         self._heading_animation = QPropertyAnimation(
             self._heading_opacity, b"opacity", self
         )
-        self._heading_animation.setDuration(560)
+        self._heading_animation.setDuration(motion_duration(560))
         self._heading_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._search_animation = QPropertyAnimation(
             self._search_opacity, b"opacity", self
         )
-        self._search_animation.setDuration(820)
+        self._search_animation.setDuration(motion_duration(820))
         self._search_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._intro.addAnimation(self._heading_animation)
         self._intro.addAnimation(self._search_animation)
@@ -186,6 +191,10 @@ class HomePanel(QWidget):
         QTimer.singleShot(0, self._play_intro)
 
     def _play_intro(self) -> None:
+        if reduce_motion_enabled():
+            self._heading_opacity.setOpacity(1.0)
+            self._search_opacity.setOpacity(1.0)
+            return
         self._intro.stop()
         self._heading_opacity.setOpacity(0.0)
         self._search_opacity.setOpacity(0.0)

@@ -1,9 +1,23 @@
 import unittest
 
-from app.planner import calculate_planner
+from app.planner import calculate_planner, parse_goal_sequence, sequence_projections
 
 
 class PlannerTests(unittest.TestCase):
+    def test_custom_sequence_builds_optimistic_average_and_pessimistic_scenarios(self) -> None:
+        self.assertEqual(parse_goal_sequence("E0 > S1 > E1"), ("E0", "S1", "E1"))
+        results = sequence_projections("E0 > S1 > E1", 300, 0, False, 0, False)
+        self.assertEqual([item.label for item in results], ["E0", "S1", "E1"])
+        self.assertTrue(all(
+            item.optimistic_warps <= item.expected_warps <= item.pessimistic_warps
+            for item in results
+        ))
+        self.assertGreater(results[0].chance, results[-1].chance)
+
+    def test_rejects_repeated_or_reversed_sequence_goals(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_goal_sequence("E1 > E0")
+
     def test_converts_resources_and_applies_fribbels_average_refund(self) -> None:
         result = calculate_planner(
             jades=1600,

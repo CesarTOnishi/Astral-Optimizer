@@ -17,6 +17,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.preferences import motion_duration
+
 
 class RankRedirectDialog(QDialog):
     def __init__(self, uid: str, parent: QWidget | None = None) -> None:
@@ -102,12 +104,12 @@ class RankRedirectDialog(QDialog):
 
         group = QParallelAnimationGroup(self)
         opacity = QPropertyAnimation(self, b"windowOpacity", group)
-        opacity.setDuration(260)
+        opacity.setDuration(motion_duration(260))
         opacity.setStartValue(0.0)
         opacity.setEndValue(1.0)
         opacity.setEasingCurve(QEasingCurve.Type.OutCubic)
         geometry = QPropertyAnimation(self, b"geometry", group)
-        geometry.setDuration(300)
+        geometry.setDuration(motion_duration(300))
         geometry.setStartValue(initial_geometry)
         geometry.setEndValue(final_geometry)
         geometry.setEasingCurve(QEasingCurve.Type.OutBack)
@@ -127,12 +129,12 @@ class RankRedirectDialog(QDialog):
         final_geometry = initial_geometry.adjusted(10, 8, -10, -8)
         group = QParallelAnimationGroup(self)
         opacity = QPropertyAnimation(self, b"windowOpacity", group)
-        opacity.setDuration(170)
+        opacity.setDuration(motion_duration(170))
         opacity.setStartValue(self.windowOpacity())
         opacity.setEndValue(0.0)
         opacity.setEasingCurve(QEasingCurve.Type.InCubic)
         geometry = QPropertyAnimation(self, b"geometry", group)
-        geometry.setDuration(190)
+        geometry.setDuration(motion_duration(190))
         geometry.setStartValue(initial_geometry)
         geometry.setEndValue(final_geometry)
         geometry.setEasingCurve(QEasingCurve.Type.InCubic)

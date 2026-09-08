@@ -29,6 +29,7 @@ from app.catalog import (
     CatalogTrace,
 )
 from app.ui.image_loader import ImageLoader
+from app.ui.experience import copy_error_details
 from app.ui.widgets import FadeComboBox, FRIBBELS_ASSETS
 
 
@@ -251,7 +252,18 @@ class CatalogPanel(QWidget):
         self.status = QLabel("Catálogo básico local pronto.")
         self.status.setObjectName("statusInfo")
         self.status.setWordWrap(True)
-        outer.addWidget(self.status)
+        status_row = QHBoxLayout()
+        status_row.setContentsMargins(0, 0, 0, 0)
+        status_row.setSpacing(8)
+        self.copy_error_button = QPushButton("Copiar detalhes")
+        self.copy_error_button.setObjectName("copyErrorButton")
+        self.copy_error_button.setVisible(False)
+        self.copy_error_button.clicked.connect(
+            lambda: copy_error_details(self.status.text(), "Catálogo")
+        )
+        status_row.addWidget(self.status, 1)
+        status_row.addWidget(self.copy_error_button)
+        outer.addLayout(status_row)
 
         self.stack = QStackedWidget()
         self.list_page = QWidget()
@@ -405,7 +417,9 @@ class CatalogPanel(QWidget):
         label = "personagens" if self.mode == "characters" else "cones"
         self.result_count.setText(f"{len(entries)} {label} encontrados")
         if not entries:
-            empty = QLabel("Nenhum resultado encontrado.")
+            empty = QLabel(
+                "Nenhum resultado encontrado. Limpe os filtros ou atualize o catálogo."
+            )
             empty.setObjectName("catalogEmpty")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.grid.addWidget(empty, 0, 0)
@@ -1118,6 +1132,7 @@ class CatalogPanel(QWidget):
     def _set_status(self, message: str, kind: str = "info") -> None:
         self.status.setObjectName({"success": "statusSuccess", "error": "statusError"}.get(kind, "statusInfo"))
         self.status.setText(message)
+        self.copy_error_button.setVisible(kind == "error")
         self.status.style().unpolish(self.status)
         self.status.style().polish(self.status)
 

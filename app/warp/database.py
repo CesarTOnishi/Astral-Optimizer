@@ -108,6 +108,21 @@ class WarpDatabase:
                     "ALTER TABLE planner_settings ADD COLUMN strategy TEXT "
                     "NOT NULL DEFAULT 'E2'"
                 )
+            if "goal_sequence" not in planner_columns:
+                connection.execute(
+                    "ALTER TABLE planner_settings ADD COLUMN goal_sequence TEXT "
+                    "NOT NULL DEFAULT 'E0,S1,E1'"
+                )
+            if "daily_jades" not in planner_columns:
+                connection.execute(
+                    "ALTER TABLE planner_settings ADD COLUMN daily_jades INTEGER "
+                    "NOT NULL DEFAULT 60"
+                )
+            if "target_date" not in planner_columns:
+                connection.execute(
+                    "ALTER TABLE planner_settings ADD COLUMN target_date TEXT "
+                    "NOT NULL DEFAULT ''"
+                )
             connection.commit()
         finally:
             connection.close()
@@ -331,7 +346,8 @@ class WarpDatabase:
         connection = self.connect()
         try:
             row = connection.execute(
-                "SELECT jades, passes, starlight, refund, strategy FROM planner_settings "
+                "SELECT jades, passes, starlight, refund, strategy, goal_sequence, "
+                "daily_jades, target_date FROM planner_settings "
                 "WHERE owner_id = ?",
                 (owner_id,),
             ).fetchone()
@@ -339,7 +355,9 @@ class WarpDatabase:
             connection.close()
         return dict(row) if row else {
             "jades": 0, "passes": 0, "starlight": 0,
-            "refund": "average", "strategy": "E2"
+            "refund": "average", "strategy": "E2",
+            "goal_sequence": "E0,S1,E1", "daily_jades": 60,
+            "target_date": "",
         }
 
     def save_planner_settings(self, owner_id: int, settings: dict[str, Any]) -> None:
@@ -355,19 +373,26 @@ class WarpDatabase:
             max(0, int(settings.get("starlight", 0))),
             refund,
             strategy,
+            str(settings.get("goal_sequence", "E0,S1,E1"))[:80],
+            max(0, int(settings.get("daily_jades", 60))),
+            str(settings.get("target_date", ""))[:10],
         )
         connection = self.connect()
         try:
             connection.execute(
                 """
                 INSERT INTO planner_settings(
-                    owner_id, jades, passes, starlight, refund, strategy
+                    owner_id, jades, passes, starlight, refund, strategy,
+                    goal_sequence, daily_jades, target_date
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(owner_id) DO UPDATE SET
                     jades = excluded.jades, passes = excluded.passes,
                     starlight = excluded.starlight, refund = excluded.refund,
-                    strategy = excluded.strategy
+                    strategy = excluded.strategy,
+                    goal_sequence = excluded.goal_sequence,
+                    daily_jades = excluded.daily_jades,
+                    target_date = excluded.target_date
                 """,
                 (owner_id, *values),
             )

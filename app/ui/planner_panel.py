@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
@@ -11,7 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.auth import AuthUser
-from app.planner import calculate_planner
+from app.planner import calculate_planner, sequence_projections
 from app.ui.widgets import FRIBBELS_ASSETS, FadeComboBox, FadeSpinBox
 from app.warp import WarpDatabase
 from app.warp.statistics import (
@@ -106,10 +105,13 @@ class PlannerPanel(QWidget):
         settings.addLayout(self._field_box("GARANTIA", self.cone_guarantee), 2, 3)
 
         self.strategy = FadeComboBox(self.settings_card)
+        self.strategy.setObjectName("plannerStrategySelect")
         self.strategy.addItem("S1 primeiro", "S1")
         for level in range(7):
             self.strategy.addItem(f"E{level} primeiro", f"E{level}")
-        settings.addLayout(self._field_box("ORDEM DO CONE", self.strategy), 3, 0, 1, 4)
+        self.strategy.setMinimumWidth(210)
+        self.strategy.setMaximumWidth(300)
+        settings.addLayout(self._field_box("ESTRATÉGIA", self.strategy), 3, 0, 1, 2)
         for column in range(4):
             settings.setColumnStretch(column, 1)
         layout.addWidget(self.settings_card, alignment=Qt.AlignmentFlag.AlignHCenter)
@@ -120,10 +122,10 @@ class PlannerPanel(QWidget):
         self.resources_line.setMaximumWidth(920)
         layout.addWidget(self.resources_line, alignment=Qt.AlignmentFlag.AlignHCenter)
 
-        self.table = QTableWidget(0, 3)
+        self.table = QTableWidget(0, 5)
         self.table.setObjectName("plannerGoalTable")
         self.table.setHorizontalHeaderLabels(
-            ["Objetivo", "Chance com os tiros disponíveis", "Média necessária"]
+            ["Meta", "Chance atual", "Otimista", "Média", "Pessimista"]
         )
         self.table.verticalHeader().hide()
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -133,9 +135,8 @@ class PlannerPanel(QWidget):
         self.table.setMaximumWidth(920)
         self.table.setMinimumWidth(560)
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        for column in range(5):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.Stretch)
         layout.addWidget(self.table, alignment=Qt.AlignmentFlag.AlignHCenter)
 
         self.status = QLabel("Entre em um perfil para usar o planejador.")
@@ -270,7 +271,9 @@ class PlannerPanel(QWidget):
         if user is None:
             self.table.setRowCount(0)
             self.resources_line.setText("0 tiros disponíveis")
-            self.status.setText("Entre em um perfil para usar o planejador.")
+            self.status.setText(
+                "Entre em um perfil; depois informe seus recursos e escolha uma estratégia."
+            )
             return
         uids = self.database.uids(user.id)
         uid = user.game_uid if user.game_uid in uids else self.database.latest_uid(user.id)
@@ -297,7 +300,12 @@ class PlannerPanel(QWidget):
             f"Luz Estelar   +   {result.refunded_warps} cashback   =   "
             f"{result.total_warps} tiros".replace(",", ".")
         )
-        self._render_table(result.milestones, result.total_warps)
+        projections = sequence_projections(
+            self._strategy_goals(str(values["strategy"])), result.total_warps,
+            character.five_star, character.guaranteed,
+            cone.five_star, cone.guaranteed,
+        )
+        self._render_table(projections, result.total_warps)
         self.status.setText(
             f"Pity sincronizado da UID {uid}." if uid else
             "Nenhum histórico importado; pity considerado como zero."
@@ -310,29 +318,44 @@ class PlannerPanel(QWidget):
         label.style().unpolish(label)
         label.style().polish(label)
 
-    def _render_table(self, milestones, budget: int) -> None:  # type: ignore[no-untyped-def]
-        self.table.setRowCount(len(milestones))
-        for row, milestone in enumerate(milestones):
-            chance = milestone.chance * 100
+    @staticmethod
+    def _strategy_goals(strategy: str) -> str:
+        insertion = -1 if strategy == "S1" else int(strategy[1:])
+        goals = ["S1"] if insertion == -1 else []
+        for eidolon in range(7):
+            goals.append(f"E{eidolon}")
+            if eidolon == insertion:
+                goals.append("S1")
+        goals.extend(f"S{level}" for level in range(2, 6))
+        return ",".join(goals)
+
+    def _render_table(self, projections, budget: int) -> None:  # type: ignore[no-untyped-def]
+        self.table.setRowCount(len(projections))
+        for row, projection in enumerate(projections):
+            chance = projection.chance * 100
             progress = QProgressBar()
             progress.setRange(0, 1000)
             progress.setValue(round(chance * 10))
-            progress.setFormat(milestone.label)
+            progress.setFormat(projection.label)
             progress.setAlignment(Qt.AlignmentFlag.AlignCenter)
             progress.setProperty("chanceLevel", self._chance_level(chance))
             self.table.setCellWidget(row, 0, progress)
             chance_item = QTableWidgetItem(f"{chance:.1f}%".replace(".", ","))
             chance_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            expected_item = QTableWidgetItem(
-                f"{math.ceil(milestone.expected_warps)} tiros"
-            )
-            expected_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 1, chance_item)
-            self.table.setItem(row, 2, expected_item)
+            values = (
+                f"{projection.optimistic_warps} tiros",
+                f"{math.ceil(projection.expected_warps)} tiros",
+                f"{projection.pessimistic_warps} tiros",
+            )
+            for column, value in enumerate(values, start=2):
+                item = QTableWidgetItem(value)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.table.setItem(row, column, item)
             self.table.setRowHeight(row, 36)
-        self.table.setFixedHeight(38 + 36 * len(milestones))
+        self.table.setFixedHeight(38 + 36 * max(1, len(projections)))
         self.table.horizontalHeaderItem(1).setText(
-            f"Chance de sucesso com {budget} tiros"
+            f"Chance com {budget} tiros"
         )
 
     @staticmethod

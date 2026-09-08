@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import re
 
 
 REFUND_MULTIPLIERS = {
@@ -40,6 +41,16 @@ class PlannerMilestone:
     expected_warps: float
 
 
+@dataclass(frozen=True, slots=True)
+class SequenceProjection:
+    label: str
+    chance: float
+    optimistic_warps: int
+    expected_warps: float
+    pessimistic_warps: int
+    worst_case: int
+
+
 def _distribution(cap: int, base: float, soft_start: int, increment: float) -> list[float]:
     survival = 1.0
     result: list[float] = []
@@ -69,6 +80,86 @@ def _convolve(left: list[float], right: list[float]) -> list[float]:
         for right_index, right_value in enumerate(right):
             result[left_index + right_index] += left_value * right_value
     return result
+
+
+def parse_goal_sequence(value: str) -> tuple[str, ...]:
+    tokens = tuple(
+        token.upper() for token in re.findall(r"[ES]\s*\d", value.upper())
+    )
+    normalized = tuple(token.replace(" ", "") for token in tokens)
+    if not normalized:
+        raise ValueError("Selecione ao menos uma meta para montar a rota.")
+    current_e, current_s = -1, 0
+    for token in normalized:
+        level = int(token[1:])
+        if token[0] == "E":
+            if not 0 <= level <= 6 or level <= current_e:
+                raise ValueError("As metas de Eidolon devem avançar de E0 até E6.")
+            current_e = level
+        else:
+            if not 1 <= level <= 5 or level <= current_s:
+                raise ValueError("As metas de sobreposição devem avançar de S1 até S5.")
+            current_s = level
+    return normalized
+
+
+def _quantile(distribution: list[float], quantile: float) -> int:
+    cumulative = 0.0
+    for index, probability in enumerate(distribution):
+        cumulative += probability
+        if cumulative >= quantile:
+            return index
+    return len(distribution) - 1
+
+
+def sequence_projections(
+    sequence: str,
+    budget: int,
+    character_pity: int,
+    character_guaranteed: bool,
+    light_cone_pity: int,
+    light_cone_guaranteed: bool,
+) -> tuple[SequenceProjection, ...]:
+    goals = parse_goal_sequence(sequence)
+    cumulative = [1.0]
+    current_e, current_s = -1, 0
+    used_character_start = False
+    used_cone_start = False
+    results: list[SequenceProjection] = []
+    for goal in goals:
+        target = int(goal[1:])
+        if goal[0] == "E":
+            acquisitions = target - current_e
+            current_e = target
+            for _ in range(acquisitions):
+                cost = _cost_pmf(
+                    character_pity if not used_character_start else 0,
+                    character_guaranteed if not used_character_start else False,
+                    90, 0.5625, CHARACTER_DISTRIBUTION,
+                )
+                used_character_start = True
+                cumulative = _convolve(cumulative, cost)
+        else:
+            acquisitions = target - current_s
+            current_s = target
+            for _ in range(acquisitions):
+                cost = _cost_pmf(
+                    light_cone_pity if not used_cone_start else 0,
+                    light_cone_guaranteed if not used_cone_start else False,
+                    80, 0.78125, LIGHT_CONE_DISTRIBUTION,
+                )
+                used_cone_start = True
+                cumulative = _convolve(cumulative, cost)
+        chance = sum(cumulative[: min(max(0, budget) + 1, len(cumulative))])
+        results.append(SequenceProjection(
+            label=goal,
+            chance=min(max(chance, 0.0), 1.0),
+            optimistic_warps=_quantile(cumulative, 0.10),
+            expected_warps=sum(i * p for i, p in enumerate(cumulative)),
+            pessimistic_warps=_quantile(cumulative, 0.90),
+            worst_case=len(cumulative) - 1,
+        ))
+    return tuple(results)
 
 
 def _projection(

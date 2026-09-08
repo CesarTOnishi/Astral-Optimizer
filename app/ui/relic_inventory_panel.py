@@ -332,7 +332,9 @@ class RelicInventoryPanel(QWidget):
             f"{len(items)} de {len(self.items)} relíquias exibidas"
         )
         if not items:
-            empty = QLabel("Nenhuma relíquia encontrada neste filtro.")
+            empty = QLabel(
+                "Nenhuma relíquia encontrada. Ajuste os filtros ou atualize sua conta para importar o inventário."
+            )
             empty.setObjectName("relicInventoryEmpty")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.grid.addWidget(empty, 0, 0)

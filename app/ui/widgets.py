@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from app.benchmark.models import BenchmarkResult, RelicRating, UpgradeComparison
 from app.models import CharacterStat, CharacterSummary, RelicSummary
+from app.preferences import motion_duration, reduce_motion_enabled, themed_color
 
 
 COMPACT_STAT_NAMES = {
@@ -73,7 +74,7 @@ class FadeComboItemDelegate(QStyledItemDelegate):
         self.hover_row = -1
         self.hover_progress = 0.0
         self.animation = QVariantAnimation(self)
-        self.animation.setDuration(150)
+        self.animation.setDuration(motion_duration(150))
         self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.animation.valueChanged.connect(self._set_progress)
         self.animation.finished.connect(self._animation_finished)
@@ -84,6 +85,9 @@ class FadeComboItemDelegate(QStyledItemDelegate):
         self.popup_viewport.installEventFilter(self)
 
     def _animate(self, target: float) -> None:
+        if reduce_motion_enabled():
+            self._set_progress(target)
+            return
         self.animation.stop()
         self.animation.setStartValue(self.hover_progress)
         self.animation.setEndValue(target)
@@ -124,8 +128,8 @@ class FadeComboItemDelegate(QStyledItemDelegate):
         clean.state &= ~QStyle.StateFlag.State_Selected
 
         if index.row() == self.hover_row and self.hover_progress > 0:
-            start = QColor("#17243a")
-            end = QColor("#315f88")
+            start = QColor(themed_color("#17243a"))
+            end = QColor(themed_color("#315f88"))
             progress = self.hover_progress
             background = QColor(
                 round(start.red() + (end.red() - start.red()) * progress),
@@ -140,7 +144,7 @@ class FadeComboItemDelegate(QStyledItemDelegate):
         elif selected:
             painter.save()
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor("#233f61"))
+            painter.setBrush(QColor(themed_color("#233f61")))
             painter.drawRoundedRect(option.rect.adjusted(3, 2, -3, -2), 6, 6)
             painter.restore()
         super().paint(painter, clean, index)
@@ -158,13 +162,16 @@ class FadeComboBox(QComboBox):
         self._glow.setColor(QColor(100, 197, 238, 0))
         self.setGraphicsEffect(self._glow)
         self._hover_animation = QVariantAnimation(self)
-        self._hover_animation.setDuration(170)
+        self._hover_animation.setDuration(motion_duration(170))
         self._hover_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._hover_animation.valueChanged.connect(self._set_hover_progress)
         self._item_delegate = FadeComboItemDelegate(self)
         self.setItemDelegate(self._item_delegate)
 
     def _animate_hover(self, target: float) -> None:
+        if reduce_motion_enabled():
+            self._set_hover_progress(target)
+            return
         self._hover_animation.stop()
         self._hover_animation.setStartValue(self._hover_progress)
         self._hover_animation.setEndValue(target)
@@ -180,10 +187,12 @@ class FadeComboBox(QComboBox):
             self.setStyleSheet("")
             return
         background = self._mixed_color(
-            QColor("#0d1729"), QColor("#172f4b"), self._hover_progress
+            QColor(themed_color("#0d1729")),
+            QColor(themed_color("#172f4b")), self._hover_progress
         )
         border = self._mixed_color(
-            QColor("#334967"), QColor("#69bde7"), self._hover_progress
+            QColor(themed_color("#334967")),
+            QColor(themed_color("#69bde7")), self._hover_progress
         )
         self.setStyleSheet(
             "QComboBox {"
@@ -232,12 +241,15 @@ class FadeSpinBox(QSpinBox):
         self._glow.setColor(QColor(105, 207, 250, 0))
         self.setGraphicsEffect(self._glow)
         self._glow_animation = QVariantAnimation(self)
-        self._glow_animation.setDuration(170)
+        self._glow_animation.setDuration(motion_duration(170))
         self._glow_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._glow_animation.valueChanged.connect(self._set_glow_progress)
 
     def _animate_glow(self) -> None:
         target = 1.0 if self._focused else (0.58 if self._hovered else 0.0)
+        if reduce_motion_enabled():
+            self._set_glow_progress(target)
+            return
         self._glow_animation.stop()
         self._glow_animation.setStartValue(self._glow_progress)
         self._glow_animation.setEndValue(target)
@@ -381,7 +393,7 @@ class LightConeBanner(QFrame):
         clip = QPainterPath()
         clip.addRoundedRect(bounds, 9, 9)
         painter.setClipPath(clip)
-        painter.fillPath(clip, QColor("#101a2d"))
+        painter.fillPath(clip, QColor(themed_color("#101a2d")))
 
         if not self.source.isNull():
             image = self.source.scaled(
@@ -401,7 +413,7 @@ class LightConeBanner(QFrame):
         shade.setColorAt(1, QColor(5, 9, 18, 205))
         painter.fillRect(self.rect(), shade)
         painter.setClipping(False)
-        painter.setPen(QPen(QColor("#687895"), 1))
+        painter.setPen(QPen(QColor(themed_color("#687895")), 1))
         painter.drawRoundedRect(bounds, 9, 9)
         painter.end()
 

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import csv
+from dataclasses import asdict
+import json
 from pathlib import Path
 from collections import Counter
 
@@ -25,9 +28,12 @@ from PySide6.QtWidgets import (
 )
 
 from app.auth import AuthUser
+from app.ui.charts import WarpBarChart
+from app.ui.experience import copy_error_details
 from app.ui.widgets import AvatarLabel, FadeComboBox, FRIBBELS_ASSETS
 from app.warp import StarRailStationImport, WarpDatabase, WarpImportWorker
 from app.warp.models import WarpRecord, WarpSummary
+from app.warp.analytics import analyze_warps
 from app.warp.statistics import (
     FiveStarOutcome,
     STANDARD_CHARACTER_IDS,
@@ -226,6 +232,12 @@ class WarpPanel(QWidget):
         self.refresh_button = QPushButton("Atualizar tela")
         self.refresh_button.setObjectName("secondaryButton")
         self.refresh_button.clicked.connect(self.refresh)
+        self.csv_button = QPushButton("Exportar CSV")
+        self.csv_button.setObjectName("secondaryButton")
+        self.csv_button.clicked.connect(lambda: self._export_history("csv"))
+        self.json_button = QPushButton("Exportar JSON")
+        self.json_button.setObjectName("secondaryButton")
+        self.json_button.clicked.connect(lambda: self._export_history("json"))
         account_label = QLabel("CONTA DO JOGO")
         account_label.setObjectName("metricTitle")
         self.account_selector = FadeComboBox(controls)
@@ -241,12 +253,18 @@ class WarpPanel(QWidget):
             )
             controls_layout.addWidget(button, 0, column)
             controls_layout.setColumnStretch(column, 1)
+        export_row = QHBoxLayout()
+        export_row.setSpacing(8)
+        export_row.addWidget(self.csv_button)
+        export_row.addWidget(self.json_button)
+        export_row.addStretch(1)
+        controls_layout.addLayout(export_row, 1, 0, 1, 2)
         account_row = QHBoxLayout()
         account_row.setSpacing(8)
         account_row.addStretch(1)
         account_row.addWidget(account_label)
         account_row.addWidget(self.account_selector)
-        controls_layout.addLayout(account_row, 1, 0, 1, 3)
+        controls_layout.addLayout(account_row, 1, 2)
         layout.addWidget(controls)
 
         self.status = QLabel(
@@ -254,7 +272,18 @@ class WarpPanel(QWidget):
         )
         self.status.setObjectName("statusInfo")
         self.status.setWordWrap(True)
-        layout.addWidget(self.status)
+        status_row = QHBoxLayout()
+        status_row.setContentsMargins(0, 0, 0, 0)
+        status_row.setSpacing(8)
+        self.copy_error_button = QPushButton("Copiar detalhes")
+        self.copy_error_button.setObjectName("copyErrorButton")
+        self.copy_error_button.setVisible(False)
+        self.copy_error_button.clicked.connect(
+            lambda: copy_error_details(self.status.text(), "Histórico de Saltos")
+        )
+        status_row.addWidget(self.status, 1)
+        status_row.addWidget(self.copy_error_button)
+        layout.addLayout(status_row)
 
         content_splitter = QSplitter(Qt.Orientation.Horizontal)
         content_splitter.setObjectName("warpContentSplitter")
@@ -399,6 +428,45 @@ class WarpPanel(QWidget):
         banner_panel.setMinimumWidth(200)
         banner_panel.setMaximumWidth(270)
         layout.addWidget(content_splitter, 1)
+
+        analytics_panel = QFrame()
+        analytics_panel.setObjectName("warpAnalyticsPanel")
+        analytics_layout = QVBoxLayout(analytics_panel)
+        analytics_layout.setContentsMargins(12, 11, 12, 12)
+        analytics_layout.setSpacing(9)
+        analytics_title = QLabel("ANÁLISES DO HISTÓRICO")
+        analytics_title.setObjectName("sectionTitle")
+        analytics_layout.addWidget(analytics_title)
+        charts = QHBoxLayout()
+        charts.setSpacing(9)
+        monthly_box = QVBoxLayout()
+        monthly_label = QLabel("TIROS POR MÊS")
+        monthly_label.setObjectName("metricTitle")
+        self.monthly_chart = WarpBarChart()
+        monthly_box.addWidget(monthly_label)
+        monthly_box.addWidget(self.monthly_chart)
+        edition_box = QVBoxLayout()
+        chart_edition_label = QLabel("TIROS POR VERSÃO / EDIÇÃO")
+        chart_edition_label.setObjectName("metricTitle")
+        self.edition_chart = WarpBarChart(horizontal=True)
+        edition_box.addWidget(chart_edition_label)
+        edition_box.addWidget(self.edition_chart)
+        charts.addLayout(monthly_box, 1)
+        charts.addLayout(edition_box, 1)
+        analytics_layout.addLayout(charts)
+        metrics = QHBoxLayout()
+        self.pity_comparison = QLabel("Média de pity: —")
+        self.pity_comparison.setObjectName("warpAnalyticsMetric")
+        self.outcome_summary = QLabel("50/50: —")
+        self.outcome_summary.setObjectName("warpAnalyticsMetric")
+        metrics.addWidget(self.pity_comparison, 1)
+        metrics.addWidget(self.outcome_summary, 1)
+        analytics_layout.addLayout(metrics)
+        self.gap_report = QLabel("Qualidade do histórico: aguardando dados.")
+        self.gap_report.setObjectName("warpGapReport")
+        self.gap_report.setWordWrap(True)
+        analytics_layout.addWidget(self.gap_report)
+        layout.addWidget(analytics_panel)
         self.page_scroll.setWidget(content)
         outer.addWidget(self.page_scroll)
 
@@ -483,6 +551,9 @@ class WarpPanel(QWidget):
         can_import = self.owner_id is not None and not busy
         self.auto_button.setEnabled(can_import)
         self.file_button.setEnabled(can_import)
+        can_export = bool(can_import and self.current_uid and self.current_records)
+        self.csv_button.setEnabled(can_export)
+        self.json_button.setEnabled(can_export)
         self.auto_button.setText("Importando…" if busy else "Localizar e importar")
         self.busy_changed.emit(busy)
 
@@ -492,6 +563,7 @@ class WarpPanel(QWidget):
         )
         self.status.setObjectName(object_name)
         self.status.setText(message)
+        self.copy_error_button.setVisible(kind == "error")
         self.status.style().unpolish(self.status)
         self.status.style().polish(self.status)
 
@@ -509,6 +581,10 @@ class WarpPanel(QWidget):
         if user is None:
             self._set_status(
                 "Entre ou crie uma conta para acessar seu acompanhamento de Saltos."
+            )
+        elif not self.current_uid:
+            self._set_status(
+                "Nenhum histórico importado. Abra o histórico de Saltos no jogo e clique em Localizar e importar."
             )
         else:
             self._set_status(f"Histórico separado do perfil {user.username}.", "success")
@@ -740,6 +816,87 @@ class WarpPanel(QWidget):
             self.cone_card.detail.setText("Acumulado da categoria, após todos os tiros")
         self._fill_recent(outcomes, cap)
         self._fill_history(outcomes)
+        self._render_analytics(records)
+
+    def _render_analytics(self, records: list[WarpRecord]) -> None:
+        analysis = analyze_warps(
+            records, self.current_summaries, self.selected_gacha_type
+        )
+        self.monthly_chart.set_data(analysis.monthly)
+        self.edition_chart.set_data(analysis.editions)
+        personal = (
+            f"{analysis.personal_average:.1f}".replace(".", ",")
+            if analysis.personal_average is not None else "—"
+        )
+        theoretical = f"{analysis.theoretical_average:.1f}".replace(".", ",")
+        self.pity_comparison.setText(
+            f"Média pessoal de pity: {personal}  ·  média teórica: {theoretical}"
+        )
+        if self.selected_gacha_type in {"11", "12", "21", "22"}:
+            contest = "75/25" if self.selected_gacha_type in {"12", "22"} else "50/50"
+            self.outcome_summary.setText(
+                f"{contest}: {analysis.wins} vitória(s) · {analysis.losses} derrota(s) · "
+                f"{analysis.guaranteed} garantido(s)"
+            )
+        else:
+            self.outcome_summary.setText("Banner sem disputa de rate-up.")
+        if analysis.gaps:
+            self.gap_report.setProperty("warning", True)
+            self.gap_report.setText(
+                "Possíveis lacunas: " + "  •  ".join(
+                    f"{gap.title}: {gap.detail}" for gap in analysis.gaps
+                )
+            )
+        else:
+            self.gap_report.setProperty("warning", False)
+            self.gap_report.setText(
+                "Histórico individual consistente nos dados disponíveis."
+            )
+        self.gap_report.style().unpolish(self.gap_report)
+        self.gap_report.style().polish(self.gap_report)
+        can_export = bool(self.owner_id is not None and self.current_uid and records)
+        self.csv_button.setEnabled(can_export)
+        self.json_button.setEnabled(can_export)
+
+    def _export_history(self, format_name: str) -> None:
+        if self.owner_id is None or not self.current_uid or not self.current_records:
+            self._set_status("Nenhum histórico selecionado para exportar.", "error")
+            return
+        suffix = format_name.casefold()
+        path, _selected = QFileDialog.getSaveFileName(
+            self,
+            "Exportar histórico de Saltos",
+            f"AstralOptimizer_Saltos_{self.current_uid}.{suffix}",
+            "CSV (*.csv)" if suffix == "csv" else "JSON (*.json)",
+        )
+        if not path:
+            return
+        if not path.casefold().endswith(f".{suffix}"):
+            path += f".{suffix}"
+        try:
+            if suffix == "csv":
+                fields = list(asdict(self.current_records[0]))
+                with open(path, "w", encoding="utf-8-sig", newline="") as output:
+                    writer = csv.DictWriter(output, fieldnames=fields)
+                    writer.writeheader()
+                    writer.writerows(asdict(record) for record in self.current_records)
+            else:
+                payload = {
+                    "version": 1,
+                    "uid": self.current_uid,
+                    "records": [asdict(record) for record in self.current_records],
+                    "summaries": [
+                        asdict(value) for value in self.current_summaries.values()
+                    ],
+                }
+                Path(path).write_text(
+                    json.dumps(payload, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+        except OSError as error:
+            self._set_status(f"Não foi possível exportar: {error}", "error")
+            return
+        self._set_status(f"Histórico exportado em {suffix.upper()}.", "success")
 
     @staticmethod
     def _standard_ids(gacha_type: str) -> set[str] | None:

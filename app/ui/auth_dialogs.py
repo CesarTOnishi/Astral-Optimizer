@@ -36,6 +36,11 @@ from app.cloud import (
 )
 from app.config import APP_VERSION
 from app.privacy import hide_uid_in_shared_images, set_hide_uid_in_shared_images
+from app.preferences import (
+    ExperiencePreferences, ExperienceSettings, THEMES,
+    apply_experience_preferences, motion_duration, themed_color,
+)
+from app.ui.widgets import FadeComboBox
 from app.warp import WarpDatabase
 
 
@@ -44,7 +49,7 @@ class AuthDialog(QDialog):
         super().__init__(parent)
         self.service = service
         self.user: AuthUser | None = None
-        self.setObjectName("authDialog")
+        self.setObjectName("settingsDialog")
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setModal(True)
@@ -191,7 +196,7 @@ class AuthDialog(QDialog):
         start = self.pos()
         self._login_anchor_pos = start
         shake = QPropertyAnimation(self, b"pos")
-        shake.setDuration(390)
+        shake.setDuration(motion_duration(390))
         shake.setEasingCurve(QEasingCurve.Type.OutCubic)
         shake.setStartValue(start)
         shake.setKeyValueAt(0.14, start + QPoint(-10, 0))
@@ -203,7 +208,7 @@ class AuthDialog(QDialog):
         shake.setEndValue(start)
 
         flash = QPropertyAnimation(self.login_error_opacity, b"opacity")
-        flash.setDuration(520)
+        flash.setDuration(motion_duration(520))
         flash.setStartValue(0.0)
         flash.setKeyValueAt(0.18, 0.72)
         flash.setKeyValueAt(0.42, 0.04)
@@ -274,11 +279,13 @@ class PrivacyCheckBox(QCheckBox):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         box_size = 18.0
         top = (self.height() - box_size) / 2.0
-        border = QColor("#8ddcf5" if self.isChecked() else "#527098")
+        border = QColor(themed_color("#8ddcf5" if self.isChecked() else "#527098"))
         if self.underMouse() or self.hasFocus():
-            border = QColor("#9be6ff")
+            border = QColor(themed_color("#9be6ff"))
         painter.setPen(QPen(border, 1.2))
-        painter.setBrush(QColor("#498dc2" if self.isChecked() else "#0b1424"))
+        painter.setBrush(QColor(themed_color(
+            "#498dc2" if self.isChecked() else "#0b1424"
+        )))
         painter.drawRoundedRect(1.0, top, box_size, box_size, 5.0, 5.0)
 
         if self.isChecked():
@@ -293,7 +300,9 @@ class PrivacyCheckBox(QCheckBox):
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawPath(check)
 
-        painter.setPen(QColor("#eaf2ff" if self.isEnabled() else "#718099"))
+        painter.setPen(QColor(themed_color(
+            "#eaf2ff" if self.isEnabled() else "#718099"
+        )))
         painter.setFont(self.font())
         painter.drawText(
             29,
@@ -326,21 +335,25 @@ class SettingsDialog(QDialog):
         self._drive_email = ""
         self.cloud_changed = False
         self.logout_requested = False
+        self.experience_changed = False
+        self.tutorial_requested = False
+        self.diagnostics_requested = False
         self.uid_to_save: str | None = None
         self.setObjectName("authDialog")
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setModal(True)
-        self.setFixedWidth(420)
+        self.setFixedSize(790, 590)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(1, 1, 1, 1)
         modal = QFrame()
-        modal.setObjectName("authModal")
+        modal.setObjectName("settingsModal")
         content = QVBoxLayout(modal)
-        content.setContentsMargins(24, 20, 24, 24)
-        content.setSpacing(12)
+        content.setContentsMargins(0, 0, 0, 0)
+        content.setSpacing(0)
         header = QHBoxLayout()
+        header.setContentsMargins(22, 14, 12, 12)
         title = QLabel("CONFIGURAÇÕES")
         title.setObjectName("brandTitle")
         close = QPushButton("×")
@@ -352,6 +365,46 @@ class SettingsDialog(QDialog):
         header.addWidget(close)
         content.addLayout(header)
 
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
+        sidebar = QFrame()
+        sidebar.setObjectName("settingsSidebar")
+        sidebar.setFixedWidth(178)
+        side = QVBoxLayout(sidebar)
+        side.setContentsMargins(12, 15, 12, 16)
+        side.setSpacing(6)
+        self.settings_nav: list[QPushButton] = []
+        for index, (icon, label) in enumerate((
+            ("◉", "Perfil"), ("✦", "Aparência"), ("◈", "Privacidade"),
+            ("☁", "Backup"), ("ⓘ", "Aplicativo"),
+        )):
+            button = QPushButton(f"{icon}   {label}")
+            button.setObjectName("settingsNavButton")
+            button.setCheckable(True)
+            button.clicked.connect(
+                lambda _checked=False, page=index: self._select_settings_page(page)
+            )
+            side.addWidget(button)
+            self.settings_nav.append(button)
+        side.addStretch(1)
+        account_hint = QLabel(user.username)
+        account_hint.setObjectName("settingsSidebarUser")
+        account_hint.setWordWrap(True)
+        side.addWidget(account_hint)
+        body.addWidget(sidebar)
+
+        right = QWidget()
+        right.setObjectName("settingsContent")
+        right_layout = QVBoxLayout(right)
+        right_layout.setContentsMargins(24, 18, 24, 22)
+        right_layout.setSpacing(10)
+        self.settings_stack = QStackedWidget()
+        self.settings_stack.setObjectName("settingsStack")
+
+        profile_page, profile = self._settings_page(
+            "PERFIL", "Gerencie sua conta local e a UID principal do Honkai."
+        )
         avatar = QLabel(user.username[:1].upper())
         avatar.setObjectName("settingsAvatar")
         avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -362,9 +415,9 @@ class SettingsDialog(QDialog):
         detail = QLabel(user.email or "E-mail não cadastrado")
         detail.setObjectName("muted")
         detail.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        content.addWidget(avatar, alignment=Qt.AlignmentFlag.AlignCenter)
-        content.addWidget(name)
-        content.addWidget(detail)
+        profile.addWidget(avatar, alignment=Qt.AlignmentFlag.AlignCenter)
+        profile.addWidget(name)
+        profile.addWidget(detail)
 
         uid_label = QLabel("UID PRINCIPAL DO HONKAI")
         uid_label.setObjectName("metricTitle")
@@ -378,14 +431,57 @@ class SettingsDialog(QDialog):
         save_uid = QPushButton("Salvar UID principal")
         save_uid.setObjectName("primaryButton")
         save_uid.clicked.connect(self._save_uid)
-        self.settings_message = QLabel("")
-        self.settings_message.setObjectName("authMessage")
-        self.settings_message.setWordWrap(True)
-        content.addWidget(uid_label)
-        content.addWidget(self.uid_input)
-        content.addWidget(save_uid)
-        content.addWidget(self.settings_message)
+        profile.addSpacing(8)
+        profile.addWidget(uid_label)
+        profile.addWidget(self.uid_input)
+        profile.addWidget(save_uid)
+        profile.addStretch(1)
+        logout = QPushButton("Sair da conta")
+        logout.setObjectName("dangerButton")
+        logout.clicked.connect(self._logout)
+        profile.addWidget(logout)
+        self.settings_stack.addWidget(profile_page)
 
+        appearance_page, appearance = self._settings_page(
+            "APARÊNCIA", "Escolha o visual e ajuste os efeitos para este computador."
+        )
+        current_experience = ExperienceSettings().load()
+        theme_label = QLabel("TEMA DA INTERFACE")
+        theme_label.setObjectName("metricTitle")
+        self.theme_selector = FadeComboBox()
+        self.theme_selector.setObjectName("settingsThemeSelector")
+        for key, label in THEMES.items():
+            self.theme_selector.addItem(label, key)
+        self.theme_selector.setCurrentIndex(
+            max(0, self.theme_selector.findData(current_experience.theme))
+        )
+        self.theme_selector.currentIndexChanged.connect(self._apply_appearance)
+        self.reduce_motion_checkbox = QCheckBox(
+            "Reduzir animações e efeitos de movimento"
+        )
+        self.reduce_motion_checkbox.setObjectName("experienceCheckBox")
+        self.reduce_motion_checkbox.setChecked(current_experience.reduce_motion)
+        self.reduce_motion_checkbox.toggled.connect(self._apply_appearance)
+        appearance.addWidget(theme_label)
+        appearance.addWidget(self.theme_selector)
+        appearance.addWidget(self.reduce_motion_checkbox)
+        appearance_hint = QLabel(
+            "A redução de movimento é indicada para computadores mais fracos ou para quem prefere transições instantâneas."
+        )
+        appearance_hint.setObjectName("muted")
+        appearance_hint.setWordWrap(True)
+        appearance.addWidget(appearance_hint)
+        appearance.addSpacing(10)
+        tutorial = QPushButton("Rever tutorial interativo")
+        tutorial.setObjectName("secondaryButton")
+        tutorial.clicked.connect(self._request_tutorial)
+        appearance.addWidget(tutorial)
+        appearance.addStretch(1)
+        self.settings_stack.addWidget(appearance_page)
+
+        privacy_page, privacy = self._settings_page(
+            "PRIVACIDADE", "Controle quais informações aparecem ao compartilhar imagens."
+        )
         privacy_panel = QFrame()
         privacy_panel.setObjectName("settingsPrivacyPanel")
         privacy_layout = QVBoxLayout(privacy_panel)
@@ -416,8 +512,13 @@ class SettingsDialog(QDialog):
         privacy_layout.addWidget(privacy_title)
         privacy_layout.addWidget(self.hide_uid_checkbox)
         privacy_layout.addWidget(privacy_hint)
-        content.addWidget(privacy_panel)
+        privacy.addWidget(privacy_panel)
+        privacy.addStretch(1)
+        self.settings_stack.addWidget(privacy_page)
 
+        backup_page, backup = self._settings_page(
+            "BACKUP", "Proteja seu histórico de Saltos no espaço privado do Google Drive."
+        )
         drive_label = QLabel("BACKUP NO GOOGLE DRIVE")
         drive_label.setObjectName("metricTitle")
         self.drive_status = QLabel()
@@ -436,12 +537,23 @@ class SettingsDialog(QDialog):
         drive_actions.addWidget(self.drive_connect)
         drive_actions.addWidget(self.drive_backup)
         drive_actions.addWidget(self.drive_restore)
-        content.addWidget(drive_label)
-        content.addWidget(self.drive_status)
-        content.addLayout(drive_actions)
+        backup.addWidget(drive_label)
+        backup.addWidget(self.drive_status)
+        backup.addLayout(drive_actions)
+        backup_hint = QLabel(
+            "O Astral usa a área privada do aplicativo no Drive; outros arquivos da sua conta não ficam acessíveis."
+        )
+        backup_hint.setObjectName("muted")
+        backup_hint.setWordWrap(True)
+        backup.addWidget(backup_hint)
+        backup.addStretch(1)
+        self.settings_stack.addWidget(backup_page)
         self._set_drive_checking()
         QTimer.singleShot(0, self._refresh_drive)
 
+        app_page, application = self._settings_page(
+            "APLICATIVO", "Atualizações, suporte e informações técnicas."
+        )
         update_panel = QFrame()
         update_panel.setObjectName("settingsUpdatePanel")
         update_panel.setMinimumHeight(76)
@@ -468,13 +580,65 @@ class SettingsDialog(QDialog):
         update_layout.addWidget(
             self.update_button, alignment=Qt.AlignmentFlag.AlignVCenter
         )
-        content.addWidget(update_panel)
+        application.addWidget(update_panel)
+        diagnostics = QPushButton("Diagnóstico")
+        diagnostics.setObjectName("secondaryButton")
+        diagnostics.clicked.connect(self._open_diagnostics)
+        application.addWidget(diagnostics)
+        application.addStretch(1)
+        self.settings_stack.addWidget(app_page)
 
-        logout = QPushButton("Sair da conta")
-        logout.setObjectName("dangerButton")
-        logout.clicked.connect(self._logout)
-        content.addWidget(logout)
+        self.settings_message = QLabel("")
+        self.settings_message.setObjectName("authMessage")
+        self.settings_message.setWordWrap(True)
+        right_layout.addWidget(self.settings_stack, 1)
+        right_layout.addWidget(self.settings_message)
+        body.addWidget(right, 1)
+        content.addLayout(body, 1)
         layout.addWidget(modal)
+        self._select_settings_page(0)
+
+    @staticmethod
+    def _settings_page(title: str, subtitle: str) -> tuple[QWidget, QVBoxLayout]:
+        page = QWidget()
+        page.setObjectName("settingsPage")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+        heading = QLabel(title)
+        heading.setObjectName("settingsPageTitle")
+        detail = QLabel(subtitle)
+        detail.setObjectName("settingsPageSubtitle")
+        detail.setWordWrap(True)
+        layout.addWidget(heading)
+        layout.addWidget(detail)
+        layout.addSpacing(8)
+        return page, layout
+
+    def _select_settings_page(self, index: int) -> None:
+        self.settings_stack.setCurrentIndex(index)
+        for position, button in enumerate(self.settings_nav):
+            button.setChecked(position == index)
+
+    def _apply_appearance(self, _value: object = None) -> None:
+        current = ExperienceSettings().load()
+        preferences = ExperiencePreferences(
+            theme=str(self.theme_selector.currentData()),
+            reduce_motion=self.reduce_motion_checkbox.isChecked(),
+            tutorial_completed=current.tutorial_completed,
+        )
+        ExperienceSettings().save(preferences)
+        apply_experience_preferences(preferences=preferences)
+        self.experience_changed = True
+        self.settings_message.setText("Aparência aplicada automaticamente.")
+
+    def _request_tutorial(self) -> None:
+        self.tutorial_requested = True
+        self.accept()
+
+    def _open_diagnostics(self) -> None:
+        self.diagnostics_requested = True
+        self.accept()
 
     def _request_update(self) -> None:
         self.update_button.setEnabled(False)

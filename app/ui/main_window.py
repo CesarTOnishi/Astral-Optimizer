@@ -6,7 +6,7 @@ import time
 import unicodedata
 
 from PySide6.QtCore import QEvent, QSettings, QStandardPaths, QTimer, Qt, QUrl, Signal
-from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
+from PySide6.QtGui import QDesktopServices, QIcon, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -39,10 +39,10 @@ from app.config import (
     APP_HOME_BACKGROUND,
     APP_ICON_ICO,
     APP_ICON_PNG,
-    APP_STYLESHEET,
     APP_VERSION,
 )
 from app.models import AccountSummary, CharacterStat, CharacterSummary
+from app.preferences import ExperienceSettings, apply_experience_preferences
 from app.privacy import hide_uid_in_shared_images
 from app.relics import RelicDatabase
 from app.sync_manager import BackgroundSyncManager
@@ -56,6 +56,10 @@ from app.ui.build_share import render_build_share_card
 from app.ui.account_dashboard import AccountDashboard
 from app.ui.catalog_panel import CatalogPanel
 from app.ui.friends_panel import FriendsPanel
+from app.ui.experience import (
+    DiagnosticsPanel, ExperienceDialog, GuidedTourOverlay, TourStep,
+    copy_error_details,
+)
 from app.ui.home_panel import HomePanel
 from app.ui.image_loader import ImageLoader
 from app.ui.loading import LoadingOverlay, load_icon_pixmap
@@ -241,9 +245,16 @@ class MainWindow(QMainWindow):
         self.current_relic_cards: list[RelicCard] = []
         self._detail_request = 0
         self._initial_account_sync_active = False
+        self.experience_settings = ExperienceSettings()
+        self._shortcuts: list[QShortcut] = []
+        self.tutorial_overlay: GuidedTourOverlay | None = None
+        self._tutorial_original_page = 6
+        self._tutorial_original_nav: tuple[str, ...] = ()
+        self._tutorial_sidebar_was_expanded = True
 
         self._build_ui()
-        self.setStyleSheet(APP_STYLESHEET)
+        apply_experience_preferences()
+        self._setup_shortcuts()
         self.sync_manager.changed.connect(self._sync_status_changed)
         self.sync_spinner_timer = QTimer(self)
         self.sync_spinner_timer.setInterval(320)
@@ -286,9 +297,22 @@ class MainWindow(QMainWindow):
         layout.setSpacing(10)
         layout.addLayout(self._build_header())
 
+        self.status_bar = QFrame()
+        self.status_bar.setObjectName("statusBar")
+        status_layout = QHBoxLayout(self.status_bar)
+        status_layout.setContentsMargins(0, 0, 0, 0)
+        status_layout.setSpacing(8)
         self.status_label = QLabel("Digite seu UID para carregar as builds públicas.")
         self.status_label.setObjectName("statusInfo")
-        layout.addWidget(self.status_label)
+        self.copy_error_button = QPushButton("Copiar detalhes")
+        self.copy_error_button.setObjectName("copyErrorButton")
+        self.copy_error_button.setVisible(False)
+        self.copy_error_button.clicked.connect(
+            lambda: copy_error_details(self.status_label.text(), "Janela principal")
+        )
+        status_layout.addWidget(self.status_label, 1)
+        status_layout.addWidget(self.copy_error_button)
+        layout.addWidget(self.status_bar)
         self.build_empty_panel = self._build_build_empty_panel()
         layout.addWidget(self.build_empty_panel, 1)
 
@@ -364,6 +388,13 @@ class MainWindow(QMainWindow):
         self.page_stack.addWidget(self.home_panel)
         self.catalog_panel = CatalogPanel(self.image_loader)
         self.page_stack.addWidget(self.catalog_panel)
+        self.diagnostics_panel = DiagnosticsPanel({
+            "Contas": self.auth_service.path,
+            "Saltos": self.warp_panel.database.path,
+            "Relíquias": self.relic_database.path,
+            "Histórico de builds": self.build_history_database.path,
+        })
+        self.page_stack.addWidget(self.diagnostics_panel)
         self._refresh_account_page()
         self._navigate("Início")
         body_layout.addWidget(self.page_stack, 1)
@@ -462,7 +493,16 @@ class MainWindow(QMainWindow):
         card_layout.addWidget(
             self.account_load_button, alignment=Qt.AlignmentFlag.AlignCenter
         )
-        card_layout.addWidget(self.account_status)
+        account_status_row = QHBoxLayout()
+        self.account_copy_error = QPushButton("Copiar detalhes")
+        self.account_copy_error.setObjectName("copyErrorButton")
+        self.account_copy_error.setVisible(False)
+        self.account_copy_error.clicked.connect(
+            lambda: copy_error_details(self.account_status.text(), "Sincronização da conta")
+        )
+        account_status_row.addWidget(self.account_status, 1)
+        account_status_row.addWidget(self.account_copy_error)
+        card_layout.addLayout(account_status_row)
         layout.addWidget(card)
         self.account_dashboard = AccountDashboard(self.image_loader)
         layout.addWidget(self.account_dashboard)
@@ -556,6 +596,11 @@ class MainWindow(QMainWindow):
         self.nav_section.setObjectName("sideSection")
         layout.addWidget(self.nav_section)
         self.nav_buttons: list[tuple[QPushButton, str, str]] = []
+        shortcut_labels = {
+            "Início": "Ctrl+1", "Builds": "Ctrl+2", "Conta": "Ctrl+3",
+            "Relíquias": "Ctrl+4", "Saltos": "Ctrl+5",
+            "Planejador": "Ctrl+6", "Personagens e Cones": "Ctrl+7",
+        }
         for icon, text in (
             ("⌂", "Início"),
             ("◆", "Builds"),
@@ -572,7 +617,10 @@ class MainWindow(QMainWindow):
             button.setCheckable(text != "Rank")
             button.setToolTip(
                 "Abrir o perfil da UID principal no SeeleLand"
-                if text == "Rank" else text
+                if text == "Rank" else (
+                    f"{text}  ·  {shortcut_labels[text]}"
+                    if text in shortcut_labels else text
+                )
             )
             if text == "Início":
                 button.setChecked(True)
@@ -632,7 +680,7 @@ class MainWindow(QMainWindow):
         self.settings_button = QPushButton("⚙")
         self.settings_button.setObjectName("settingsButton")
         self.settings_button.setFixedSize(36, 36)
-        self.settings_button.setToolTip("Configurações do perfil")
+        self.settings_button.setToolTip("Configurações do perfil  ·  Ctrl+,")
         self.settings_button.clicked.connect(self.open_settings_dialog)
         user_layout.addWidget(self.auth_avatar)
         user_layout.addWidget(self.auth_user_info, 1)
@@ -671,7 +719,11 @@ class MainWindow(QMainWindow):
     def open_settings_dialog(self) -> None:
         user = self.auth_service.current_user
         if user is None:
-            self.open_auth_dialog()
+            dialog = ExperienceDialog(self)
+            dialog.exec()
+            apply_experience_preferences()
+            if dialog.replay_tutorial:
+                QTimer.singleShot(0, lambda: self.show_tutorial(force=True))
             return
         dialog = SettingsDialog(
             user,
@@ -683,6 +735,10 @@ class MainWindow(QMainWindow):
         dialog.update_requested.connect(lambda: self.check_for_updates(manual=True))
         dialog.exec()
         self.settings_dialog = None
+        replay_tutorial = dialog.tutorial_requested
+        open_diagnostics = dialog.diagnostics_requested
+        if dialog.experience_changed:
+            apply_experience_preferences()
         if dialog.cloud_changed:
             self.warp_panel.refresh()
         if dialog.logout_requested:
@@ -697,6 +753,209 @@ class MainWindow(QMainWindow):
             self._refresh_auth_sidebar()
             if dialog.uid_to_save:
                 self.set_status("UID principal salva. Abra Conta para carregá-la.")
+        if replay_tutorial:
+            QTimer.singleShot(0, lambda: self.show_tutorial(force=True))
+        elif open_diagnostics:
+            self._navigate("Diagnóstico")
+
+    def show_tutorial(self, *, force: bool = False) -> None:
+        first_run = not self.experience_settings.load().tutorial_completed
+        if not force and not first_run:
+            return
+        if self.tutorial_overlay is not None:
+            self.tutorial_overlay.raise_()
+            self.tutorial_overlay.setFocus(Qt.FocusReason.OtherFocusReason)
+            return
+
+        self._tutorial_original_page = self.page_stack.currentIndex()
+        self._tutorial_original_nav = tuple(
+            text for button, _icon, text in self.nav_buttons if button.isChecked()
+        )
+        self._tutorial_sidebar_was_expanded = self.sidebar_expanded
+        if not self.sidebar_expanded:
+            self.toggle_sidebar()
+
+        steps = (
+            TourStep(
+                "Bem-vindo ao Astral Optimizer",
+                "Este tour usa os controles reais do aplicativo. O restante da tela fica escurecido e o destaque mostra exatamente onde agir. Use Próximo, Voltar ou as setas do teclado.",
+                lambda: None,
+                lambda: self._show_tutorial_page(6, "Início"),
+            ),
+            TourStep(
+                "Central de notificações",
+                "O sino reúne avisos importantes: catálogo desatualizado, nova versão, resultado do backup, relíquias alteradas e pity próximo do soft pity.",
+                lambda: self.title_bar.notification_bell,
+            ),
+            TourStep(
+                "Navegação principal",
+                "A barra lateral leva a todas as áreas. O botão no topo recolhe a barra; Ctrl+B faz a mesma coisa. A linha inferior mostra sincronizações e tarefas em andamento.",
+                lambda: self.sidebar,
+            ),
+            TourStep(
+                "Pesquisar uma UID",
+                "Na tela Início, informe uma UID válida para consultar o perfil público e as builds exibidas no jogo. Ctrl+K traz o foco direto para este campo.",
+                lambda: self.home_panel.search_group,
+                lambda: self._show_tutorial_page(6, "Início"),
+            ),
+            TourStep(
+                "Builds e benchmarks",
+                "Depois de pesquisar uma UID, esta área permite escolher o personagem e analisar atributos, cone de luz, relíquias, equipe, histórico e comparação com o benchmark.",
+                self._tutorial_build_anchor,
+                lambda: self._show_tutorial_page(0, "Builds"),
+            ),
+            TourStep(
+                "Dashboard da conta",
+                "Conta concentra o perfil da sua UID principal, seus personagens com benchmark, resumo de Saltos e relíquias. Atualizar conta força uma nova sincronização.",
+                lambda: self.account_load_button,
+                lambda: self._show_tutorial_page(4, "Conta"),
+            ),
+            TourStep(
+                "Amigos",
+                "Salve perfis consultados para revisitá-los rapidamente. A lista permite abrir a UID do amigo e comparar as builds públicas disponíveis.",
+                lambda: self.friends_panel.count,
+                lambda: self._show_tutorial_page(5, "Amigos"),
+            ),
+            TourStep(
+                "Personagens e Cones",
+                "O catálogo reúne dados de personagens e cones de luz. Pesquise por nome, aplique filtros e abra um item para ver atributos, habilidades e progressões.",
+                lambda: self.catalog_panel.search,
+                lambda: self._show_tutorial_page(7, "Personagens e Cones"),
+            ),
+            TourStep(
+                "Atualização do catálogo",
+                "Use este botão quando quiser baixar dados novos. O sino avisará caso a versão local esteja desatualizada.",
+                lambda: self.catalog_panel.sync_button,
+            ),
+            TourStep(
+                "Inventário de relíquias",
+                "Relíquias registra os equipamentos vistos na sua conta. Os filtros separam personagem, situação, slot e conjunto, inclusive peças movidas ou que deixaram de aparecer.",
+                lambda: self.relic_inventory_panel.character_filter,
+                lambda: self._show_tutorial_page(3, "Relíquias"),
+            ),
+            TourStep(
+                "Importar o histórico de Saltos",
+                "A importação automática localiza o histórico do jogo no computador. Também é possível importar um link ou arquivo e atualizar os registros existentes.",
+                lambda: self.warp_panel.auto_button,
+                lambda: self._show_tutorial_warp_section(self.warp_panel.auto_button),
+            ),
+            TourStep(
+                "Pity por banner",
+                "Os cartões resumem pity atual, garantia, 50/50, quantidade de tiros e o último 5 estrelas de cada banner.",
+                lambda: self.warp_panel.banner_buttons["11"],
+                lambda: self._show_tutorial_warp_section(
+                    self.warp_panel.banner_buttons["11"]
+                ),
+            ),
+            TourStep(
+                "Análises do histórico",
+                "Os gráficos mostram tiros por mês e por versão. A área também calcula média pessoal de pity, vitórias e derrotas no 50/50 e possíveis lacunas no histórico.",
+                lambda: self.warp_panel.monthly_chart,
+                lambda: self._show_tutorial_warp_section(self.warp_panel.monthly_chart),
+            ),
+            TourStep(
+                "Planejamento de recursos",
+                "Informe jades, passes, Luz Estelar, cashback e ganho diário. Escolha a estratégia de aquisição para priorizar S1 ou um Eidolon sem precisar digitar a ordem.",
+                lambda: self.planner_panel.settings_card,
+                lambda: self._show_tutorial_page(2, "Planejador"),
+            ),
+            TourStep(
+                "Metas e simulação",
+                "A tabela organiza metas sequenciais, data-alvo, custo estimado, chance acumulada e saldo projetado. Assim você pode testar cenários antes de gastar.",
+                lambda: self.planner_panel.table,
+            ),
+            TourStep(
+                "Ranking externo",
+                "Rank abre o perfil da sua UID principal no SeeleLand. É necessário entrar no app e configurar uma UID antes de usar o atalho.",
+                lambda: self._tutorial_nav_button("Rank"),
+            ),
+            TourStep(
+                "Sincronização em segundo plano",
+                "Este indicador informa quando conta, catálogo, backup ou outras tarefas estão trabalhando. A sincronização da conta começa durante a tela de carregamento ao abrir o app.",
+                lambda: self.sync_status,
+            ),
+            TourStep(
+                "Perfil e configurações",
+                "Entre ou abra seu perfil aqui. Na engrenagem ficam tema, redução de animações, privacidade para ocultar a UID das imagens, backup, atualização e acesso ao diagnóstico.",
+                self._tutorial_profile_anchor,
+            ),
+            TourStep(
+                "Diagnóstico e erros",
+                "O diagnóstico mostra versão, caminhos dos bancos e estado do motor de benchmark. Quando houver um erro, use Copiar detalhes para facilitar a investigação.",
+                lambda: self.diagnostics_panel.copy_button,
+                lambda: self._show_tutorial_page(8, "Diagnóstico"),
+            ),
+            TourStep(
+                "Tudo pronto",
+                "Você pode rever este tour a qualquer momento com F1 ou em Configurações. Atalhos úteis: Ctrl+1 a Ctrl+7 para navegar, Ctrl+, para Configurações e Ctrl+Shift+D para Diagnóstico.",
+                lambda: self.title_bar,
+                lambda: self._show_tutorial_page(6, "Início"),
+            ),
+        )
+        root = self.centralWidget()
+        if root is None:
+            return
+        self.tutorial_overlay = GuidedTourOverlay(root, steps, first_run=first_run)
+        self.tutorial_overlay.finished.connect(self._tutorial_finished)
+        self.tutorial_overlay.start()
+
+    def _show_tutorial_page(self, index: int, destination: str) -> None:
+        self.page_stack.setCurrentIndex(index)
+        if destination == "Conta":
+            self._refresh_account_page()
+        elif destination == "Diagnóstico":
+            self.diagnostics_panel.refresh()
+        for button, _icon, text in self.nav_buttons:
+            button.setChecked(text == destination)
+
+    def _tutorial_nav_button(self, destination: str) -> QWidget | None:
+        return next(
+            (button for button, _icon, text in self.nav_buttons if text == destination),
+            None,
+        )
+
+    def _show_tutorial_warp_section(self, widget: QWidget) -> None:
+        self._show_tutorial_page(1, "Saltos")
+        self.warp_panel.page_scroll.ensureWidgetVisible(widget, 16, 16)
+
+    def _tutorial_build_anchor(self) -> QWidget:
+        return self.selector_panel if self.selector_panel.isVisible() else self.build_empty_panel
+
+    def _tutorial_profile_anchor(self) -> QWidget:
+        return self.auth_user_frame if self.auth_user_frame.isVisible() else self.auth_guest_button
+
+    def _tutorial_finished(self) -> None:
+        self.page_stack.setCurrentIndex(self._tutorial_original_page)
+        for button, _icon, text in self.nav_buttons:
+            button.setChecked(text in self._tutorial_original_nav)
+        if not self._tutorial_sidebar_was_expanded and self.sidebar_expanded:
+            self.toggle_sidebar()
+        self.tutorial_overlay = None
+
+    def _setup_shortcuts(self) -> None:
+        mappings = (
+            ("Ctrl+1", lambda: self._navigate("Início")),
+            ("Ctrl+2", lambda: self._navigate("Builds")),
+            ("Ctrl+3", lambda: self._navigate("Conta")),
+            ("Ctrl+4", lambda: self._navigate("Relíquias")),
+            ("Ctrl+5", lambda: self._navigate("Saltos")),
+            ("Ctrl+6", lambda: self._navigate("Planejador")),
+            ("Ctrl+7", lambda: self._navigate("Personagens e Cones")),
+            ("Ctrl+B", self.toggle_sidebar),
+            ("Ctrl+,", self.open_settings_dialog),
+            ("Ctrl+Shift+D", lambda: self._navigate("Diagnóstico")),
+            ("F1", lambda: self.show_tutorial(force=True)),
+            ("Ctrl+K", self._focus_uid_search),
+        )
+        for sequence, callback in mappings:
+            shortcut = QShortcut(QKeySequence(sequence), self)
+            shortcut.activated.connect(callback)
+            self._shortcuts.append(shortcut)
+
+    def _focus_uid_search(self) -> None:
+        self._navigate("Início")
+        self.uid_input.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        self.uid_input.selectAll()
 
     def _check_updates_automatically(self) -> None:
         try:
@@ -895,6 +1154,7 @@ class MainWindow(QMainWindow):
         if user is None or not user.game_uid:
             return
         self.pending_account_target = "account"
+        self.account_copy_error.setVisible(False)
         self.account_status.setObjectName("statusInfo")
         self.account_status.setText("Carregando sua conta principal…")
         self.account_status.style().unpolish(self.account_status)
@@ -907,6 +1167,7 @@ class MainWindow(QMainWindow):
             return False
         self._initial_account_sync_active = True
         self.pending_account_target = "auto_account"
+        self.account_copy_error.setVisible(False)
         self.account_status.setObjectName("statusInfo")
         self.account_status.setText("Sincronizando sua conta automaticamente…")
         self.account_status.style().unpolish(self.account_status)
@@ -1080,6 +1341,9 @@ class MainWindow(QMainWindow):
                 "page", "Abrindo o catálogo de personagens e cones…",
                 lambda: self.catalog_panel.set_active(True),
             )
+        elif destination == "Diagnóstico":
+            self.page_stack.setCurrentWidget(self.diagnostics_panel)
+            self.diagnostics_panel.refresh()
         elif destination == "Conta":
             self._open_own_account_builds()
         else:
@@ -1558,12 +1822,14 @@ class MainWindow(QMainWindow):
         if self.pending_account_target in {"account", "auto_account"}:
             self.account_status.setObjectName("statusError")
             self.account_status.setText(message)
+            self.account_copy_error.setVisible(True)
             self.account_status.style().unpolish(self.account_status)
             self.account_status.style().polish(self.account_status)
         else:
             self.set_status(message, "error")
 
     def _account_loaded(self, account: AccountSummary, message: str) -> None:
+        self.account_copy_error.setVisible(False)
         self._capture_relic_inventory(account)
         if self.pending_account_target in {"account", "own_builds", "auto_account"}:
             user = self.auth_service.current_user
@@ -1691,6 +1957,7 @@ class MainWindow(QMainWindow):
         )
         self.status_label.setObjectName(object_name)
         self.status_label.setText(message)
+        self.copy_error_button.setVisible(kind == "error")
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
 
@@ -2346,6 +2613,7 @@ class MainWindow(QMainWindow):
                     self._render_benchmark(result)
                 return
             self.benchmark_card.set_engine_error(message)
+            self.set_status(f"Motor Fribbels indisponível: {message}", "error")
         self.failed_sync_tasks.add(sync_key)
         self.sync_manager.fail(sync_key, "Falha ao calcular o benchmark")
 

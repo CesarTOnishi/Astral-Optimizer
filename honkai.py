@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import APP_FONT_TTF, APP_ICON_ICO, APP_ICON_PNG
+from app.preferences import apply_experience_preferences, motion_duration
 from app.ui.loading import StartupSplash
 from app.ui.main_window import MainWindow
 
@@ -55,6 +56,7 @@ def main() -> int:
         if families:
             font_family = families[0]
     app.setFont(QFont(font_family, 10))
+    apply_experience_preferences(app)
     icon_path = APP_ICON_ICO if APP_ICON_ICO.is_file() else APP_ICON_PNG
     app.setWindowIcon(QIcon(str(icon_path)))
     splash = StartupSplash(APP_ICON_PNG)
@@ -75,6 +77,7 @@ def main() -> int:
             splash.set_stage("Finalizando os últimos detalhes…", 92)
             app.processEvents()
             splash.transition_to(window)
+            QTimer.singleShot(motion_duration(700), window.show_tutorial)
 
         window.initial_account_sync_finished.connect(finish_opening)
         if window.start_initial_account_sync():

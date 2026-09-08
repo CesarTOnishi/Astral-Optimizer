@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.build_history import BuildSnapshot
+from app.preferences import motion_duration
 
 
 def snapshot_date(value: str) -> str:
@@ -294,7 +295,7 @@ class BuildComparisonDialog(QDialog):
             return
         self.setWindowOpacity(0.0)
         animation = QPropertyAnimation(self, b"windowOpacity", self)
-        animation.setDuration(220)
+        animation.setDuration(motion_duration(220))
         animation.setStartValue(0.0)
         animation.setEndValue(1.0)
         animation.setEasingCurve(QEasingCurve.Type.OutCubic)

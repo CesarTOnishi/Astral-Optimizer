@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 APP_NAME = "Astral Optimizer"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 GITHUB_REPOSITORY = "CesarTOnishi/Astral-Optimizer"
 APP_USER_AGENT = f"AstralOptimizer/{APP_VERSION} (PySide6)"
 APP_ASSETS_DIR = Path(__file__).resolve().parent / "assets"
@@ -433,6 +433,20 @@ QFrame#warpControlPanel, QFrame#warpSummaryCard {
 QFrame#warpBannerPanel, QFrame#warpDetailsPanel {
     background-color: #0e1627; border: 1px solid #293a59; border-radius: 10px;
 }
+QFrame#warpAnalyticsPanel {
+    background-color: #0e1627; border: 1px solid #293a59; border-radius: 10px;
+}
+QLabel#warpAnalyticsMetric {
+    color: #dbeaff; background-color: #14233a; border: 1px solid #304867;
+    border-radius: 8px; padding: 9px 11px; font-size: 11px; font-weight: 700;
+}
+QLabel#warpGapReport {
+    color: #8fe0b5; background-color: #112a27; border: 1px solid #315d50;
+    border-radius: 8px; padding: 9px 11px; font-size: 10px;
+}
+QLabel#warpGapReport[warning="true"] {
+    color: #ffd29b; background-color: #32251f; border-color: #6b4d38;
+}
 QScrollArea#warpBannerScroll {
     background-color: transparent; border: none;
 }
@@ -847,6 +861,38 @@ QFrame#loginErrorFlash {
 QFrame#authModal[loginError="true"] {
     border: 2px solid #f05a70;
 }
+QDialog#settingsDialog { background-color: transparent; }
+QFrame#settingsModal {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #0d1728, stop:0.62 #121b30, stop:1 #21172f);
+    border: 1px solid #4b6085; border-radius: 15px;
+}
+QFrame#settingsSidebar {
+    background-color: #0b1424; border: none; border-right: 1px solid #2b3e5b;
+    border-bottom-left-radius: 14px;
+}
+QWidget#settingsContent, QWidget#settingsPage, QStackedWidget#settingsStack {
+    background-color: transparent; border: none;
+}
+QPushButton#settingsNavButton {
+    color: #899bb5; background-color: transparent; border: none;
+    border-radius: 8px; padding: 10px 11px; text-align: left; font-weight: 750;
+}
+QPushButton#settingsNavButton:hover {
+    color: #edf7ff; background-color: #162640;
+}
+QPushButton#settingsNavButton:checked {
+    color: #9fe7ff; background-color: #1b3554; border-left: 3px solid #66caed;
+}
+QLabel#settingsSidebarUser {
+    color: #7387a5; border-top: 1px solid #263a56; padding: 12px 5px 2px 5px;
+    font-size: 10px; font-weight: 700;
+}
+QLabel#settingsPageTitle { color: #ffffff; font-size: 19px; font-weight: 900; }
+QLabel#settingsPageSubtitle { color: #8499b7; font-size: 11px; }
+QComboBox#settingsThemeSelector {
+    min-height: 26px; padding: 8px 11px; font-size: 12px; font-weight: 750;
+}
 QDialog#authDialog QLineEdit[invalid="true"] {
     color: #fff1f3; background-color: #321521;
     border: 1px solid #ff5f76;
@@ -949,10 +995,19 @@ QLabel#plannerTitle {
 }
 QScrollArea#plannerScroll { background-color: transparent; border: none; }
 QFrame#plannerSettingsCard {
-    background-color: #20375f; border: 1px solid #4c73aa; border-radius: 5px;
+    background-color: #20375f; border: 1px solid #4c73aa; border-radius: 7px;
 }
 QLabel#plannerColumnTitle {
-    color: #f3f6ff; font-size: 12px; font-weight: 800; padding-bottom: 3px;
+    color: #f3f7ff; font-size: 13px; font-weight: 850; padding-bottom: 2px;
+}
+QComboBox#plannerStrategySelect {
+    color: #eef5ff; background-color: #172c4b; border: 1px solid #4779bc;
+    border-radius: 6px; padding: 7px 11px; min-height: 22px; font-weight: 700;
+}
+QComboBox#plannerStrategySelect:hover,
+QComboBox#plannerStrategySelect:focus,
+QComboBox#plannerStrategySelect:on {
+    background-color: #1c365c; border-color: #65a7ef;
 }
 QLabel#plannerResourceIcon {
     background-color: #152947; border: 1px solid #3c608c;
@@ -1202,5 +1257,62 @@ QLabel#catalogInfoText { color: #bdcbe0; font-size: 11px; line-height: 1.25; }
 QLabel#catalogLore {
     color: #9cacc3; background-color: #0d1728; border-left: 2px solid #526f98;
     padding: 11px 13px; font-style: italic;
+}
+QFrame#statusBar { background-color: transparent; border: none; }
+QPushButton#copyErrorButton {
+    color: #ffc0ca; background-color: #321b27; border: 1px solid #7c4154;
+    border-radius: 7px; padding: 6px 10px; font-size: 10px; font-weight: 800;
+}
+QPushButton#copyErrorButton:hover {
+    color: #ffffff; background-color: #512536; border-color: #c76780;
+}
+QDialog#experienceDialog, QDialog#tutorialDialog { background-color: transparent; }
+QWidget#guidedTourOverlay { background-color: transparent; }
+QFrame#tourBalloon {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #0d182a, stop:0.62 #17243b, stop:1 #271d3b);
+    border: 2px solid #58cbed; border-radius: 14px;
+}
+QLabel#tourCounter {
+    color: #7bdcff; font-size: 9px; font-weight: 900; letter-spacing: 1px;
+}
+QLabel#tourTitle { color: #ffffff; font-size: 18px; font-weight: 900; }
+QLabel#tourText { color: #bccce2; font-size: 11px; line-height: 1.3; }
+QPushButton#tourSkipButton {
+    color: #93a5be; background-color: transparent; border: none;
+    padding: 8px 4px; font-weight: 700;
+}
+QPushButton#tourSkipButton:hover { color: #ffffff; text-decoration: underline; }
+QWidget#diagnosticsPage { background-color: #080d19; }
+QPushButton#subtleButton {
+    color: #93a5be; background-color: transparent; border: 1px solid #35445d;
+    border-radius: 8px; padding: 8px 12px; font-weight: 700;
+}
+QPushButton#subtleButton:hover {
+    color: #ffffff; background-color: #17243a; border-color: #526b8e;
+}
+QCheckBox#experienceCheckBox {
+    color: #edf4ff; background-color: #111e32; border: 1px solid #334d70;
+    border-radius: 9px; padding: 11px; font-weight: 700;
+}
+QFrame#tutorialCard {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #0d182a, stop:0.58 #172039, stop:1 #2a1b3c);
+    border: 1px solid #66538d; border-radius: 18px;
+}
+QLabel#tutorialIcon {
+    color: #8bdfff; font-size: 34px; font-weight: 900;
+}
+QLabel#tutorialTitle {
+    color: #ffffff; font-size: 22px; font-weight: 900;
+}
+QLabel#tutorialText {
+    color: #bccae0; font-size: 12px; padding: 4px 28px;
+}
+QLabel#tutorialSteps { color: #8dcde9; font-size: 13px; }
+QLabel#diagnosticsSummary {
+    color: #cbd9eb; background-color: #0c1626; border: 1px solid #314967;
+    border-radius: 12px; padding: 18px; font-family: "Consolas", "Cascadia Mono";
+    font-size: 11px;
 }
 """

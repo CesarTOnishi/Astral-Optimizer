@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (
     QProgressBar, QSplashScreen, QVBoxLayout, QWidget,
 )
 
+from app.preferences import motion_duration, reduce_motion_enabled
+
 
 def load_icon_pixmap(path: Path, size: int) -> QPixmap:
     pixmap = QPixmap(str(path))
@@ -86,6 +88,10 @@ class StartupSplash(QSplashScreen):
         self.pulse.valueChanged.connect(self._set_pulse)
 
     def show_animated(self) -> None:
+        if reduce_motion_enabled():
+            self.setWindowOpacity(1.0)
+            self.show()
+            return
         self.setWindowOpacity(0.0)
         self.show()
         final_geometry = self.geometry()
@@ -110,6 +116,9 @@ class StartupSplash(QSplashScreen):
 
     def set_stage(self, message: str, progress: int) -> None:
         self.message.setText(message)
+        if reduce_motion_enabled():
+            self.progress.setValue(max(0, min(100, progress)))
+            return
         animation = QPropertyAnimation(self.progress, b"value", self)
         animation.setDuration(280)
         animation.setStartValue(self.progress.value())
@@ -119,6 +128,13 @@ class StartupSplash(QSplashScreen):
         animation.start()
 
     def transition_to(self, window: QWidget) -> None:
+        if reduce_motion_enabled():
+            self.pulse.stop()
+            self.hide()
+            window.setWindowOpacity(1.0)
+            window.show()
+            window.raise_()
+            return
         if self._opening is not None:
             self._opening.stop()
         self.set_stage("Tudo pronto. Bem-vindo a bordo!", 100)
@@ -205,12 +221,13 @@ class LoadingOverlay(QFrame):
         self.opacity = QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(self.opacity)
         self.animation = QPropertyAnimation(self.opacity, b"opacity", self)
-        self.animation.setDuration(180)
+        self.animation.setDuration(motion_duration(180))
         self.animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.animation.finished.connect(self._animation_finished)
         self.hide()
 
     def start(self, key: str, message: str) -> None:
+        self.animation.setDuration(motion_duration(180))
         self._operations[key] = message
         self.message.setText(message)
         self._hiding = False
@@ -227,6 +244,7 @@ class LoadingOverlay(QFrame):
             self.opacity.setOpacity(1.0)
 
     def stop(self, key: str) -> None:
+        self.animation.setDuration(motion_duration(180))
         self._operations.pop(key, None)
         if self._operations:
             self.message.setText(next(reversed(self._operations.values())))
