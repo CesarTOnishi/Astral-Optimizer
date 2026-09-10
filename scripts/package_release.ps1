@@ -24,6 +24,15 @@ New-Item -ItemType Directory -Force -Path $releaseFolder | Out-Null
 $archiveName = "AstralOptimizer-v$Version-Windows.zip"
 $archivePath = Join-Path $releaseFolder $archiveName
 $checksumPath = "$archivePath.sha256"
+$manifestPath = Join-Path $appFolder "version.json"
+
+if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+    throw "Manifesto version.json ausente. Execute scripts\build_executable.ps1 novamente."
+}
+$builtVersion = (Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json).version
+if ([string]$builtVersion -ne $Version) {
+    throw "O executável foi compilado como $builtVersion, mas a Release solicitada é $Version."
+}
 
 if (Test-Path -LiteralPath $archivePath) {
     Remove-Item -LiteralPath $archivePath -Force

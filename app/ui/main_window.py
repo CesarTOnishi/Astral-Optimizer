@@ -67,7 +67,7 @@ from app.ui.notifications import NotificationBell, NotificationCenter
 from app.ui.planner_panel import PlannerPanel
 from app.ui.rank_dialog import RankRedirectDialog
 from app.ui.team_dialog import CustomTeamDialog
-from app.ui.update_dialog import UpdateAvailableDialog
+from app.ui.update_dialog import UpdateAvailableDialog, UpdateReadyDialog
 from app.ui.relic_inventory_panel import RelicInventoryPanel
 from app.ui.warp_panel import WarpPanel
 from app.ui.widgets import (
@@ -90,6 +90,7 @@ from app.updater import (
     ReleaseInfo,
     UpdateCheckWorker,
     UpdateDownloadWorker,
+    consume_update_result,
     is_newer_version,
     launch_installer,
     running_from_bundle,
@@ -267,6 +268,7 @@ class MainWindow(QMainWindow):
             self._catalog_sync_changed
         )
         self.catalog_panel.catalog_updated.connect(self._catalog_updated)
+        QTimer.singleShot(0, self._show_previous_update_result)
         QTimer.singleShot(0, self._check_soft_pity_notifications)
         QTimer.singleShot(2600, self._check_updates_automatically)
         QTimer.singleShot(3400, self._check_catalog_version)
@@ -965,6 +967,30 @@ class MainWindow(QMainWindow):
         if int(time.time()) - last_check >= 6 * 60 * 60:
             self.check_for_updates(manual=False)
 
+    def _show_previous_update_result(self) -> None:
+        result = consume_update_result()
+        if result is None:
+            return
+        if result.status == "success":
+            self.notification_center.add(
+                "app-update-result",
+                "Atualização concluída",
+                result.message,
+                "success",
+            )
+            self.set_status(result.message, "success")
+            return
+        detail = result.message
+        if result.log_path:
+            detail += f" Log: {result.log_path}"
+        self.notification_center.add(
+            "app-update-result",
+            "Erro ao aplicar atualização",
+            detail,
+            "error",
+        )
+        self.set_status(f"Não foi possível aplicar a atualização: {detail}", "error")
+
     def check_for_updates(self, manual: bool = False) -> None:
         if self.update_check_worker and self.update_check_worker.isRunning():
             if manual and self.settings_dialog:
@@ -1080,6 +1106,13 @@ class MainWindow(QMainWindow):
             self.update_download_worker.deleteLater()
         self.update_download_worker = None
         if prepared is None:
+            return
+        self.loading_overlay.stop("app-update")
+        if not UpdateReadyDialog(prepared.version, self).exec():
+            self.set_status(
+                "Atualização baixada, mas a instalação foi adiada. "
+                "Verifique novamente quando quiser instalar."
+            )
             return
         try:
             launch_installer(prepared)

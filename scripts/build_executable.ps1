@@ -26,4 +26,17 @@ if ($LASTEXITCODE -ne 0) {
     throw "Não foi possível criar o executável."
 }
 
+$configPath = Join-Path $projectRoot "app\config.py"
+$versionMatch = Select-String -Path $configPath -Pattern '^APP_VERSION\s*=\s*"([^"]+)"$'
+if (-not $versionMatch) {
+    throw "Não foi possível ler APP_VERSION em app\config.py."
+}
+$version = $versionMatch.Matches[0].Groups[1].Value
+@{
+    name = "Astral Optimizer"
+    version = $version
+    built_at = (Get-Date).ToUniversalTime().ToString("o")
+} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $outputPath "version.json") -Encoding UTF8
+
 Write-Host "Executável criado em: $outputPath\AstralOptimizer.exe"
+Write-Host "Versão do executável: $version"

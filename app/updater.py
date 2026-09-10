@@ -48,6 +48,14 @@ class PreparedUpdate:
     update_dir: Path
 
 
+@dataclass(frozen=True, slots=True)
+class UpdateResult:
+    status: str
+    version: str
+    message: str
+    log_path: str = ""
+
+
 def normalized_version(value: str) -> tuple[int, ...]:
     match = re.search(r"\d+(?:\.\d+){0,3}", value.strip())
     if match is None:
@@ -215,6 +223,109 @@ def running_from_bundle() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
+def _installer_script_text() -> str:
+    return r'''param(
+    [int]$AppProcessId,
+    [string]$Source,
+    [string]$Target,
+    [string]$Executable,
+    [string]$Version,
+    [string]$ResultFile,
+    [string]$LogFile,
+    [switch]$SkipRestart
+)
+$ErrorActionPreference = 'Stop'
+
+function Write-UpdateLog([string]$Message) {
+    $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    Add-Content -LiteralPath $LogFile -Value "[$stamp] $Message" -Encoding UTF8
+}
+
+function Write-UpdateResult([string]$Status, [string]$Message) {
+    @{
+        status = $Status
+        version = $Version
+        message = $Message
+        log_path = $LogFile
+    } | ConvertTo-Json -Compress | Set-Content -LiteralPath $ResultFile -Encoding UTF8
+}
+
+try {
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $LogFile) | Out-Null
+    Write-UpdateLog "Aguardando o processo $AppProcessId encerrar."
+    Wait-Process -Id $AppProcessId -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 900
+
+    if (-not (Test-Path -LiteralPath (Join-Path $Source $Executable) -PathType Leaf)) {
+        throw 'O executável novo não foi encontrado na atualização extraída.'
+    }
+
+    $copyCode = 16
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        Write-UpdateLog "Cópia dos arquivos, tentativa $attempt de 3."
+        & robocopy.exe $Source $Target /E /COPY:DAT /DCOPY:DAT /R:8 /W:2 /XJ /NFL /NDL /NJH /NJS /NP
+        $copyCode = $LASTEXITCODE
+        if ($copyCode -le 7) { break }
+        Start-Sleep -Seconds 2
+    }
+    if ($copyCode -gt 7) {
+        throw "Robocopy não conseguiu substituir os arquivos (código $copyCode)."
+    }
+
+    $sourceExe = Get-Item -LiteralPath (Join-Path $Source $Executable)
+    $targetExe = Get-Item -LiteralPath (Join-Path $Target $Executable)
+    if ($sourceExe.Length -ne $targetExe.Length) {
+        throw 'A validação do executável copiado falhou.'
+    }
+
+    $manifestPath = Join-Path $Target 'version.json'
+    if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
+        $installedVersion = (Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json).version
+        if ([string]$installedVersion -ne $Version) {
+            throw "A versão copiada é $installedVersion, mas era esperada $Version."
+        }
+    }
+
+    Write-UpdateLog "Atualização $Version aplicada com sucesso."
+    Write-UpdateResult 'success' "Atualização $Version instalada com sucesso."
+    if (-not $SkipRestart) {
+        Start-Process -FilePath $targetExe.FullName -WorkingDirectory $Target
+    }
+    exit 0
+}
+catch {
+    $failure = $_.Exception.Message
+    Write-UpdateLog "ERRO: $failure"
+    Write-UpdateResult 'error' $failure
+    $oldExecutable = Join-Path $Target $Executable
+    if (-not $SkipRestart -and (Test-Path -LiteralPath $oldExecutable -PathType Leaf)) {
+        Start-Process -FilePath $oldExecutable -WorkingDirectory $Target
+    }
+    exit 1
+}
+'''
+
+
+def consume_update_result(result_path: Path | None = None) -> UpdateResult | None:
+    path = result_path or (app_data_dir() / "updates" / "update-result.json")
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text("utf-8-sig"))
+        if not isinstance(payload, dict):
+            return None
+        return UpdateResult(
+            status=str(payload.get("status", "error")),
+            version=str(payload.get("version", "")),
+            message=str(payload.get("message", "Resultado de atualização desconhecido.")),
+            log_path=str(payload.get("log_path", "")),
+        )
+    except (OSError, ValueError, TypeError):
+        return None
+    finally:
+        path.unlink(missing_ok=True)
+
+
 def launch_installer(update: PreparedUpdate) -> None:
     if os.name != "nt" or not running_from_bundle():
         raise UpdateError("A instalação automática está disponível no executável Windows.")
@@ -223,30 +334,31 @@ def launch_installer(update: PreparedUpdate) -> None:
     if not executable.is_file() or not (update.source_dir / executable.name).is_file():
         raise UpdateError("Não foi possível confirmar a pasta de instalação.")
 
+    probe = install_dir / ".astral-update-write-test"
+    try:
+        probe.write_text("ok", encoding="ascii")
+        probe.unlink()
+    except OSError as error:
+        probe.unlink(missing_ok=True)
+        raise UpdateError(
+            "A pasta do aplicativo não permite atualização automática. "
+            "Mova o Astral para uma pasta do seu usuário ou execute-o como administrador."
+        ) from error
+
     script = update.update_dir / "apply-update.ps1"
-    script.write_text(
-        "param([int]$AppProcessId, [string]$Source, [string]$Target, "
-        "[string]$Executable)\n"
-        "$ErrorActionPreference = 'Stop'\n"
-        "Wait-Process -Id $AppProcessId -ErrorAction SilentlyContinue\n"
-        "Start-Sleep -Milliseconds 700\n"
-        "& robocopy.exe $Source $Target /E /R:5 /W:1 /NFL /NDL /NJH /NJS /NP\n"
-        "if ($LASTEXITCODE -gt 7) { exit $LASTEXITCODE }\n"
-        "Start-Process -FilePath (Join-Path $Target $Executable) "
-        "-WorkingDirectory $Target\n"
-        "$cleanupRoot = Split-Path -Parent $PSCommandPath\n"
-        "Start-Sleep -Milliseconds 700\n"
-        "Remove-Item -LiteralPath $cleanupRoot -Recurse -Force "
-        "-ErrorAction SilentlyContinue\n",
-        encoding="utf-8-sig",
-    )
-    flags = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS
+    script.write_text(_installer_script_text(), encoding="utf-8-sig")
+    result_file = update.update_dir.parent / "update-result.json"
+    log_file = update.update_dir.parent / f"update-v{update.version}.log"
+    result_file.unlink(missing_ok=True)
+    flags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
     subprocess.Popen(
         [
             "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
             "-WindowStyle", "Hidden", "-File", str(script),
             "-AppProcessId", str(os.getpid()), "-Source", str(update.source_dir),
             "-Target", str(install_dir), "-Executable", executable.name,
+            "-Version", update.version, "-ResultFile", str(result_file),
+            "-LogFile", str(log_file),
         ],
         creationflags=flags,
         close_fds=True,

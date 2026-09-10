@@ -4,7 +4,7 @@
 
   **Builds, relíquias, benchmark, catálogo e Saltos de Honkai: Star Rail em um único aplicativo para Windows.**
 
-  [![Versão](https://img.shields.io/badge/versão-1.2.0-7edcff?style=for-the-badge)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
+  [![Versão](https://img.shields.io/badge/versão-1.2.1-7edcff?style=for-the-badge)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
   [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-357ec7?style=for-the-badge&logo=windows11)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
   [![PySide6](https://img.shields.io/badge/UI-PySide6-41cd52?style=for-the-badge&logo=qt&logoColor=white)](https://doc.qt.io/qtforpython-6/)
@@ -21,6 +21,8 @@ O **Astral Optimizer** é um aplicativo desktop local para consultar contas púb
 O aplicativo não solicita acesso à conta HoYoverse. As consultas utilizam apenas o Showcase público configurado dentro do jogo. Perfis, históricos e configurações permanecem no computador do usuário.
 
 ## Novidades da versão 1.2.0
+
+> **Correção 1.2.1:** o instalador automático agora registra o resultado, tenta novamente quando arquivos estão bloqueados, valida o executável copiado e reabre o aplicativo. Avisos orientam o usuário a aguardar a reabertura automática. O empacotamento também impede publicar um executável compilado com a versão errada.
 
 - sincronização da conta durante a tela de carregamento ao abrir o aplicativo;
 - dashboard da UID principal com avatar do jogo, personagens, benchmarks, Saltos e relíquias;

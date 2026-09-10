@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 APP_NAME = "Astral Optimizer"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.1"
 GITHUB_REPOSITORY = "CesarTOnishi/Astral-Optimizer"
 APP_USER_AGENT = f"AstralOptimizer/{APP_VERSION} (PySide6)"
 APP_ASSETS_DIR = Path(__file__).resolve().parent / "assets"
@@ -1314,5 +1314,17 @@ QLabel#diagnosticsSummary {
     color: #cbd9eb; background-color: #0c1626; border: 1px solid #314967;
     border-radius: 12px; padding: 18px; font-family: "Consolas", "Cascadia Mono";
     font-size: 11px;
+}
+QFrame#updateInstallWarning {
+    background-color: #2d2418; border: 1px solid #8d6735; border-radius: 9px;
+}
+QLabel#updateWarningIcon {
+    color: #171006; background-color: #ffbd62; border-radius: 12px;
+    font-size: 14px; font-weight: 900;
+}
+QLabel#updateWarningText { color: #f4d6a7; font-size: 10px; }
+QLabel#updateReadyWarning {
+    color: #ffe1ae; background-color: #302316; border: 1px solid #a87536;
+    border-radius: 9px; padding: 12px; font-size: 11px; font-weight: 850;
 }
 """
