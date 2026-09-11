@@ -29,7 +29,7 @@ O aplicativo não solicita acesso à conta HoYoverse. As consultas utilizam apen
 - central de notificações para atualização do aplicativo e catálogo, backup, mudanças de relíquias e soft pity;
 - modo de privacidade que oculta a UID das imagens compartilhadas;
 - análises de Saltos com gráficos por mês e versão, média de pity, histórico de 50/50 e detecção de lacunas;
-- exportação do histórico de Saltos para CSV e JSON;
+- exportação do histórico de Saltos para CSV/JSON e cartão PNG compartilhável com todos os resultados 5★, pity, garantia e estatísticas;
 - planejamento sequencial com estratégias de S1 ou Eidolons, chances e estimativas otimista, média e pessimista;
 - seis temas globais aplicados imediatamente e opção para reduzir animações;
 - configurações reorganizadas em Perfil, Aparência, Privacidade, Backup e Aplicativo;
@@ -54,7 +54,7 @@ O aplicativo não solicita acesso à conta HoYoverse. As consultas utilizam apen
 | Experiência | Temas, tutorial guiado, atalhos, diagnóstico, acessibilidade e estados vazios |
 | Privacidade | Opção para ocultar a UID dos cartões PNG compartilhados |
 | Notificações | Alertas de catálogo, versão, backup, relíquias e proximidade do soft pity |
-| Google Drive | Backup opcional e privado do histórico de Saltos |
+| OneDrive | Backups versionados do histórico de Saltos e planejador em pasta sincronizada |
 | Atualizador | Verificação de novas Releases e atualização pelo GitHub |
 
 ## Galeria
@@ -144,9 +144,15 @@ Categorias reconhecidas:
 - Salto Hiperespacial de Colaboração de Personagem;
 - Salto Hiperespacial de Colaboração de Cone de Luz.
 
-O acompanhamento mostra total de tiros, equivalência em Jades, pity de 5★ e 4★, garantia, média de obtenção e resultados ganho/perdido/garantido. As cores verde, laranja e vermelha identificam a faixa do pity.
+O acompanhamento mostra total de tiros, equivalência em Jades, pity de 5★ e 4★, garantia, média de obtenção e resultados ganho/perdido/garantido. Use **Importar do jogo** para localizar automaticamente o cache instalado ou **Importar XLSX ou cache** para escolher um arquivo manualmente. As cores verde, laranja e vermelha identificam a faixa do pity.
 
-A área de análises inclui gráficos de tiros por mês e por versão ou edição, comparação da média pessoal de pity com a média teórica, histórico de resultados no 50/50 ou 75/25 e identificação de possíveis lacunas ou registros incompletos. O histórico também pode ser exportado em CSV ou JSON.
+No primeiro uso de **Importar do jogo**, uma introdução explica por que é necessário abrir o Histórico de Saltos e reproduz um vídeo curto com o procedimento. Depois que a lista carregar dentro do jogo, feche completamente o Honkai: Star Rail para liberar o arquivo de cache e somente então faça a importação no Astral. O tutorial possui apenas o botão **Fechar** e não inicia a importação sozinho. O antigo botão **Atualizar tela** foi removido porque a interface já é atualizada automaticamente após cada importação.
+
+Se o cache continuar ausente ou não contiver um link válido, o próprio aviso apresenta **Ver tutorial novamente**.
+
+Se a instalação não for localizada, abra **Configurações → Aplicativo → Pasta webCaches** e selecione a pasta `webCaches` do jogo. O Astral escolhe numericamente a subpasta de maior versão e segue automaticamente por `Cache\Cache_Data\data_2`. Abra o Histórico de Saltos para gravar o link temporário, espere a lista carregar e feche completamente o jogo antes de usar **Importar do jogo**.
+
+A área de análises inclui gráficos de tiros por mês e por versão ou edição, comparação da média pessoal de pity com a média teórica, histórico de resultados no 50/50 ou 75/25 e identificação de possíveis lacunas ou registros incompletos. O histórico pode ser exportado em CSV ou JSON. O botão **Exportar cartão** cria uma imagem com todos os resultados 5★ do filtro, pity atual, garantia, totais, média, mediana, melhor e pior pity, distribuição por faixa, vitórias, derrotas, taxa de vitória e gráfico mensal. Cada resultado usa verde, laranja ou vermelho conforme o pity obtido, e a imagem cresce verticalmente para não omitir resultados. A UID é ocultada automaticamente quando o modo Privacidade está ativo.
 
 O dropdown possui **Todos os saltos** e as edições individuais que contenham um resultado 5★. O total e o pity consideram todos os tiros, enquanto a vitrine e o histórico mostram somente personagens ou Cones 5★. Isso evita usar itens 3★ como capa de banners sem resultados relevantes.
 
@@ -173,6 +179,8 @@ Clicar no perfil da barra lateral também abre esse dashboard. A página mantém
 ## Experiência, temas e acessibilidade
 
 As Configurações são divididas em **Perfil**, **Aparência**, **Privacidade**, **Backup** e **Aplicativo**. Os temas Astral, Obsidiana, Aurora, Jade Estelar, Carmesim e Alto contraste são aplicados imediatamente em toda a interface.
+
+Em **Aplicativo**, também é possível selecionar manualmente a pasta `webCaches` usada pela importação de Saltos ou restaurar a localização automática.
 
 A opção **Reduzir animações** diminui transições em computadores mais fracos. Na primeira abertura, um tutorial de 20 etapas escurece a interface, destaca os controles reais e explica as principais funções. Ele pode ser revisto pelas Configurações ou com `F1`.
 
@@ -274,21 +282,13 @@ Para publicar uma atualização:
 
 O atualizador consulta a Release mais recente no máximo uma vez a cada seis horas e também possui verificação manual. Bancos e configurações em `%LOCALAPPDATA%\AstralOptimizer` não são substituídos durante a atualização.
 
-## Google Drive
+## OneDrive
 
-O backup é opcional e configurado pela engrenagem. O fluxo OAuth abre o navegador para o usuário escolher a conta Google. O Astral solicita o escopo privado `drive.appdata`, que permite acessar somente dados criados pelo próprio aplicativo.
+O backup é opcional e não utiliza API, OAuth ou senha da Microsoft. O Astral grava arquivos `.astralbackup` em uma pasta local sincronizada; o aplicativo oficial do OneDrive é responsável por enviá-los à nuvem.
 
-O token OAuth fica no Gerenciador de Credenciais do Windows por meio do `keyring`. A senha Google nunca passa pelo Astral.
+Quando o OneDrive pessoal ou corporativo está instalado, o caminho padrão é detectado automaticamente e os arquivos são salvos em `OneDrive\Astral Optimizer\Backups`. Também é possível selecionar qualquer pasta sincronizada em **Configurações → Backup**.
 
-Para configurar durante o desenvolvimento:
-
-1. crie um projeto no Google Cloud;
-2. ative a Google Drive API;
-3. configure o Google Auth Platform e a tela de consentimento;
-4. crie um cliente OAuth do tipo **Aplicativo para computador**;
-5. importe o JSON pela engrenagem ou salve-o como `google_oauth_client.json`.
-
-Esse arquivo é ignorado pelo Git. Outro caminho pode ser indicado pela variável `ASTRAL_GOOGLE_CREDENTIALS`.
+Cada backup possui data própria, separação por perfil e checksum SHA-256 para detectar corrupção. Se o arquivo mais recente estiver danificado, a restauração procura a versão válida anterior. Um novo backup é criado automaticamente depois de cada importação de Saltos e também pode ser salvo ou restaurado manualmente.
 
 ## Dados, privacidade e conexões externas
 
@@ -304,7 +304,7 @@ Cada instalação possui dados próprios; o desenvolvedor não recebe perfis, se
 | --- | --- |
 | Enka.Network | Consultar perfil e Showcase públicos por UID |
 | GitHub | Consultar Releases e atualizações do catálogo/aplicativo |
-| Google Drive | Salvar e restaurar backup quando autorizado |
+| OneDrive para Windows | Sincronizar os arquivos de backup criados localmente pelo Astral |
 | API de Saltos | Importar o histórico com o link temporário encontrado no cache |
 | SeeleLand | Abrir no navegador o ranking público da UID associada |
 
@@ -331,7 +331,7 @@ Astral-Optimizer/
 │   ├── benchmark/       # Motor e dados do Fribbels
 │   ├── build_history/   # Snapshots e comparações
 │   ├── catalog/         # Personagens, Cones e sincronização
-│   ├── cloud/           # OAuth e Google Drive
+│   ├── cloud/           # Backup local sincronizado pelo OneDrive
 │   ├── planner/         # Probabilidades do planejador
 │   ├── relics/          # Inventário persistente
 │   ├── ui/              # Interface PySide6
@@ -346,7 +346,7 @@ Astral-Optimizer/
 
 ## Tecnologias
 
-Python · PySide6 · SQLite · Node.js · PyInstaller · Enka · Google OAuth 2.0 · Google Drive API · Fribbels HSR Optimizer · Mar-7th/StarRailRes
+Python · PySide6 · SQLite · Node.js · PyInstaller · Enka · OneDrive · Fribbels HSR Optimizer · Mar-7th/StarRailRes
 
 ## Créditos e avisos legais
 

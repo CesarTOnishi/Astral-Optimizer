@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from collections import Counter
 
-from PySide6.QtCore import Signal, QSize, QTimer, Qt
+from PySide6.QtCore import QStandardPaths, Signal, QSize, QTimer, Qt
 from PySide6.QtGui import QColor, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -28,10 +28,19 @@ from PySide6.QtWidgets import (
 )
 
 from app.auth import AuthUser
+from app.privacy import hide_uid_in_shared_images
 from app.ui.charts import WarpBarChart
 from app.ui.experience import copy_error_details
+from app.ui.warp_import_tutorial import WarpImportTutorialDialog
+from app.ui.warp_share import build_warp_share_data, render_warp_share_card
 from app.ui.widgets import AvatarLabel, FadeComboBox, FRIBBELS_ASSETS
-from app.warp import StarRailStationImport, WarpDatabase, WarpImportWorker
+from app.warp import (
+    StarRailStationImport,
+    WarpDatabase,
+    WarpImportWorker,
+    import_tutorial_seen,
+    set_import_tutorial_seen,
+)
 from app.warp.models import WarpRecord, WarpSummary
 from app.warp.analytics import analyze_warps
 from app.warp.statistics import (
@@ -223,40 +232,50 @@ class WarpPanel(QWidget):
         controls_layout.setContentsMargins(12, 10, 12, 10)
         controls_layout.setHorizontalSpacing(8)
         controls_layout.setVerticalSpacing(8)
-        self.auto_button = QPushButton("Localizar e importar")
+        self.auto_button = QPushButton("Importar do jogo")
         self.auto_button.setObjectName("primaryButton")
+        self.auto_button.setToolTip(
+            "Localiza automaticamente o cache do Honkai: Star Rail neste computador."
+        )
         self.auto_button.clicked.connect(self.import_automatically)
-        self.file_button = QPushButton("Importar arquivo")
+        self.file_button = QPushButton("Importar XLSX ou cache")
         self.file_button.setObjectName("secondaryButton")
+        self.file_button.setToolTip(
+            "Seleciona manualmente um XLSX do Star Rail Station ou arquivo de cache."
+        )
         self.file_button.clicked.connect(self.choose_cache_file)
-        self.refresh_button = QPushButton("Atualizar tela")
-        self.refresh_button.setObjectName("secondaryButton")
-        self.refresh_button.clicked.connect(self.refresh)
         self.csv_button = QPushButton("Exportar CSV")
         self.csv_button.setObjectName("secondaryButton")
         self.csv_button.clicked.connect(lambda: self._export_history("csv"))
         self.json_button = QPushButton("Exportar JSON")
         self.json_button.setObjectName("secondaryButton")
         self.json_button.clicked.connect(lambda: self._export_history("json"))
+        self.card_button = QPushButton("Exportar cartão")
+        self.card_button.setObjectName("primaryButton")
+        self.card_button.setToolTip(
+            "Cria uma imagem com os últimos 5★, pity, garantia e estatísticas."
+        )
+        self.card_button.clicked.connect(self._export_share_card)
         account_label = QLabel("CONTA DO JOGO")
         account_label.setObjectName("metricTitle")
         self.account_selector = FadeComboBox(controls)
         self.account_selector.setObjectName("accountSelector")
         self.account_selector.setMinimumWidth(145)
         self.account_selector.currentIndexChanged.connect(self._account_changed)
-        for column, button in enumerate(
-            (self.auto_button, self.file_button, self.refresh_button)
-        ):
+        for button in (self.auto_button, self.file_button):
             button.setMinimumWidth(0)
             button.setSizePolicy(
                 QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred
             )
-            controls_layout.addWidget(button, 0, column)
+        controls_layout.addWidget(self.auto_button, 0, 0)
+        controls_layout.addWidget(self.file_button, 0, 1, 1, 2)
+        for column in range(3):
             controls_layout.setColumnStretch(column, 1)
         export_row = QHBoxLayout()
         export_row.setSpacing(8)
         export_row.addWidget(self.csv_button)
         export_row.addWidget(self.json_button)
+        export_row.addWidget(self.card_button)
         export_row.addStretch(1)
         controls_layout.addLayout(export_row, 1, 0, 1, 2)
         account_row = QHBoxLayout()
@@ -265,10 +284,17 @@ class WarpPanel(QWidget):
         account_row.addWidget(account_label)
         account_row.addWidget(self.account_selector)
         controls_layout.addLayout(account_row, 1, 2)
+        import_requirement = QLabel(
+            "ANTES DE IMPORTAR: abra no jogo Salto → Ver detalhes → Histórico de "
+            "Saltos e depois feche completamente o jogo."
+        )
+        import_requirement.setObjectName("warpImportRequirement")
+        import_requirement.setWordWrap(True)
+        controls_layout.addWidget(import_requirement, 2, 0, 1, 3)
         layout.addWidget(controls)
 
         self.status = QLabel(
-            "Abra o histórico de Saltos dentro do jogo antes de fazer a importação."
+            "Abra o Histórico de Saltos no jogo, feche completamente o jogo e então importe."
         )
         self.status.setObjectName("statusInfo")
         self.status.setWordWrap(True)
@@ -281,7 +307,12 @@ class WarpPanel(QWidget):
         self.copy_error_button.clicked.connect(
             lambda: copy_error_details(self.status.text(), "Histórico de Saltos")
         )
+        self.import_help_button = QPushButton("Ver tutorial novamente")
+        self.import_help_button.setObjectName("secondaryButton")
+        self.import_help_button.setVisible(False)
+        self.import_help_button.clicked.connect(self._show_import_tutorial)
         status_row.addWidget(self.status, 1)
+        status_row.addWidget(self.import_help_button)
         status_row.addWidget(self.copy_error_button)
         layout.addLayout(status_row)
 
@@ -471,7 +502,21 @@ class WarpPanel(QWidget):
         outer.addWidget(self.page_scroll)
 
     def import_automatically(self) -> None:
+        if self.owner_id is None:
+            self._set_status("Entre em um perfil para importar Saltos.", "error")
+            return
+        if not import_tutorial_seen(self.owner_id):
+            self._show_import_tutorial()
+            return
         self._start_import(None)
+
+    def _show_import_tutorial(self) -> None:
+        if self.owner_id is None:
+            return
+        tutorial = WarpImportTutorialDialog(self)
+        if not tutorial.exec():
+            return
+        set_import_tutorial_seen(self.owner_id)
 
     def choose_cache_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -539,7 +584,13 @@ class WarpPanel(QWidget):
         self.import_completed.emit(self.owner_id)
 
     def _import_failed(self, message: str) -> None:
-        self._set_status(message, "error")
+        normalized = message.casefold()
+        tutorial_relevant = any(phrase in normalized for phrase in (
+            "cache de saltos não encontrado",
+            "não contém um link válido",
+            "abra o histórico de saltos",
+        ))
+        self._set_status(message, "error", show_import_tutorial=tutorial_relevant)
 
     def _worker_finished(self) -> None:
         self._set_busy(False)
@@ -548,22 +599,42 @@ class WarpPanel(QWidget):
         self.worker = None
 
     def _set_busy(self, busy: bool) -> None:
+        scroll_bar = self.page_scroll.verticalScrollBar()
+        scroll_position = scroll_bar.value()
+        if busy and (self.auto_button.hasFocus() or self.file_button.hasFocus()):
+            self.auto_button.clearFocus()
+            self.file_button.clearFocus()
+            self.page_scroll.setFocus(Qt.FocusReason.OtherFocusReason)
         can_import = self.owner_id is not None and not busy
         self.auto_button.setEnabled(can_import)
         self.file_button.setEnabled(can_import)
         can_export = bool(can_import and self.current_uid and self.current_records)
         self.csv_button.setEnabled(can_export)
         self.json_button.setEnabled(can_export)
-        self.auto_button.setText("Importando…" if busy else "Localizar e importar")
+        self.card_button.setEnabled(can_export)
+        self.auto_button.setText("Importando do jogo…" if busy else "Importar do jogo")
+        QTimer.singleShot(
+            0,
+            lambda bar=scroll_bar, position=scroll_position: bar.setValue(position),
+        )
         self.busy_changed.emit(busy)
 
-    def _set_status(self, message: str, kind: str = "info") -> None:
+    def _set_status(
+        self,
+        message: str,
+        kind: str = "info",
+        *,
+        show_import_tutorial: bool = False,
+    ) -> None:
         object_name = {"success": "statusSuccess", "error": "statusError"}.get(
             kind, "statusInfo"
         )
         self.status.setObjectName(object_name)
         self.status.setText(message)
         self.copy_error_button.setVisible(kind == "error")
+        self.import_help_button.setVisible(
+            kind == "error" and show_import_tutorial
+        )
         self.status.style().unpolish(self.status)
         self.status.style().polish(self.status)
 
@@ -584,7 +655,8 @@ class WarpPanel(QWidget):
             )
         elif not self.current_uid:
             self._set_status(
-                "Nenhum histórico importado. Abra o histórico de Saltos no jogo e clique em Localizar e importar."
+                "Nenhum histórico importado. Abra o Histórico de Saltos no jogo, "
+                "feche completamente o jogo e clique em Importar do jogo."
             )
         else:
             self._set_status(f"Histórico separado do perfil {user.username}.", "success")
@@ -857,6 +929,52 @@ class WarpPanel(QWidget):
         can_export = bool(self.owner_id is not None and self.current_uid and records)
         self.csv_button.setEnabled(can_export)
         self.json_button.setEnabled(can_export)
+        self.card_button.setEnabled(can_export)
+
+    def _export_share_card(self) -> None:
+        if self.owner_id is None or not self.current_uid or not self.current_records:
+            self._set_status("Nenhum histórico selecionado para criar o cartão.", "error")
+            return
+        edition = self.edition_selector.currentData()
+        edition_id = None if edition == ALL_BANNERS else str(edition)
+        data = build_warp_share_data(
+            self.current_records,
+            self.current_summaries,
+            self.selected_gacha_type,
+            BANNER_TITLES[self.selected_gacha_type],
+            BANNER_CAPS[self.selected_gacha_type],
+            edition_id=edition_id,
+            edition_title=self.edition_selector.currentText() or "Todos os saltos",
+        )
+        privacy_enabled = hide_uid_in_shared_images(self.owner_id)
+        card = render_warp_share_card(data, hide_uid=privacy_enabled)
+        pictures = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.PicturesLocation
+        )
+        banner_name = "".join(
+            character if character.isalnum() else "_"
+            for character in BANNER_TITLES[self.selected_gacha_type]
+        ).strip("_")
+        suffix = "privado" if privacy_enabled else self.current_uid
+        suggested = str(
+            Path(pictures) / f"AstralOptimizer_Saltos_{banner_name}_{suffix}.png"
+        )
+        path, _selected = QFileDialog.getSaveFileName(
+            self,
+            "Exportar cartão de resultados de Saltos",
+            suggested,
+            "Imagem PNG (*.png)",
+        )
+        if not path:
+            return
+        if not path.casefold().endswith(".png"):
+            path += ".png"
+        if not card.save(path, "PNG"):
+            self._set_status("Não foi possível salvar o cartão de Saltos.", "error")
+            return
+        self._set_status(
+            "Cartão de resultados exportado e pronto para compartilhar.", "success"
+        )
 
     def _export_history(self, format_name: str) -> None:
         if self.owner_id is None or not self.current_uid or not self.current_records:

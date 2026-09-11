@@ -322,18 +322,18 @@ class WarpDatabase:
 
     def restore_owner(self, payload: dict[str, Any], owner_id: int) -> tuple[int, int]:
         if int(payload.get("version", 0)) != 1:
-            raise ValueError("Versão do backup do Google Drive incompatível.")
+            raise ValueError("Versão do backup incompatível.")
         raw_records = payload.get("records", [])
         raw_summaries = payload.get("summaries", [])
         if not isinstance(raw_records, list) or not isinstance(raw_summaries, list):
-            raise ValueError("Backup do Google Drive inválido.")
+            raise ValueError("Backup inválido.")
         try:
             records = [WarpRecord(**item) for item in raw_records if isinstance(item, dict)]
             summaries = [
                 WarpSummary(**item) for item in raw_summaries if isinstance(item, dict)
             ]
         except (TypeError, ValueError) as error:
-            raise ValueError("Backup do Google Drive inválido.") from error
+            raise ValueError("Backup inválido.") from error
         added = self.add_records(records, owner_id)
         for summary in summaries:
             self.upsert_summary(summary, owner_id)

@@ -9,6 +9,7 @@ from urllib.request import Request, urlopen
 
 from PySide6.QtCore import QThread, Signal
 
+from app.warp.cache_settings import webcaches_path
 from app.warp.models import WarpRecord
 from app.warp.starrailstation import import_starrailstation_xlsx
 
@@ -30,21 +31,48 @@ URL_PATTERN = re.compile(r"https?://[^\x00\s\"'<>]+", re.IGNORECASE)
 def cache_files(root: Path) -> list[Path]:
     if not root.exists():
         return []
-    patterns = ("*/Cache/Cache_Data/data_*", "*/Cache/Cache/_Data/data_*")
+    patterns = (
+        "*/Cache/Cache_Data/data_2",
+        "*/Cache/Cache/_Data/data_2",
+        "Cache/Cache_Data/data_2",
+        "Cache/Cache/_Data/data_2",
+    )
     found: list[Path] = []
     for pattern in patterns:
         found.extend(path for path in root.glob(pattern) if path.is_file())
-    return found
+    return list(dict.fromkeys(found))
+
+
+def _version_key(path: Path, root: Path) -> tuple[int, ...]:
+    try:
+        relative = path.relative_to(root)
+        version_name = relative.parts[0]
+    except (ValueError, IndexError):
+        version_name = path.parent.parent.parent.name
+    numbers = tuple(int(value) for value in re.findall(r"\d+", version_name))
+    return numbers or (0,)
+
+
+def latest_cache_candidates(root: Path) -> list[Path]:
+    """Lista data_2 priorizando a pasta de maior versão e depois a mais recente."""
+    candidates = cache_files(root)
+    return sorted(
+        candidates,
+        key=lambda path: (_version_key(path, root), path.stat().st_mtime),
+        reverse=True,
+    )
 
 
 def find_latest_cache(extra_roots: tuple[Path, ...] = ()) -> Path | None:
-    candidates: list[Path] = []
-    for root in (*extra_roots, *DEFAULT_CACHE_ROOTS):
-        candidates.extend(cache_files(root))
-    candidates.sort(key=lambda path: path.stat().st_mtime, reverse=True)
-    for path in candidates:
-        if extract_warp_url(path):
-            return path
+    configured = webcaches_path()
+    roots = tuple(dict.fromkeys(
+        root for root in (*extra_roots, *((configured,) if configured else ()), *DEFAULT_CACHE_ROOTS)
+        if root
+    ))
+    for root in roots:
+        candidates = latest_cache_candidates(root)
+        if candidates:
+            return candidates[0]
     return None
 
 
@@ -123,9 +151,15 @@ class WarpImportWorker(QThread):
         try:
             path = self.cache_path or find_latest_cache()
             if path is None:
+                configured = webcaches_path()
+                detail = (
+                    f" A pasta configurada é: {configured}."
+                    if configured else
+                    " Se o jogo estiver em outro local, selecione a pasta webCaches em Configurações > Aplicativo."
+                )
                 raise RuntimeError(
-                    "Cache de Saltos não encontrado. Abra o histórico de Saltos no jogo "
-                    "e tente novamente."
+                    "Cache de Saltos não encontrado. Abra o Histórico de Saltos no jogo, "
+                    f"feche completamente o jogo e tente novamente.{detail}"
                 )
             if path.suffix.casefold() == ".xlsx":
                 self.progress.emit(f"Lendo backup do Star Rail Station: {path.name}")
@@ -136,7 +170,8 @@ class WarpImportWorker(QThread):
             url = extract_warp_url(path)
             if not url:
                 raise RuntimeError(
-                    "O arquivo não contém um link válido. Abra o histórico de Saltos no jogo."
+                    "O arquivo não contém um link válido. Abra o Histórico de Saltos no jogo, "
+                    "espere a lista carregar e feche completamente o jogo antes de importar."
                 )
             records = fetch_warp_history(url, self.progress.emit)
             self.succeeded.emit(records, str(path))

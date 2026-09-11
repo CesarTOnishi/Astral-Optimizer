@@ -430,6 +430,10 @@ QPushButton#friendRemoveButton:hover {
 QFrame#warpControlPanel, QFrame#warpSummaryCard {
     background-color: #111b2f; border: 1px solid #2b3d5e; border-radius: 10px;
 }
+QLabel#warpImportRequirement {
+    color: #ffd29b; background-color: #30251c; border: 1px solid #624a32;
+    border-radius: 8px; padding: 7px 10px; font-size: 10px; font-weight: 750;
+}
 QFrame#warpBannerPanel, QFrame#warpDetailsPanel {
     background-color: #0e1627; border: 1px solid #293a59; border-radius: 10px;
 }

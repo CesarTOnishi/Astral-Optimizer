@@ -343,7 +343,7 @@ class TutorialDialog(QDialog):
             ("✦", "Bem-vindo a bordo", "O Astral reúne builds, benchmarks, relíquias, Saltos e planejamento em um único aplicativo local."),
             ("1", "Configure sua conta", "Entre ou crie um perfil e salve sua UID principal na engrenagem. Sua conta será sincronizada ao abrir o aplicativo."),
             ("2", "Explore pela barra lateral", "Início pesquisa qualquer UID. Conta mostra seu painel. Builds analisa personagens; Saltos e Planejador acompanham seus recursos."),
-            ("3", "Privacidade e segurança", "Nas Configurações você pode ocultar a UID das imagens e ativar o backup privado no Google Drive."),
+            ("3", "Privacidade e segurança", "Nas Configurações você pode ocultar a UID das imagens e salvar backups em uma pasta sincronizada pelo OneDrive."),
             ("⌨", "Use o teclado", "Ctrl+K pesquisa UID · Ctrl+1 a Ctrl+7 navegam · Ctrl+B recolhe a barra · Ctrl+, abre Configurações · F1 revê este tutorial."),
         ):
             self.pages.addWidget(self._page(icon, title, text))

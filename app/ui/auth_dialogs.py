@@ -30,9 +30,9 @@ from PySide6.QtWidgets import (
 
 from app.auth import AuthService, AuthUser
 from app.cloud import (
-    GoogleDriveService,
-    GoogleDriveWorker,
-    install_google_credentials,
+    OneDriveBackupService,
+    detected_onedrive_roots,
+    set_backup_folder,
 )
 from app.config import APP_VERSION
 from app.privacy import hide_uid_in_shared_images, set_hide_uid_in_shared_images
@@ -41,7 +41,12 @@ from app.preferences import (
     apply_experience_preferences, motion_duration, themed_color,
 )
 from app.ui.widgets import FadeComboBox
-from app.warp import WarpDatabase
+from app.warp import (
+    WarpDatabase,
+    latest_cache_candidates,
+    set_webcaches_path,
+    webcaches_path,
+)
 
 
 class AuthDialog(QDialog):
@@ -322,17 +327,12 @@ class SettingsDialog(QDialog):
         self,
         user: AuthUser,
         parent: QWidget | None = None,
-        drive_service: GoogleDriveService | None = None,
         warp_database: WarpDatabase | None = None,
     ) -> None:
         super().__init__(parent)
         self.user = user
-        self.drive_service = drive_service or GoogleDriveService(user)
+        self.onedrive_service = OneDriveBackupService(user)
         self.warp_database = warp_database or WarpDatabase()
-        self.drive_worker: GoogleDriveWorker | None = None
-        self.drive_status_worker: GoogleDriveWorker | None = None
-        self._drive_configured = False
-        self._drive_email = ""
         self.cloud_changed = False
         self.logout_requested = False
         self.experience_changed = False
@@ -517,39 +517,53 @@ class SettingsDialog(QDialog):
         self.settings_stack.addWidget(privacy_page)
 
         backup_page, backup = self._settings_page(
-            "BACKUP", "Proteja seu histórico de Saltos no espaço privado do Google Drive."
+            "BACKUP", "Salve seu histórico em uma pasta sincronizada pelo OneDrive."
         )
-        drive_label = QLabel("BACKUP NO GOOGLE DRIVE")
-        drive_label.setObjectName("metricTitle")
-        self.drive_status = QLabel()
-        self.drive_status.setObjectName("muted")
-        self.drive_status.setWordWrap(True)
-        drive_actions = QHBoxLayout()
-        self.drive_connect = QPushButton()
-        self.drive_connect.setObjectName("secondaryButton")
-        self.drive_connect.clicked.connect(self._toggle_drive)
-        self.drive_backup = QPushButton("Salvar agora")
-        self.drive_backup.setObjectName("secondaryButton")
-        self.drive_backup.clicked.connect(self._backup_drive)
-        self.drive_restore = QPushButton("Restaurar")
-        self.drive_restore.setObjectName("secondaryButton")
-        self.drive_restore.clicked.connect(self._restore_drive)
-        drive_actions.addWidget(self.drive_connect)
-        drive_actions.addWidget(self.drive_backup)
-        drive_actions.addWidget(self.drive_restore)
-        backup.addWidget(drive_label)
-        backup.addWidget(self.drive_status)
-        backup.addLayout(drive_actions)
+        onedrive_panel = QFrame()
+        onedrive_panel.setObjectName("settingsUpdatePanel")
+        onedrive_layout = QVBoxLayout(onedrive_panel)
+        onedrive_layout.setContentsMargins(13, 11, 13, 12)
+        onedrive_layout.setSpacing(8)
+        onedrive_label = QLabel("BACKUP NO ONEDRIVE")
+        onedrive_label.setObjectName("metricTitle")
+        self.onedrive_status = QLabel()
+        self.onedrive_status.setObjectName("muted")
+        self.onedrive_status.setWordWrap(True)
+        folder_actions = QHBoxLayout()
+        self.onedrive_select = QPushButton("Selecionar pasta")
+        self.onedrive_select.setObjectName("secondaryButton")
+        self.onedrive_select.clicked.connect(self._choose_onedrive_folder)
+        self.onedrive_auto = QPushButton("Usar pasta automática")
+        self.onedrive_auto.setObjectName("secondaryButton")
+        self.onedrive_auto.clicked.connect(self._use_automatic_onedrive_folder)
+        folder_actions.addWidget(self.onedrive_select)
+        folder_actions.addWidget(self.onedrive_auto)
+        folder_actions.addStretch(1)
+        backup_actions = QHBoxLayout()
+        self.onedrive_backup = QPushButton("Salvar agora")
+        self.onedrive_backup.setObjectName("primaryButton")
+        self.onedrive_backup.clicked.connect(self._backup_onedrive)
+        self.onedrive_restore = QPushButton("Restaurar último backup")
+        self.onedrive_restore.setObjectName("secondaryButton")
+        self.onedrive_restore.clicked.connect(self._restore_onedrive)
+        backup_actions.addWidget(self.onedrive_backup)
+        backup_actions.addWidget(self.onedrive_restore)
+        backup_actions.addStretch(1)
+        onedrive_layout.addWidget(onedrive_label)
+        onedrive_layout.addWidget(self.onedrive_status)
+        onedrive_layout.addLayout(folder_actions)
+        onedrive_layout.addLayout(backup_actions)
+        backup.addWidget(onedrive_panel)
         backup_hint = QLabel(
-            "O Astral usa a área privada do aplicativo no Drive; outros arquivos da sua conta não ficam acessíveis."
+            "O Astral não recebe sua senha da Microsoft. Ele grava o arquivo localmente e "
+            "o aplicativo oficial do OneDrive faz a sincronização com a nuvem."
         )
         backup_hint.setObjectName("muted")
         backup_hint.setWordWrap(True)
         backup.addWidget(backup_hint)
         backup.addStretch(1)
         self.settings_stack.addWidget(backup_page)
-        self._set_drive_checking()
-        QTimer.singleShot(0, self._refresh_drive)
+        self._refresh_onedrive_status()
 
         app_page, application = self._settings_page(
             "APLICATIVO", "Atualizações, suporte e informações técnicas."
@@ -581,6 +595,41 @@ class SettingsDialog(QDialog):
             self.update_button, alignment=Qt.AlignmentFlag.AlignVCenter
         )
         application.addWidget(update_panel)
+
+        cache_panel = QFrame()
+        cache_panel.setObjectName("settingsUpdatePanel")
+        cache_layout = QVBoxLayout(cache_panel)
+        cache_layout.setContentsMargins(12, 10, 12, 11)
+        cache_layout.setSpacing(7)
+        cache_title = QLabel("PASTA WEBCACHES DO HONKAI: STAR RAIL")
+        cache_title.setObjectName("metricTitle")
+        cache_layout.addWidget(cache_title)
+        cache_row = QHBoxLayout()
+        cache_row.setSpacing(7)
+        self.webcaches_input = QLineEdit()
+        self.webcaches_input.setReadOnly(True)
+        self.webcaches_input.setPlaceholderText("Localização automática")
+        configured_webcaches = webcaches_path()
+        self.webcaches_input.setText(
+            str(configured_webcaches) if configured_webcaches else ""
+        )
+        choose_webcaches = QPushButton("Selecionar pasta")
+        choose_webcaches.setObjectName("secondaryButton")
+        choose_webcaches.clicked.connect(self._choose_webcaches_folder)
+        clear_webcaches = QPushButton("Usar automático")
+        clear_webcaches.setObjectName("secondaryButton")
+        clear_webcaches.clicked.connect(self._clear_webcaches_folder)
+        cache_row.addWidget(self.webcaches_input, 1)
+        cache_row.addWidget(choose_webcaches)
+        cache_row.addWidget(clear_webcaches)
+        cache_layout.addLayout(cache_row)
+        self.webcaches_hint = QLabel()
+        self.webcaches_hint.setObjectName("muted")
+        self.webcaches_hint.setWordWrap(True)
+        cache_layout.addWidget(self.webcaches_hint)
+        self._refresh_webcaches_hint()
+        application.addWidget(cache_panel)
+
         diagnostics = QPushButton("Diagnóstico")
         diagnostics.setObjectName("secondaryButton")
         diagnostics.clicked.connect(self._open_diagnostics)
@@ -645,6 +694,111 @@ class SettingsDialog(QDialog):
         self.update_status.setText("Verificando nova versão…")
         self.update_requested.emit()
 
+    def _choose_webcaches_folder(self) -> None:
+        current = webcaches_path()
+        selected = QFileDialog.getExistingDirectory(
+            self,
+            "Selecione a pasta webCaches",
+            str(current if current and current.exists() else Path.home()),
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not selected:
+            return
+        root = Path(selected)
+        set_webcaches_path(root)
+        self.webcaches_input.setText(str(root.resolve()))
+        self._refresh_webcaches_hint()
+        self.settings_message.setText("Pasta webCaches salva.")
+
+    def _clear_webcaches_folder(self) -> None:
+        set_webcaches_path(None)
+        self.webcaches_input.clear()
+        self._refresh_webcaches_hint()
+        self.settings_message.setText("A localização automática foi restaurada.")
+
+    def _refresh_webcaches_hint(self) -> None:
+        root = webcaches_path()
+        if root is None:
+            self.webcaches_hint.setText(
+                "O Astral procurará a instalação automaticamente em todos os discos."
+            )
+            return
+        candidates = latest_cache_candidates(root)
+        if candidates:
+            self.webcaches_hint.setText(
+                "Cache que será priorizado: " + str(candidates[0])
+            )
+        elif root.exists():
+            self.webcaches_hint.setText(
+                "Nenhum Cache\\Cache_Data\\data_2 foi encontrado nessa pasta. "
+                "Abra o Histórico de Saltos, feche completamente o jogo e tente novamente."
+            )
+        else:
+            self.webcaches_hint.setText(
+                "A pasta configurada não existe mais. Selecione novamente."
+            )
+
+    def _choose_onedrive_folder(self) -> None:
+        current = self.onedrive_service.folder
+        roots = detected_onedrive_roots()
+        initial = current if current and current.exists() else (
+            roots[0] if roots else Path.home()
+        )
+        selected = QFileDialog.getExistingDirectory(
+            self,
+            "Selecione uma pasta sincronizada pelo OneDrive",
+            str(initial),
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not selected:
+            return
+        set_backup_folder(Path(selected))
+        self.onedrive_service = OneDriveBackupService(self.user)
+        self._refresh_onedrive_status()
+        self.settings_message.setText(
+            "Pasta de backup do OneDrive salva."
+        )
+
+    def _use_automatic_onedrive_folder(self) -> None:
+        set_backup_folder(None)
+        self.onedrive_service = OneDriveBackupService(self.user)
+        self._refresh_onedrive_status()
+        self.settings_message.setText(
+            "O Astral voltou a usar a pasta detectada automaticamente."
+        )
+
+    def _refresh_onedrive_status(self) -> None:
+        available = self.onedrive_service.available
+        files = self.onedrive_service.backup_files() if available else []
+        self.onedrive_status.setText(self.onedrive_service.status_text())
+        self.onedrive_backup.setEnabled(available)
+        self.onedrive_restore.setEnabled(bool(files))
+        self.onedrive_auto.setEnabled(bool(detected_onedrive_roots()))
+
+    def _backup_onedrive(self) -> None:
+        try:
+            payload = self.warp_database.export_owner(self.user.id)
+            message = self.onedrive_service.save_backup(payload)
+        except (OSError, RuntimeError, ValueError) as error:
+            self.settings_message.setText(str(error))
+            return
+        self.cloud_changed = True
+        self.settings_message.setText(message)
+        self._refresh_onedrive_status()
+
+    def _restore_onedrive(self) -> None:
+        try:
+            payload = self.onedrive_service.load_latest_backup()
+            added, total = self.warp_database.restore_owner(payload, self.user.id)
+        except (OSError, RuntimeError, ValueError) as error:
+            self.settings_message.setText(str(error))
+            return
+        self.cloud_changed = True
+        self.settings_message.setText(
+            f"Backup restaurado: {total} registros lidos, {added} novos."
+        )
+        self._refresh_onedrive_status()
+
     def set_update_status(self, message: str, checking: bool = False) -> None:
         self.update_status.setText(message)
         self.update_button.setEnabled(not checking)
@@ -661,122 +815,3 @@ class SettingsDialog(QDialog):
             return
         self.uid_to_save = uid
         self.accept()
-
-    def _refresh_drive(self) -> None:
-        if self.drive_status_worker and self.drive_status_worker.isRunning():
-            return
-        self._set_drive_checking()
-        self.drive_status_worker = GoogleDriveWorker(self._read_drive_status)
-        self.drive_status_worker.succeeded.connect(self._drive_status_ready)
-        self.drive_status_worker.failed.connect(self._drive_status_failed)
-        self.drive_status_worker.finished.connect(self._drive_status_finished)
-        self.drive_status_worker.start()
-
-    def _set_drive_checking(self) -> None:
-        self.drive_status.setText("Verificando Google Drive…")
-        self.drive_connect.setText("Verificando…")
-        self.drive_connect.setEnabled(False)
-        self.drive_backup.setEnabled(False)
-        self.drive_restore.setEnabled(False)
-
-    def _read_drive_status(self) -> dict[str, object]:
-        configured = GoogleDriveService.available()
-        email = self.drive_service.connected_email() if configured else ""
-        return {"configured": configured, "email": email}
-
-    def _drive_status_ready(self, result: object) -> None:
-        status = result if isinstance(result, dict) else {}
-        self._drive_configured = bool(status.get("configured"))
-        self._drive_email = str(status.get("email", ""))
-        connected = bool(self._drive_email)
-        self.drive_status.setText(
-            f"Conectado como {self._drive_email}. O backup automático está ativo."
-            if connected
-            else (
-                "Nenhuma conta Google conectada."
-                if self._drive_configured
-                else "Google Drive ainda não configurado pelo desenvolvedor."
-            )
-        )
-        self.drive_connect.setText(
-            "Desconectar" if connected else (
-                "Conectar Google" if self._drive_configured else "Configurar OAuth"
-            )
-        )
-        self.drive_connect.setEnabled(True)
-        self.drive_backup.setEnabled(connected)
-        self.drive_restore.setEnabled(connected)
-
-    def _drive_status_failed(self, message: str) -> None:
-        self.drive_status.setText("Não foi possível verificar o Google Drive.")
-        self.settings_message.setText(message)
-        self.drive_connect.setText("Tentar novamente")
-        self.drive_connect.setEnabled(True)
-
-    def _drive_status_finished(self) -> None:
-        if self.drive_status_worker:
-            self.drive_status_worker.deleteLater()
-        self.drive_status_worker = None
-
-    def _toggle_drive(self) -> None:
-        if not self._drive_configured:
-            path, _ = QFileDialog.getOpenFileName(
-                self,
-                "Selecione o OAuth JSON do Google Cloud",
-                "",
-                "Credencial OAuth (*.json)",
-            )
-            if not path:
-                return
-            try:
-                install_google_credentials(Path(path))
-            except ValueError as error:
-                self.settings_message.setText(str(error))
-                return
-            self.settings_message.setText(
-                "OAuth configurado. Clique em Conectar Google para autorizar a conta."
-            )
-            self._drive_configured = True
-            self._refresh_drive()
-            return
-        if self._drive_email:
-            self._start_drive(self.drive_service.disconnect)
-        else:
-            self._start_drive(self.drive_service.connect)
-
-    def _backup_drive(self) -> None:
-        payload = self.warp_database.export_owner(self.user.id)
-        self._start_drive(lambda: self.drive_service.upload_backup(payload))
-
-    def _restore_drive(self) -> None:
-        def restore() -> str:
-            payload = self.drive_service.download_backup()
-            added, total = self.warp_database.restore_owner(payload, self.user.id)
-            return f"Backup restaurado: {total} registros lidos, {added} novos."
-
-        self._start_drive(restore)
-
-    def _start_drive(self, operation) -> None:  # type: ignore[no-untyped-def]
-        if self.drive_worker and self.drive_worker.isRunning():
-            return
-        for button in (self.drive_connect, self.drive_backup, self.drive_restore):
-            button.setEnabled(False)
-        self.drive_status.setText("Aguarde…")
-        self.drive_worker = GoogleDriveWorker(operation)
-        self.drive_worker.succeeded.connect(self._drive_succeeded)
-        self.drive_worker.failed.connect(self._drive_failed)
-        self.drive_worker.finished.connect(self._drive_finished)
-        self.drive_worker.start()
-
-    def _drive_succeeded(self, result: object) -> None:
-        self.cloud_changed = True
-        self.settings_message.setText(str(result))
-
-    def _drive_failed(self, message: str) -> None:
-        self.settings_message.setText(message)
-
-    def _drive_finished(self) -> None:
-        if self.drive_worker:
-            self.drive_worker.deleteLater()
-        self.drive_worker = None
-        self._refresh_drive()

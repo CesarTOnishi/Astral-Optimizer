@@ -34,7 +34,10 @@ from app.benchmark.fribbels_client import FribbelsBenchmarkWorker, engine_availa
 from app.benchmark.teams import default_team
 from app.build_history import BuildHistoryDatabase
 from app.catalog import CatalogVersionCheckWorker
-from app.cloud import GoogleDriveService, GoogleDriveWorker
+from app.cloud import (
+    OneDriveBackupService,
+    OneDriveWorker,
+)
 from app.config import (
     APP_HOME_BACKGROUND,
     APP_ICON_ICO,
@@ -229,7 +232,7 @@ class MainWindow(QMainWindow):
         self.sync_task_count = 0
         self.sync_spinner_frame = 0
         self.benchmark_workers: set[FribbelsBenchmarkWorker] = set()
-        self.drive_workers: set[GoogleDriveWorker] = set()
+        self.drive_workers: set[OneDriveWorker] = set()
         self.update_check_worker: UpdateCheckWorker | None = None
         self.catalog_version_worker: CatalogVersionCheckWorker | None = None
         self.update_download_worker: UpdateDownloadWorker | None = None
@@ -360,7 +363,7 @@ class MainWindow(QMainWindow):
         self.page_stack.addWidget(content)
         self.warp_panel = WarpPanel()
         self.warp_panel.set_user(self.auth_service.current_user)
-        self.warp_panel.import_completed.connect(self._backup_warps_to_drive)
+        self.warp_panel.import_completed.connect(self._backup_warps_to_onedrive)
         self.warp_panel.import_completed.connect(lambda _owner: self._refresh_dashboard())
         self.warp_panel.import_completed.connect(
             lambda _owner: self._check_soft_pity_notifications()
@@ -730,7 +733,6 @@ class MainWindow(QMainWindow):
         dialog = SettingsDialog(
             user,
             self,
-            drive_service=GoogleDriveService(user),
             warp_database=self.warp_panel.database,
         )
         self.settings_dialog = dialog
@@ -1123,33 +1125,33 @@ class MainWindow(QMainWindow):
         if app is not None:
             app.quit()
 
-    def _backup_warps_to_drive(self, owner_id: int) -> None:
+    def _backup_warps_to_onedrive(self, owner_id: int) -> None:
         user = self.auth_service.current_user
         if user is None or user.id != owner_id:
             return
-        service = GoogleDriveService(user)
-        if not service.connected_email():
+        service = OneDriveBackupService(user)
+        if not service.available:
             return
         payload = self.warp_panel.database.export_owner(owner_id)
-        worker = GoogleDriveWorker(lambda: service.upload_backup(payload))
-        sync_key = f"drive-backup:{owner_id}"
-        self.sync_manager.begin(sync_key, "Salvando backup no Google Drive…")
+        worker = OneDriveWorker(lambda: service.save_backup(payload))
+        sync_key = f"onedrive-backup:{owner_id}"
+        self.sync_manager.begin(sync_key, "Salvando backup na pasta do OneDrive…")
         self.drive_workers.add(worker)
         worker.succeeded.connect(
             lambda message: self.warp_panel._set_status(
-                f"{message} Importação e nuvem sincronizadas.", "success"
+                f"{message} O OneDrive fará a sincronização com a nuvem.", "success"
             )
         )
         worker.succeeded.connect(
             lambda _message: self.sync_manager.finish(
-                sync_key, "Backup salvo no Google Drive"
+                sync_key, "Backup salvo na pasta do OneDrive"
             )
         )
         worker.succeeded.connect(
             lambda _message: self.notification_center.add(
                 f"backup:{owner_id}",
                 "Backup concluído",
-                "O histórico de Saltos foi salvo no Google Drive.",
+                "O histórico de Saltos foi salvo na pasta sincronizada do OneDrive.",
                 "success",
             )
         )
@@ -1160,21 +1162,21 @@ class MainWindow(QMainWindow):
         )
         worker.failed.connect(
             lambda _message: self.sync_manager.fail(
-                sync_key, "Falha no backup do Google Drive"
+                sync_key, "Falha no backup do OneDrive"
             )
         )
         worker.failed.connect(
             lambda message: self.notification_center.add(
                 f"backup:{owner_id}",
                 "Erro no backup",
-                f"Os dados locais estão seguros, mas o Drive falhou: {message}",
+                f"Os dados locais estão seguros, mas o OneDrive falhou: {message}",
                 "error",
             )
         )
         worker.finished.connect(lambda: self._release_drive_worker(worker))
         worker.start()
 
-    def _release_drive_worker(self, worker: GoogleDriveWorker) -> None:
+    def _release_drive_worker(self, worker: OneDriveWorker) -> None:
         self.drive_workers.discard(worker)
         worker.deleteLater()
 
