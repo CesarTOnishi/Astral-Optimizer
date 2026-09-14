@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 APP_NAME = "Astral Optimizer"
-APP_VERSION = "1.2.1"
+APP_VERSION = "1.3.0"
 GITHUB_REPOSITORY = "CesarTOnishi/Astral-Optimizer"
 APP_USER_AGENT = f"AstralOptimizer/{APP_VERSION} (PySide6)"
 APP_ASSETS_DIR = Path(__file__).resolve().parent / "assets"
@@ -101,6 +101,18 @@ QPushButton#notificationBell:hover {
 }
 QPushButton#notificationBell[unread="true"] {
     color: #fff0b0; background-color: #322a20; border-color: #7a6334;
+}
+QPushButton#whatsNewTitleButton {
+    color: #a9dff4; background-color: transparent;
+    border: 1px solid transparent; border-radius: 8px;
+    font-size: 17px; font-weight: 850;
+}
+QPushButton#whatsNewTitleButton:hover {
+    color: #ffffff; background-color: #263550; border-color: #4a668b;
+}
+QPushButton#whatsNewTitleButton[unseen="true"] {
+    color: #fff3b5; background-color: #332841;
+    border-color: #9a6fab;
 }
 QMenu#notificationMenu {
     color: #eef4ff; background-color: #10192b; border: 1px solid #40567a;
@@ -851,6 +863,65 @@ QPushButton#settingsButton:hover { background-color: #263b59; color: #ffffff; }
 QPushButton#sidebarToggle { color: #7ed9ff; font-size: 18px; text-align: center; }
 QPushButton#sidebarToggle:hover, QPushButton#navButton:hover, QPushButton#authButton:hover { background-color: #182f4b; color: #ffffff; }
 QPushButton#navButton:checked { background-color: #213450; color: #8ee0ff; }
+QScrollArea#whatsNewScroll, QWidget#whatsNewPage, QWidget#whatsNewContent {
+    background-color: transparent; border: none;
+}
+QFrame#whatsNewHero {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #122844, stop:0.55 #202449, stop:1 #482650);
+    border: 1px solid #526f9b; border-radius: 16px;
+}
+QLabel#whatsNewBadge {
+    color: #8ee5ff; font-size: 10px; font-weight: 900;
+    letter-spacing: 1px;
+}
+QLabel#whatsNewHeadline {
+    color: #ffffff; font-size: 23px; font-weight: 900;
+}
+QLabel#whatsNewSummary {
+    color: #b2c6e0; font-size: 12px;
+}
+QLabel#whatsNewFact {
+    color: #bcecff; background-color: rgba(18,54,82,175);
+    border: 1px solid #43769a; border-radius: 7px;
+    padding: 5px 8px; font-size: 9px; font-weight: 850;
+}
+QLabel#whatsNewHeroImage {
+    border: 1px solid #6585ac; border-radius: 12px;
+    background-color: #0c1729;
+}
+QFrame#releaseFeatureCard {
+    background-color: #111d31; border: 1px solid #304969;
+    border-radius: 13px;
+}
+QFrame#releaseFeatureCard:hover {
+    background-color: #14243b; border-color: #4d7097;
+}
+QLabel#releaseFeatureArtwork {
+    background-color: #0d1728; border: 1px solid #304c70;
+    border-radius: 11px;
+}
+QLabel#releaseFeatureTitle {
+    color: #f4f8ff; font-size: 16px; font-weight: 850;
+}
+QLabel#releaseFeatureCategory {
+    color: #72d9f4; font-size: 9px; font-weight: 900;
+    letter-spacing: 1px;
+}
+QLabel#releaseFeatureDescription {
+    color: #aabbd2; font-size: 11px;
+}
+QLabel#releaseFeatureDetail {
+    color: #bed0e5; font-size: 10px; padding: 1px 0;
+}
+QPushButton#releaseFeatureButton {
+    color: #eafaff; background-color: #1b4665;
+    border: 1px solid #4fa7ca; border-radius: 8px;
+    padding: 9px 12px; font-weight: 800;
+}
+QPushButton#releaseFeatureButton:hover {
+    background-color: #246486; border-color: #75d9f4;
+}
 QDialog#authDialog { background-color: transparent; }
 QFrame#authModal {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
@@ -1332,3 +1403,7 @@ QLabel#updateReadyWarning {
     border-radius: 9px; padding: 12px; font-size: 11px; font-weight: 850;
 }
 """
+
+from app.visual_style import REFINED_STYLESHEET
+
+APP_STYLESHEET += REFINED_STYLESHEET

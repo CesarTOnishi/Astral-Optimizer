@@ -56,7 +56,9 @@ from app.ui.build_history import (
     ConfirmBuildDeleteDialog,
 )
 from app.ui.build_share import render_build_share_card
+from app.ui.motion import AnimatedStack as QStackedWidget, animate_width, install_motion
 from app.ui.account_dashboard import AccountDashboard
+from app.ui.icons import set_button_icon
 from app.ui.catalog_panel import CatalogPanel
 from app.ui.friends_panel import FriendsPanel
 from app.ui.experience import (
@@ -73,6 +75,7 @@ from app.ui.team_dialog import CustomTeamDialog
 from app.ui.update_dialog import UpdateAvailableDialog, UpdateReadyDialog
 from app.ui.relic_inventory_panel import RelicInventoryPanel
 from app.ui.warp_panel import WarpPanel
+from app.ui.whats_new import WhatsNewPanel
 from app.ui.widgets import (
     AbilityBreakdownCard,
     AvatarLabel,
@@ -98,6 +101,7 @@ from app.updater import (
     launch_installer,
     running_from_bundle,
 )
+from app.whats_new import WhatsNewSettings
 
 
 PRIMARY_STATS = (
@@ -150,9 +154,29 @@ class AppTitleBar(QFrame):
         self.notification_bell = NotificationBell(window.notification_center, self)
         layout.addWidget(self.notification_bell)
 
+        self.whats_new_button = QPushButton("✧")
+        self.whats_new_button.setText("")
+        set_button_icon(self.whats_new_button, "warp")
+        self.whats_new_button.setObjectName("whatsNewTitleButton")
+        self.whats_new_button.setFixedSize(36, 32)
+        self.whats_new_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.whats_new_button.setToolTip(
+            f"Novidades da versão {APP_VERSION}"
+        )
+        self.whats_new_button.setProperty(
+            "unseen", window.whats_new_settings.should_show()
+        )
+        self.whats_new_button.clicked.connect(
+            lambda: window._navigate("Novidades")
+        )
+        layout.addWidget(self.whats_new_button)
+
         self.minimize_button = QPushButton("—")
         self.maximize_button = QPushButton("□")
         self.close_button = QPushButton("×")
+        for button, icon_name in ((self.minimize_button, "minimize"), (self.maximize_button, "maximize"), (self.close_button, "close")):
+            button.setText("")
+            set_button_icon(button, icon_name, 16)
         for button, tooltip in (
             (self.minimize_button, "Minimizar"),
             (self.maximize_button, "Maximizar"),
@@ -176,7 +200,8 @@ class AppTitleBar(QFrame):
 
     def sync_state(self) -> None:
         maximized = self.app_window.isMaximized()
-        self.maximize_button.setText("❐" if maximized else "□")
+        self.maximize_button.setText("")
+        set_button_icon(self.maximize_button, "restore" if maximized else "maximize", 16)
         self.maximize_button.setToolTip("Restaurar" if maximized else "Maximizar")
 
     def mousePressEvent(self, event) -> None:  # type: ignore[no-untyped-def]
@@ -250,12 +275,14 @@ class MainWindow(QMainWindow):
         self._detail_request = 0
         self._initial_account_sync_active = False
         self.experience_settings = ExperienceSettings()
+        self.whats_new_settings = WhatsNewSettings()
         self._shortcuts: list[QShortcut] = []
         self.tutorial_overlay: GuidedTourOverlay | None = None
         self._tutorial_original_page = 6
         self._tutorial_original_nav: tuple[str, ...] = ()
         self._tutorial_sidebar_was_expanded = True
 
+        install_motion()
         self._build_ui()
         apply_experience_preferences()
         self._setup_shortcuts()
@@ -275,6 +302,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, self._check_soft_pity_notifications)
         QTimer.singleShot(2600, self._check_updates_automatically)
         QTimer.singleShot(3400, self._check_catalog_version)
+        QTimer.singleShot(0, self._show_whats_new_if_needed)
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -400,6 +428,11 @@ class MainWindow(QMainWindow):
             "Histórico de builds": self.build_history_database.path,
         })
         self.page_stack.addWidget(self.diagnostics_panel)
+        self.whats_new_panel = WhatsNewPanel()
+        self.whats_new_panel.resource_requested.connect(
+            self._open_release_resource
+        )
+        self.page_stack.addWidget(self.whats_new_panel)
         self._refresh_account_page()
         self._navigate("Início")
         body_layout.addWidget(self.page_stack, 1)
@@ -445,7 +478,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(18, 14, 18, 18)
         layout.setSpacing(12)
 
-        title = QLabel("DASHBOARD DA CONTA")
+        title = QLabel("Sua conta")
         title.setObjectName("brandTitle")
         subtitle = QLabel(
             "Seus personagens, Saltos e relíquias em um só lugar."
@@ -465,39 +498,42 @@ class MainWindow(QMainWindow):
         self.account_profile_avatar.setFixedSize(78, 78)
         self.account_profile_name = QLabel("Conta não carregada")
         self.account_profile_name.setObjectName("detailName")
-        self.account_profile_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.account_profile_name.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.account_profile_uid = QLabel("—")
         self.account_profile_uid.setObjectName("profileUid")
-        self.account_profile_uid.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.account_profile_uid.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.account_profile_meta = QLabel(
             "Entre no perfil e defina uma UID principal nas configurações."
         )
         self.account_profile_meta.setObjectName("muted")
-        self.account_profile_meta.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.account_profile_meta.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.account_profile_meta.setWordWrap(True)
         self.account_profile_signature = QLabel("")
         self.account_profile_signature.setObjectName("profileSignature")
-        self.account_profile_signature.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.account_profile_signature.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.account_profile_signature.setWordWrap(True)
         self.account_load_button = QPushButton("Atualizar conta")
+        set_button_icon(self.account_load_button, "refresh", 16)
         self.account_load_button.setObjectName("primaryButton")
         self.account_load_button.clicked.connect(
             lambda: self._load_saved_uid(force=True)
         )
         self.account_status = QLabel("")
         self.account_status.setObjectName("statusInfo")
-        self.account_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.account_status.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.account_status.setWordWrap(True)
-        card_layout.addWidget(
-            self.account_profile_avatar, alignment=Qt.AlignmentFlag.AlignCenter
-        )
-        card_layout.addWidget(self.account_profile_name)
-        card_layout.addWidget(self.account_profile_uid)
-        card_layout.addWidget(self.account_profile_meta)
+        identity_row = QHBoxLayout()
+        identity_row.setSpacing(16)
+        identity_row.addWidget(self.account_profile_avatar)
+        identity = QVBoxLayout()
+        identity.setSpacing(4)
+        identity.addWidget(self.account_profile_name)
+        identity.addWidget(self.account_profile_uid)
+        identity.addWidget(self.account_profile_meta)
+        identity_row.addLayout(identity, 1)
+        identity_row.addWidget(self.account_load_button)
+        card_layout.addLayout(identity_row)
         card_layout.addWidget(self.account_profile_signature)
-        card_layout.addWidget(
-            self.account_load_button, alignment=Qt.AlignmentFlag.AlignCenter
-        )
         account_status_row = QHBoxLayout()
         self.account_copy_error = QPushButton("Copiar detalhes")
         self.account_copy_error.setObjectName("copyErrorButton")
@@ -584,9 +620,10 @@ class MainWindow(QMainWindow):
         self.sidebar.setFixedWidth(230)
         layout = QVBoxLayout(self.sidebar)
         layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(5)
+        layout.setSpacing(4)
 
-        self.sidebar_toggle = QPushButton("☰")
+        self.sidebar_toggle = QPushButton("")
+        set_button_icon(self.sidebar_toggle, "menu")
         self.sidebar_toggle.setObjectName("sidebarToggle")
         self.sidebar_toggle.setToolTip("Fechar barra lateral")
         self.sidebar_toggle.clicked.connect(self.toggle_sidebar)
@@ -607,17 +644,19 @@ class MainWindow(QMainWindow):
             "Planejador": "Ctrl+6", "Personagens e Cones": "Ctrl+7",
         }
         for icon, text in (
-            ("⌂", "Início"),
-            ("◆", "Builds"),
-            ("◉", "Conta"),
-            ("♧", "Amigos"),
-            ("◈", "Personagens e Cones"),
-            ("⬡", "Relíquias"),
-            ("✦", "Saltos"),
-            ("◎", "Planejador"),
-            ("★", "Rank"),
+            ("home", "Início"),
+            ("build", "Builds"),
+            ("profile", "Conta"),
+            ("friends", "Amigos"),
+            ("catalog", "Personagens e Cones"),
+            ("relic", "Relíquias"),
+            ("warp", "Saltos"),
+            ("planner", "Planejador"),
+            ("rank", "Rank"),
         ):
-            button = QPushButton(f"{icon}   {text}")
+            button = QPushButton(text)
+            set_button_icon(button, icon)
+            button.setAccessibleName(text)
             button.setObjectName("navButton")
             button.setCheckable(text != "Rank")
             button.setToolTip(
@@ -683,6 +722,8 @@ class MainWindow(QMainWindow):
         info_layout.addWidget(self.auth_username)
         info_layout.addWidget(self.auth_status)
         self.settings_button = QPushButton("⚙")
+        self.settings_button.setText("")
+        set_button_icon(self.settings_button, "settings")
         self.settings_button.setObjectName("settingsButton")
         self.settings_button.setFixedSize(36, 36)
         self.settings_button.setToolTip("Configurações do perfil  ·  Ctrl+,")
@@ -721,46 +762,82 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             self._refresh_auth_sidebar()
 
-    def open_settings_dialog(self) -> None:
+    def open_settings_dialog(
+        self, _checked: bool = False, *, initial_page: int = 0
+    ) -> None:
         user = self.auth_service.current_user
         if user is None:
             dialog = ExperienceDialog(self)
-            dialog.exec()
-            apply_experience_preferences()
-            if dialog.replay_tutorial:
-                QTimer.singleShot(0, lambda: self.show_tutorial(force=True))
+            try:
+                dialog.exec()
+                apply_experience_preferences()
+                if dialog.replay_tutorial:
+                    QTimer.singleShot(0, lambda: self.show_tutorial(force=True))
+            finally:
+                dialog.deleteLater()
             return
         dialog = SettingsDialog(
             user,
             self,
             warp_database=self.warp_panel.database,
+            initial_page=initial_page,
         )
-        self.settings_dialog = dialog
-        dialog.update_requested.connect(lambda: self.check_for_updates(manual=True))
-        dialog.exec()
-        self.settings_dialog = None
-        replay_tutorial = dialog.tutorial_requested
-        open_diagnostics = dialog.diagnostics_requested
-        if dialog.experience_changed:
-            apply_experience_preferences()
-        if dialog.cloud_changed:
-            self.warp_panel.refresh()
-        if dialog.logout_requested:
-            self.auth_service.logout()
-            self._refresh_auth_sidebar()
-        elif dialog.uid_to_save is not None:
-            try:
-                self.auth_service.update_game_uid(dialog.uid_to_save)
-            except ValueError as error:
-                self.set_status(str(error), "error")
+        try:
+            self.settings_dialog = dialog
+            dialog.update_requested.connect(lambda: self.check_for_updates(manual=True))
+            dialog.exec()
+            self.settings_dialog = None
+            replay_tutorial = dialog.tutorial_requested
+            open_diagnostics = dialog.diagnostics_requested
+            if dialog.cloud_changed:
+                self.warp_panel.refresh()
+            if dialog.logout_requested:
+                self.auth_service.logout()
+                self._refresh_auth_sidebar()
+            elif dialog.uid_to_save is not None:
+                try:
+                    self.auth_service.update_game_uid(dialog.uid_to_save)
+                except ValueError as error:
+                    self.set_status(str(error), "error")
+                    return
+                self._refresh_auth_sidebar()
+                if dialog.uid_to_save:
+                    self.set_status("UID principal salva. Abra Conta para carregá-la.")
+            if replay_tutorial:
+                QTimer.singleShot(0, lambda: self.show_tutorial(force=True))
+            elif open_diagnostics:
+                self._navigate("Diagnóstico")
+        finally:
+            self.settings_dialog = None
+            dialog.deleteLater()
+
+    def _show_whats_new_if_needed(self) -> None:
+        if self.whats_new_settings.should_show():
+            self._navigate("Novidades")
+
+    def _mark_whats_new_seen(self) -> None:
+        self.whats_new_settings.mark_seen()
+        button = getattr(self.title_bar, "whats_new_button", None)
+        if button is None:
+            return
+        button.setProperty("unseen", False)
+        button.style().unpolish(button)
+        button.style().polish(button)
+
+    def _open_release_resource(self, destination: str) -> None:
+        if destination == "Backup":
+            if self.auth_service.current_user is None:
+                self.set_status(
+                    "Entre em um perfil local para configurar o backup pelo OneDrive."
+                )
+                self.open_auth_dialog()
                 return
-            self._refresh_auth_sidebar()
-            if dialog.uid_to_save:
-                self.set_status("UID principal salva. Abra Conta para carregá-la.")
-        if replay_tutorial:
-            QTimer.singleShot(0, lambda: self.show_tutorial(force=True))
-        elif open_diagnostics:
-            self._navigate("Diagnóstico")
+            self.open_settings_dialog(initial_page=3)
+            return
+        if destination == "Configurações":
+            self.open_settings_dialog(initial_page=1)
+            return
+        self._navigate(destination)
 
     def show_tutorial(self, *, force: bool = False) -> None:
         first_run = not self.experience_settings.load().tutorial_completed
@@ -1229,10 +1306,8 @@ class MainWindow(QMainWindow):
             self.auth_username.setText(user.username)
             self.auth_avatar.setText(user.username[:1].upper())
             self.auth_user_frame.setToolTip("Abrir dashboard da conta")
-        expanded = self.sidebar_expanded
-        self.auth_guest_button.setText("◎   Entrar / Cadastrar" if expanded else "◎")
-        self.auth_user_info.setVisible(expanded)
-        self.auth_avatar.setVisible(expanded)
+        set_button_icon(self.auth_guest_button, "profile")
+        self._update_sidebar_profile_layout()
         if hasattr(self, "warp_panel"):
             self.warp_panel.set_user(user)
             self._check_soft_pity_notifications()
@@ -1251,6 +1326,12 @@ class MainWindow(QMainWindow):
                 self.own_account = None
                 self.own_account_user_id = None
             self._refresh_account_page()
+
+    def _update_sidebar_profile_layout(self) -> None:
+        expanded = self.sidebar_expanded
+        self.auth_guest_button.setText("Entrar / Cadastrar" if expanded else "")
+        self.auth_user_info.setVisible(expanded)
+        self.auth_avatar.setVisible(expanded)
 
     def eventFilter(self, watched, event):
         if event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
@@ -1376,6 +1457,9 @@ class MainWindow(QMainWindow):
                 "page", "Abrindo o catálogo de personagens e cones…",
                 lambda: self.catalog_panel.set_active(True),
             )
+        elif destination == "Novidades":
+            self.page_stack.setCurrentWidget(self.whats_new_panel)
+            self._mark_whats_new_seen()
         elif destination == "Diagnóstico":
             self.page_stack.setCurrentWidget(self.diagnostics_panel)
             self.diagnostics_panel.refresh()
@@ -1508,8 +1592,8 @@ class MainWindow(QMainWindow):
     def toggle_sidebar(self) -> None:
         self.sidebar_expanded = not self.sidebar_expanded
         expanded = self.sidebar_expanded
-        self.sidebar.setFixedWidth(230 if expanded else 62)
-        self.sidebar_toggle.setText("☰" if expanded else "»")
+        animate_width(self.sidebar, 230 if expanded else 62)
+        self.sidebar_toggle.setText("")
         self.sidebar_toggle.setToolTip(
             "Fechar barra lateral" if expanded else "Abrir barra lateral"
         )
@@ -1520,9 +1604,8 @@ class MainWindow(QMainWindow):
         ):
             widget.setVisible(expanded)
         for button, icon, text in self.nav_buttons:
-            button.setText(f"{icon}   {text}" if expanded else icon)
-            button.setStyleSheet("text-align:left;" if expanded else "text-align:center;")
-        self._refresh_auth_sidebar()
+            button.setText(text if expanded else "")
+        self._update_sidebar_profile_layout()
         self._render_sync_status()
 
     def _sync_status_changed(self, state: str, message: str, count: int) -> None:

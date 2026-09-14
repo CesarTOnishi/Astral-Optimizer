@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import colorsys
 from dataclasses import dataclass
+from functools import lru_cache
 import re
 from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QWidget
 
 from app.config import APP_STYLESHEET
 
@@ -122,6 +123,12 @@ def themed_color(
 
 def experience_stylesheet(preferences: ExperiencePreferences | None = None) -> str:
     current = preferences or ExperienceSettings().load()
+    return _theme_stylesheet(current.theme)
+
+
+@lru_cache(maxsize=len(THEMES))
+def _theme_stylesheet(theme: str) -> str:
+    current = ExperiencePreferences(theme=theme)
     if current.theme == "astral":
         return APP_STYLESHEET
 
@@ -158,6 +165,38 @@ def apply_experience_preferences(
     if target is None:
         return
     current = preferences or ExperienceSettings().load()
+    if target.property("astralReduceMotion") != current.reduce_motion:
+        target.setProperty("astralReduceMotion", current.reduce_motion)
+    # Reducing motion and closing Settings must not repolish the whole app.
+    stylesheet = experience_stylesheet(current)
+    if target.property("astralAppliedTheme") == current.theme and target.styleSheet() == stylesheet:
+        target.setProperty("astralTheme", current.theme)
+        return
     target.setProperty("astralTheme", current.theme)
-    target.setProperty("astralReduceMotion", current.reduce_motion)
-    target.setStyleSheet(experience_stylesheet(current))
+    windows = [window for window in target.topLevelWidgets() if window.updatesEnabled()]
+    widgets = target.allWidgets()
+    layouts = [layout for widget in widgets if (layout := QWidget.layout(widget)) is not None and layout.isEnabled()]
+    controller = getattr(target, "_astral_motion", None)
+    if controller is not None:
+        target.removeEventFilter(controller)
+    target.setProperty("astralApplyingTheme", True)
+    try:
+        for window in windows:
+            window.setUpdatesEnabled(False)
+        for layout in layouts:
+            layout.setEnabled(False)
+        target.setStyleSheet(stylesheet)
+        target.setProperty("astralAppliedTheme", current.theme)
+    finally:
+        for layout in layouts:
+            layout.setEnabled(True)
+        target.setProperty("astralApplyingTheme", False)
+        if controller is not None:
+            target.installEventFilter(controller)
+        for window in windows:
+            window.setUpdatesEnabled(True)
+    from app.ui.icons import set_button_icon
+    for widget in widgets:
+        name = widget.property("astralIcon")
+        if name:
+            set_button_icon(widget, str(name), widget.iconSize().width())

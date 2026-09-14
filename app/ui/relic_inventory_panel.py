@@ -101,6 +101,7 @@ class RelicInventoryPanel(QWidget):
         self.content = QWidget()
         self.content.setObjectName("scrollContent")
         self.grid = QGridLayout(self.content)
+        self.grid.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.grid.setContentsMargins(2, 2, 2, 12)
         self.grid.setHorizontalSpacing(9)
         self.grid.setVerticalSpacing(9)
@@ -177,6 +178,7 @@ class RelicInventoryPanel(QWidget):
         self._render()
 
     def _clear_grid(self) -> None:
+        self._grid_signature = None
         while self.grid.count():
             item = self.grid.takeAt(0)
             widget = item.widget()
@@ -359,10 +361,16 @@ class RelicInventoryPanel(QWidget):
     def _reflow(self) -> None:
         if not self.cards:
             return
-        while self.grid.count():
-            self.grid.takeAt(0)
         available = max(self.scroll.viewport().width() - 8, 205)
         columns = max(1, min(4, available // 224))
+        signature = (columns, tuple(id(card) for card in self.cards))
+        if signature == getattr(self, "_grid_signature", None):
+            return
+        self._grid_signature = signature
+        while self.grid.count():
+            self.grid.takeAt(0)
+        for column in range(4):
+            self.grid.setColumnStretch(column, 0)
         for index, card in enumerate(self.cards):
             self.grid.addWidget(card, index // columns, index % columns)
         for column in range(columns):

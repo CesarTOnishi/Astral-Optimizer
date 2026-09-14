@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.ui.motion import AnimatedStack as QStackedWidget
+
 from app.catalog import (
     CatalogCharacter,
     CatalogLightCone,

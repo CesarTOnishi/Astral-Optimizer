@@ -4,7 +4,7 @@
 
   **Builds, relíquias, benchmark, catálogo e Saltos de Honkai: Star Rail em um único aplicativo para Windows.**
 
-  [![Versão](https://img.shields.io/badge/versão-1.2.1-7edcff?style=for-the-badge)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
+  [![Versão](https://img.shields.io/badge/versão-1.3.0-7edcff?style=for-the-badge)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
   [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-357ec7?style=for-the-badge&logo=windows11)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
   [![PySide6](https://img.shields.io/badge/UI-PySide6-41cd52?style=for-the-badge&logo=qt&logoColor=white)](https://doc.qt.io/qtforpython-6/)
@@ -20,13 +20,14 @@ O **Astral Optimizer** é um aplicativo desktop local para consultar contas púb
 
 O aplicativo não solicita acesso à conta HoYoverse. As consultas utilizam apenas o Showcase público configurado dentro do jogo. Perfis, históricos e configurações permanecem no computador do usuário.
 
-## Novidades da versão 1.2.0
+## Novidades da versão 1.3.0
 
-> **Correção 1.2.1:** o instalador automático agora registra o resultado, tenta novamente quando arquivos estão bloqueados, valida o executável copiado e reabre o aplicativo. Avisos orientam o usuário a aguardar a reabertura automática. O empacotamento também impede publicar um executável compilado com a versão errada.
+Esta versão amplia o acompanhamento de Saltos, migra o backup para o OneDrive e moderniza a experiência visual do aplicativo.
 
 - sincronização da conta durante a tela de carregamento ao abrir o aplicativo;
 - dashboard da UID principal com avatar do jogo, personagens, benchmarks, Saltos e relíquias;
 - central de notificações para atualização do aplicativo e catálogo, backup, mudanças de relíquias e soft pity;
+- Central de novidades ilustrada, acessível pelo ícone ao lado do sino, com atalhos para cada recurso novo;
 - modo de privacidade que oculta a UID das imagens compartilhadas;
 - análises de Saltos com gráficos por mês e versão, média de pity, histórico de 50/50 e detecção de lacunas;
 - exportação do histórico de Saltos para CSV/JSON e cartão PNG compartilhável com todos os resultados 5★, pity, garantia e estatísticas;
@@ -36,6 +37,9 @@ O aplicativo não solicita acesso à conta HoYoverse. As consultas utilizam apen
 - tutorial guiado de 20 etapas com balões apontando para os controles reais;
 - atalhos de teclado, estados vazios explicativos, diagnóstico técnico e botões para copiar detalhes de erros;
 - seletor de edições de banner, histórico visual somente de 5★ e identificação persistente das edições.
+- backup automático e manual em pasta sincronizada pelo OneDrive, com verificação de integridade e restauração;
+- novo sistema de ícones, animações, barras de rolagem e cartões responsivos em toda a interface;
+- ícones próprios para atributos básicos, atributos em combate e estatísticas das relíquias.
 
 ## Principais recursos
 
@@ -52,6 +56,7 @@ O aplicativo não solicita acesso à conta HoYoverse. As consultas utilizam apen
 | Catálogo | Personagens, Cones, habilidades, Rastros, Eidolons e efeitos S1–S5 |
 | Conta e amigos | Dashboard da UID principal, personagens com benchmark, lista de amigos e acesso às builds |
 | Experiência | Temas, tutorial guiado, atalhos, diagnóstico, acessibilidade e estados vazios |
+| Novidades | Página ilustrada com mudanças da versão instalada e acesso direto aos recursos novos |
 | Privacidade | Opção para ocultar a UID dos cartões PNG compartilhados |
 | Notificações | Alertas de catálogo, versão, backup, relíquias e proximidade do soft pity |
 | OneDrive | Backups versionados do histórico de Saltos e planejador em pasta sincronizada |
@@ -178,11 +183,17 @@ Clicar no perfil da barra lateral também abre esse dashboard. A página mantém
 
 ## Experiência, temas e acessibilidade
 
+A **Central de novidades** apresenta as principais mudanças da versão instalada em cartões ilustrados e responsivos. Ela é aberta automaticamente uma vez após cada atualização e continua disponível pelo ícone ao lado do sino de notificações; os botões de cada cartão levam diretamente ao recurso apresentado.
+
 As Configurações são divididas em **Perfil**, **Aparência**, **Privacidade**, **Backup** e **Aplicativo**. Os temas Astral, Obsidiana, Aurora, Jade Estelar, Carmesim e Alto contraste são aplicados imediatamente em toda a interface.
+
+A navegação e as configurações usam ícones SVG consistentes. Textos e números priorizam legibilidade, enquanto a fonte temática permanece nos títulos da marca. Painéis e tabelas têm menos bordas, a seleção mantém um marcador lateral e o cabeçalho compacto da conta dá mais espaço aos indicadores. Miniaturas de Cones e equipamentos preservam a arte completa.
 
 Em **Aplicativo**, também é possível selecionar manualmente a pasta `webCaches` usada pela importação de Saltos ou restaurar a localização automática.
 
 A opção **Reduzir animações** diminui transições em computadores mais fracos. Na primeira abertura, um tutorial de 20 etapas escurece a interface, destaca os controles reais e explica as principais funções. Ele pode ser revisto pelas Configurações ou com `F1`.
+
+As páginas usam transições curtas, a barra lateral expande e recolhe suavemente sem recarregar os dados da conta e os botões respondem ao foco, ao mouse e ao clique. Barras de rolagem verticais e horizontais têm formato arredondado e animação de espessura e destaque ao interagir, preservando o arraste e o teclado nativos. Modais de perfil, configurações, times e comparação de builds têm entrada e saída suaves, com fundo escurecido. Avatares e barras de progresso também possuem transições visuais, sem atrasar a atualização dos dados. Novos comandos interrompem as transições anteriores; ativar **Reduzir animações** encerra imediatamente esses efeitos.
 
 Atalhos disponíveis:
 
@@ -277,7 +288,7 @@ Para publicar uma atualização:
 2. execute os testes;
 3. recompile o motor e o executável;
 4. gere o pacote da Release;
-5. crie uma Release normal com a tag correspondente, como `v1.2.0`;
+5. crie uma Release normal com a tag correspondente, como `v1.3.0`;
 6. anexe o ZIP e seu `.sha256`.
 
 O atualizador consulta a Release mais recente no máximo uma vez a cada seis horas e também possui verificação manual. Bancos e configurações em `%LOCALAPPDATA%\AstralOptimizer` não são substituídos durante a atualização.

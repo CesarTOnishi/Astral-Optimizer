@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from app.ui.icons import set_button_icon
 
 from PySide6.QtCore import QObject, QPoint, Qt, Signal
 from PySide6.QtWidgets import (
@@ -73,7 +74,8 @@ class NotificationBell(QPushButton):
 
     def refresh(self) -> None:
         count = self.center.unread_count
-        self.setText(f"🔔  {count}" if count else "🔔")
+        self.setText(str(count) if count else "")
+        set_button_icon(self, "bell")
         self.setProperty("unread", count > 0)
         self.setToolTip(
             f"{count} notificação{'ões' if count != 1 else ''} não lida{'s' if count != 1 else ''}"

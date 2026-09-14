@@ -14,6 +14,9 @@ from PySide6.QtWidgets import (
     QPushButton, QStackedWidget, QVBoxLayout, QWidget,
 )
 
+from app.ui.motion import AnimatedDialog as QDialog
+from app.ui.motion import AnimatedStack as QStackedWidget
+
 from app.benchmark.fribbels_client import ENGINE_ROOT, ENGINE_SCRIPT, engine_available
 from app.config import APP_VERSION
 from app.paths import app_data_dir

@@ -51,10 +51,8 @@ def main() -> int:
     app.setOrganizationName("AstralOptimizer")
     font_family = "Segoe UI"
     if APP_FONT_TTF.is_file():
-        font_id = QFontDatabase.addApplicationFont(str(APP_FONT_TTF))
-        families = QFontDatabase.applicationFontFamilies(font_id)
-        if families:
-            font_family = families[0]
+        # Keep the bundled font available for branded headings only.
+        QFontDatabase.addApplicationFont(str(APP_FONT_TTF))
     app.setFont(QFont(font_family, 10))
     apply_experience_preferences(app)
     icon_path = APP_ICON_ICO if APP_ICON_ICO.is_file() else APP_ICON_PNG

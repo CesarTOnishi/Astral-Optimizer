@@ -9,6 +9,8 @@ from PySide6.QtWidgets import (
     QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
+from app.ui.motion import AnimatedProgressBar as QProgressBar
+
 from app.auth import AuthUser
 from app.planner import calculate_planner, sequence_projections
 from app.ui.widgets import FRIBBELS_ASSETS, FadeComboBox, FadeSpinBox

@@ -28,6 +28,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.ui.motion import AnimatedDialog as QDialog
+from app.ui.icons import set_button_icon
+from app.ui.motion import AnimatedStack as QStackedWidget
+
 from app.auth import AuthService, AuthUser
 from app.cloud import (
     OneDriveBackupService,
@@ -328,6 +332,7 @@ class SettingsDialog(QDialog):
         user: AuthUser,
         parent: QWidget | None = None,
         warp_database: WarpDatabase | None = None,
+        initial_page: int = 0,
     ) -> None:
         super().__init__(parent)
         self.user = user
@@ -336,6 +341,9 @@ class SettingsDialog(QDialog):
         self.cloud_changed = False
         self.logout_requested = False
         self.experience_changed = False
+        self._appearance_timer = QTimer(self)
+        self._appearance_timer.setSingleShot(True)
+        self._appearance_timer.timeout.connect(self._commit_appearance)
         self.tutorial_requested = False
         self.diagnostics_requested = False
         self.uid_to_save: str | None = None
@@ -354,7 +362,7 @@ class SettingsDialog(QDialog):
         content.setSpacing(0)
         header = QHBoxLayout()
         header.setContentsMargins(22, 14, 12, 12)
-        title = QLabel("CONFIGURAÇÕES")
+        title = QLabel("Configurações")
         title.setObjectName("brandTitle")
         close = QPushButton("×")
         close.setObjectName("dialogCloseButton")
@@ -376,10 +384,11 @@ class SettingsDialog(QDialog):
         side.setSpacing(6)
         self.settings_nav: list[QPushButton] = []
         for index, (icon, label) in enumerate((
-            ("◉", "Perfil"), ("✦", "Aparência"), ("◈", "Privacidade"),
-            ("☁", "Backup"), ("ⓘ", "Aplicativo"),
+            ("profile", "Perfil"), ("appearance", "Aparência"), ("privacy", "Privacidade"),
+            ("backup", "Backup"), ("info", "Aplicativo"),
         )):
-            button = QPushButton(f"{icon}   {label}")
+            button = QPushButton(label)
+            set_button_icon(button, icon, 16)
             button.setObjectName("settingsNavButton")
             button.setCheckable(True)
             button.clicked.connect(
@@ -645,7 +654,9 @@ class SettingsDialog(QDialog):
         body.addWidget(right, 1)
         content.addLayout(body, 1)
         layout.addWidget(modal)
-        self._select_settings_page(0)
+        self._select_settings_page(
+            max(0, min(initial_page, self.settings_stack.count() - 1))
+        )
 
     @staticmethod
     def _settings_page(title: str, subtitle: str) -> tuple[QWidget, QVBoxLayout]:
@@ -654,7 +665,7 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
-        heading = QLabel(title)
+        heading = QLabel(title.capitalize())
         heading.setObjectName("settingsPageTitle")
         detail = QLabel(subtitle)
         detail.setObjectName("settingsPageSubtitle")
@@ -670,6 +681,10 @@ class SettingsDialog(QDialog):
             button.setChecked(position == index)
 
     def _apply_appearance(self, _value: object = None) -> None:
+        # Let the dropdown close first and collapse changes in the same event turn.
+        self._appearance_timer.start(0)
+
+    def _commit_appearance(self) -> None:
         current = ExperienceSettings().load()
         preferences = ExperiencePreferences(
             theme=str(self.theme_selector.currentData()),
@@ -680,6 +695,12 @@ class SettingsDialog(QDialog):
         apply_experience_preferences(preferences=preferences)
         self.experience_changed = True
         self.settings_message.setText("Aparência aplicada automaticamente.")
+
+    def done(self, result: int) -> None:
+        if self._appearance_timer.isActive():
+            self._appearance_timer.stop()
+            self._commit_appearance()
+        super().done(result)
 
     def _request_tutorial(self) -> None:
         self.tutorial_requested = True

@@ -102,7 +102,7 @@ class SummaryCard(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 9, 12, 9)
         layout.setSpacing(2)
-        self.title = QLabel(title.upper())
+        self.title = QLabel(title)
         self.title.setObjectName("metricTitle")
         self.title.setWordWrap(True)
         self.title.setSizePolicy(
@@ -121,7 +121,7 @@ class SummaryCard(QFrame):
         layout.addWidget(self.detail)
 
     def set_title(self, title: str) -> None:
-        self.title.setText(title.upper())
+        self.title.setText(title)
 
 
 class RecentWarpCard(QFrame):
@@ -214,7 +214,7 @@ class WarpPanel(QWidget):
         layout.setContentsMargins(6, 3, 6, 0)
         layout.setSpacing(10)
 
-        title = QLabel("ACOMPANHAMENTO DE SALTOS")
+        title = QLabel("Acompanhamento de Saltos")
         title.setObjectName("brandTitle")
         subtitle = QLabel(
             "Importe o cache do jogo ou um backup XLSX do Star Rail Station para "

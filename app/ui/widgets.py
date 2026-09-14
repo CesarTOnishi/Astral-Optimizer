@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QEasingCurve, QRectF, QSize, Qt, QVariantAnimation, Signal
+from PySide6.QtCore import QEvent, QEasingCurve, QRectF, QSize, Qt, QTimer, QVariantAnimation, Signal
 from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QProgressBar,
     QPushButton,
     QSizePolicy,
@@ -23,6 +24,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from app.ui.motion import AnimatedProgressBar as QProgressBar
 
 from app.benchmark.models import BenchmarkResult, RelicRating, UpgradeComparison
 from app.models import CharacterStat, CharacterSummary, RelicSummary
@@ -41,6 +44,81 @@ FRIBBELS_ASSETS = (
     / "public"
     / "assets"
 )
+
+STAT_ICON_FILES = {
+    "HP": "IconMaxHP.webp",
+    "HP%": "IconMaxHP.webp",
+    "MaxHP": "IconMaxHP.webp",
+    "HPDelta": "IconMaxHP.webp",
+    "HPAddedRatio": "IconMaxHP.webp",
+    "ATK": "IconAttack.webp",
+    "ATK%": "IconAttack.webp",
+    "Attack": "IconAttack.webp",
+    "AttackDelta": "IconAttack.webp",
+    "AttackAddedRatio": "IconAttack.webp",
+    "DEF": "IconDefence.webp",
+    "DEF%": "IconDefence.webp",
+    "Defence": "IconDefence.webp",
+    "DefenceDelta": "IconDefence.webp",
+    "DefenceAddedRatio": "IconDefence.webp",
+    "SPD": "IconSpeed.webp",
+    "SPD%": "IconSpeed.webp",
+    "Speed": "IconSpeed.webp",
+    "SpeedDelta": "IconSpeed.webp",
+    "CRIT Rate": "IconCriticalChance.webp",
+    "CriticalChance": "IconCriticalChance.webp",
+    "CRIT DMG": "IconCriticalDamage.webp",
+    "CriticalDamage": "IconCriticalDamage.webp",
+    "Effect Hit Rate": "IconStatusProbability.webp",
+    "StatusProbability": "IconStatusProbability.webp",
+    "Effect RES": "IconStatusResistance.webp",
+    "StatusResistance": "IconStatusResistance.webp",
+    "Break Effect": "IconBreakUp.webp",
+    "BreakDamageAddedRatio": "IconBreakUp.webp",
+    "Energy Regeneration Rate": "IconEnergyRecovery.webp",
+    "SPRatio": "IconEnergyRecovery.webp",
+    "Outgoing Healing Boost": "IconHealRatio.webp",
+    "HealRatio": "IconHealRatio.webp",
+    "Physical DMG Boost": "IconPhysicalAddedRatio.webp",
+    "PhysicalAddedRatio": "IconPhysicalAddedRatio.webp",
+    "Fire DMG Boost": "IconFireAddedRatio.webp",
+    "FireAddedRatio": "IconFireAddedRatio.webp",
+    "Ice DMG Boost": "IconIceAddedRatio.webp",
+    "IceAddedRatio": "IconIceAddedRatio.webp",
+    "Lightning DMG Boost": "IconThunderAddedRatio.webp",
+    "ThunderAddedRatio": "IconThunderAddedRatio.webp",
+    "Wind DMG Boost": "IconWindAddedRatio.webp",
+    "WindAddedRatio": "IconWindAddedRatio.webp",
+    "Quantum DMG Boost": "IconQuantumAddedRatio.webp",
+    "QuantumAddedRatio": "IconQuantumAddedRatio.webp",
+    "Imaginary DMG Boost": "IconImaginaryAddedRatio.webp",
+    "ImaginaryAddedRatio": "IconImaginaryAddedRatio.webp",
+    "ElationAddedRatio": "IconElation.webp",
+    "Score": "IconElation.webp",
+}
+
+
+def stat_icon_path(stat_key: str) -> Path:
+    filename = STAT_ICON_FILES.get(stat_key, "")
+    return FRIBBELS_ASSETS / "icon" / "property" / filename
+
+
+def stat_icon_label(stat_key: str, size: int = 15) -> QLabel:
+    label = QLabel()
+    label.setObjectName("statPropertyIcon")
+    label.setFixedSize(size, size)
+    label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    pixmap = QPixmap(str(stat_icon_path(stat_key)))
+    if not pixmap.isNull():
+        label.setPixmap(pixmap.scaled(
+            size,
+            size,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        ))
+    else:
+        label.setText("✦")
+    return label
 
 
 def rounded_pixmap(source: QPixmap, size: int, radius: int | None = None) -> QPixmap:
@@ -298,11 +376,30 @@ class AvatarLabel(QLabel):
     def set_image(self, pixmap: QPixmap) -> None:
         if pixmap.isNull():
             return
+        from app.ui.motion import reveal_image
+
+        reveal_image(self)
         radius = self.image_size // 2 if self.rounded else 12
+        if not self.rounded:
+            # Preserve the full art of light cones and equipment in square slots.
+            contained = QPixmap(self.image_size, self.image_size)
+            contained.fill(Qt.GlobalColor.transparent)
+            scaled = pixmap.scaled(
+                self.image_size - 4, self.image_size - 4,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            painter = QPainter(contained)
+            painter.drawPixmap((self.image_size - scaled.width()) // 2, (self.image_size - scaled.height()) // 2, scaled)
+            painter.end()
+            pixmap = contained
         self.setText("")
         self.setPixmap(rounded_pixmap(pixmap, self.image_size, radius))
 
     def clear_image(self) -> None:
+        layer = getattr(self, "_astral_image_layer", None)
+        if layer is not None:
+            layer.finish()
         self.setPixmap(QPixmap())
         self.setText("✦")
 
@@ -493,6 +590,7 @@ class StatRow(QFrame):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(5)
+        layout.addWidget(stat_icon_label(stat.key, 16))
         name = QLabel(COMPACT_STAT_NAMES.get(stat.key, stat.name))
         name.setObjectName("rowName")
         value = QLabel(stat.formatted_value)
@@ -612,6 +710,7 @@ class CombatStatsCard(QFrame):
             value = QLabel(stat.formatted_value)
             value.setObjectName("combatStatBuffed" if stat.changed else "combatStatValue")
             value.setAlignment(Qt.AlignmentFlag.AlignRight)
+            row.addWidget(stat_icon_label(stat.key, 14))
             row.addWidget(name)
             row.addStretch(1)
             row.addWidget(value)
@@ -1086,36 +1185,7 @@ class UpgradeComparisonTable(QFrame):
 
     @staticmethod
     def _stat_icon_path(stat_key: str) -> Path:
-        names = {
-            "HP": "IconMaxHP.webp", "HP%": "IconMaxHP.webp",
-            "HPDelta": "IconMaxHP.webp", "HPAddedRatio": "IconMaxHP.webp",
-            "ATK": "IconAttack.webp", "ATK%": "IconAttack.webp",
-            "AttackDelta": "IconAttack.webp", "AttackAddedRatio": "IconAttack.webp",
-            "DEF": "IconDefence.webp", "DEF%": "IconDefence.webp",
-            "DefenceDelta": "IconDefence.webp", "DefenceAddedRatio": "IconDefence.webp",
-            "SPD": "IconSpeed.webp", "SPD%": "IconSpeed.webp",
-            "SpeedDelta": "IconSpeed.webp",
-            "CRIT Rate": "IconCriticalChance.webp",
-            "CriticalChance": "IconCriticalChance.webp",
-            "CRIT DMG": "IconCriticalDamage.webp",
-            "CriticalDamage": "IconCriticalDamage.webp",
-            "Effect Hit Rate": "IconStatusProbability.webp",
-            "StatusProbability": "IconStatusProbability.webp",
-            "Effect RES": "IconStatusResistance.webp",
-            "StatusResistance": "IconStatusResistance.webp",
-            "Break Effect": "IconBreakUp.webp",
-            "BreakDamageAddedRatio": "IconBreakUp.webp",
-            "Energy Regeneration Rate": "IconEnergyRecovery.webp",
-            "Outgoing Healing Boost": "IconHealRatio.webp",
-            "Physical DMG Boost": "IconPhysicalAddedRatio.webp",
-            "Fire DMG Boost": "IconFireAddedRatio.webp",
-            "Ice DMG Boost": "IconIceAddedRatio.webp",
-            "Lightning DMG Boost": "IconThunderAddedRatio.webp",
-            "Wind DMG Boost": "IconWindAddedRatio.webp",
-            "Quantum DMG Boost": "IconQuantumAddedRatio.webp",
-            "Imaginary DMG Boost": "IconImaginaryAddedRatio.webp",
-        }
-        return FRIBBELS_ASSETS / "icon" / "property" / names.get(stat_key, "")
+        return stat_icon_path(stat_key)
 
     def _comparison_label(self, comparison: UpgradeComparison) -> QWidget:
         cell = QWidget()
@@ -1149,6 +1219,30 @@ class UpgradeComparisonTable(QFrame):
 
 
 class RelicCard(QFrame):
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._fit_content_height()
+
+    def changeEvent(self, event) -> None:
+        super().changeEvent(event)
+        if event.type() in {QEvent.Type.StyleChange, QEvent.Type.FontChange}:
+            if self.layout() is not None and not getattr(self, "_fit_pending", False):
+                self._fit_pending = True
+                QTimer.singleShot(0, self._refresh_content_height)
+
+    def _refresh_content_height(self) -> None:
+        self._fit_pending = False
+        if self.layout() is not None:
+            self.layout().invalidate()
+            self._fit_content_height()
+
+    def _fit_content_height(self) -> None:
+        layout = self.layout()
+        if layout is not None:
+            needed = layout.totalHeightForWidth(self.width())
+            if needed > 0 and self.minimumHeight() != needed:
+                self.setMinimumHeight(needed)
+
     def __init__(
         self,
         relic: RelicSummary,
@@ -1161,22 +1255,17 @@ class RelicCard(QFrame):
         super().__init__()
         self.setObjectName("relicCard")
         has_history = previous_holder_name and previous_holder_name != holder_name
-        card_height = (
-            216 if holder_name and has_history else
-            202 if holder_name or previous_holder_name else 176
+        # The old fixed heights compressed labels when fonts or wrapping changed.
+        # Let Qt compute the required height for each width and font instead.
+        self.setMinimumWidth(205)
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding if expand_vertical else QSizePolicy.Policy.Preferred,
         )
-        self.setMinimumSize(205, card_height)
-        if expand_vertical:
-            # Na grade equipada, três linhas ocupam a coluna sem criar um
-            # rodapé vazio, mas o limite evita cartões exageradamente altos.
-            self.setMaximumHeight(max(card_height, 232))
-            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        else:
-            self.setMaximumHeight(card_height)
-            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(9, 7, 9, 7)
-        layout.setSpacing(4)
+        layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
 
         self.holder_icon: AvatarLabel | None = None
         visible_holder = holder_name or previous_holder_name
@@ -1191,42 +1280,51 @@ class RelicCard(QFrame):
                 current_holder = QLabel(f"Equipado por {holder_name}")
                 current_holder.setObjectName("relicHolderCurrent")
                 current_holder.setToolTip(current_holder.text())
+                current_holder.setWordWrap(True)
                 holder_box.addWidget(current_holder)
             if has_history or not holder_name:
                 previous_holder = QLabel(f"Anteriormente em {previous_holder_name}")
                 previous_holder.setObjectName("relicHolderPrevious")
                 previous_holder.setToolTip(previous_holder.text())
+                previous_holder.setWordWrap(True)
                 holder_box.addWidget(previous_holder)
             holder_row.addLayout(holder_box, 1)
             layout.addLayout(holder_row)
 
         header = QHBoxLayout()
+        header.setSpacing(8)
         self.icon = AvatarLabel(50, rounded=False)
         header.addWidget(self.icon)
         title = QVBoxLayout()
+        title.setSpacing(3)
         slot = QLabel(relic.slot.upper())
         slot.setObjectName("relicSlot")
+        slot.setWordWrap(True)
         set_name = QLabel(relic.set_name)
         set_name.setObjectName("relicSet")
         set_name.setWordWrap(True)
+        set_name.setToolTip(relic.set_name)
         stars = QLabel("★" * relic.rarity)
         stars.setObjectName("rarity")
         title.addWidget(slot)
-        title.addWidget(set_name)
         title.addWidget(stars)
         header.addLayout(title, 1)
         level = QLabel(f"+{relic.level}")
         level.setObjectName("eidolonBadge")
         header.addWidget(level, alignment=Qt.AlignmentFlag.AlignTop)
         layout.addLayout(header)
+        # Give the set name the full card width rather than squeezing it
+        # between the image and level badge.
+        layout.addWidget(set_name)
 
         main = QHBoxLayout()
+        main.addWidget(stat_icon_label(relic.main_stat.key, 16))
         main_name = QLabel(relic.main_stat.name)
         main_name.setObjectName("rowName")
+        main_name.setWordWrap(True)
         main_value = QLabel(relic.main_stat.formatted_value)
         main_value.setObjectName("relicMainValue")
-        main.addWidget(main_name)
-        main.addStretch(1)
+        main.addWidget(main_name, 1)
         main.addWidget(main_value)
         layout.addLayout(main)
 
@@ -1234,14 +1332,15 @@ class RelicCard(QFrame):
             row = QHBoxLayout()
             row.setContentsMargins(0, 0, 0, 0)
             row.setSpacing(3)
+            row.addWidget(stat_icon_label(stat.key, 13))
             name = QLabel(stat.name)
             name.setObjectName("relicSub")
+            name.setWordWrap(True)
             upgrades = QLabel("<" * stat.upgrades)
             upgrades.setObjectName("upgradeBadge")
             value = QLabel(stat.formatted_value)
             value.setObjectName("relicSubValue")
-            row.addWidget(name)
-            row.addStretch(1)
+            row.addWidget(name, 1)
             row.addWidget(upgrades)
             row.addWidget(value)
             layout.addLayout(row)
@@ -1263,6 +1362,7 @@ class RelicCard(QFrame):
             score_value.setProperty(
                 "scoreTier", rating.grade.casefold().replace("+", "plus")
             )
+            score_row.addWidget(stat_icon_label("Score", 14))
             score_row.addWidget(score_label)
             score_row.addStretch(1)
             score_row.addWidget(score_value)
@@ -1270,13 +1370,6 @@ class RelicCard(QFrame):
 
 
 class StatCard(QFrame):
-    STAT_SYMBOLS = {
-        "MaxHP": "♥", "Attack": "⚔", "Defence": "◆", "Speed": "➤",
-        "CriticalChance": "◎", "CriticalDamage": "✦",
-        "BreakDamageAddedRatio": "◇", "StatusProbability": "⌁",
-        "StatusResistance": "◈", "SPRatio": "↻",
-    }
-
     def __init__(self, stat: CharacterStat) -> None:
         super().__init__()
         self.setObjectName("statCard")
@@ -1285,10 +1378,9 @@ class StatCard(QFrame):
         layout.setContentsMargins(13, 11, 13, 11)
         layout.setSpacing(11)
 
-        icon = QLabel(self.STAT_SYMBOLS.get(stat.key, "✧"))
+        icon = stat_icon_label(stat.key, 28)
         icon.setObjectName("statIcon")
         icon.setFixedSize(38, 38)
-        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon)
 
         text = QVBoxLayout()

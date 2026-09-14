@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QApplication
 
 from app.benchmark.models import BenchmarkResult, RelicRating
 from app.models import CharacterSummary, RelicSummary
-from app.ui.widgets import FRIBBELS_ASSETS
+from app.ui.widgets import FRIBBELS_ASSETS, stat_icon_path
 
 
 CARD_SIZE = (1200, 675)
@@ -82,6 +82,23 @@ def _text(
     painter.setFont(_font(size, QFont.Weight.Bold if bold else QFont.Weight.Normal))
     painter.setPen(QColor(color))
     painter.drawText(rect, int(alignment), value)
+
+
+def _stat_icon(
+    painter: QPainter, stat_key: str, rect: QRectF
+) -> None:
+    icon = QPixmap(str(stat_icon_path(stat_key)))
+    if icon.isNull():
+        return
+    scaled = icon.scaled(
+        int(rect.width()),
+        int(rect.height()),
+        Qt.AspectRatioMode.KeepAspectRatio,
+        Qt.TransformationMode.SmoothTransformation,
+    )
+    x = rect.x() + (rect.width() - scaled.width()) / 2
+    y = rect.y() + (rect.height() - scaled.height()) / 2
+    painter.drawPixmap(int(x), int(y), scaled)
 
 
 def _score_color(grade: str) -> str:
@@ -187,7 +204,9 @@ def render_build_share_card(
     _text(painter, QRectF(430, 215, 266, 24), "ATRIBUTOS", 12, "#dce7f7", bold=True)
     y = 243.0
     for stat in stats[:10]:
-        _text(painter, QRectF(434, y, 163, 23), str(stat.get("name", "")), 11, "#c3cde0")
+        stat_key = str(stat.get("key", ""))
+        _stat_icon(painter, stat_key, QRectF(434, y + 3, 16, 16))
+        _text(painter, QRectF(456, y, 141, 23), str(stat.get("name", "")), 11, "#c3cde0")
         _text(
             painter, QRectF(594, y, 100, 23), str(stat.get("formatted", "—")),
             11, "#ffffff", bold=True,
@@ -241,7 +260,8 @@ def render_build_share_card(
             "#ffd77e", bold=True, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
         )
         _text(painter, QRectF(x + 64, y + 27, 121, 28), relic.set_name, 8, "#cbd1e4")
-        _text(painter, QRectF(x + 10, y + 60, 105, 20), relic.main_stat.name, 10, "#ffffff", bold=True)
+        _stat_icon(painter, relic.main_stat.key, QRectF(x + 10, y + 63, 14, 14))
+        _text(painter, QRectF(x + 29, y + 60, 86, 20), relic.main_stat.name, 10, "#ffffff", bold=True)
         _text(
             painter, QRectF(x + 112, y + 60, 72, 20), relic.main_stat.formatted_value,
             10, "#ffd1ef", bold=True,
@@ -249,14 +269,16 @@ def render_build_share_card(
         )
         sub_y = y + 83
         for substat in relic.sub_stats[:4]:
-            _text(painter, QRectF(x + 10, sub_y, 115, 15), substat.name, 7, "#d7dceb")
+            _stat_icon(painter, substat.key, QRectF(x + 10, sub_y + 2, 11, 11))
+            _text(painter, QRectF(x + 25, sub_y, 100, 15), substat.name, 7, "#d7dceb")
             _text(
                 painter, QRectF(x + 124, sub_y, 60, 15), substat.formatted_value,
                 7, "#ffffff", bold=True,
                 alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
             )
             sub_y += 15
-        _text(painter, QRectF(x + 10, y + 147, 90, 17), "PONTUAÇÃO", 7, "#aebbd1", bold=True)
+        _stat_icon(painter, "Score", QRectF(x + 10, y + 149, 12, 12))
+        _text(painter, QRectF(x + 27, y + 147, 73, 17), "PONTUAÇÃO", 7, "#aebbd1", bold=True)
         _text(
             painter, QRectF(x + 99, y + 145, 85, 20), f"{rating.score:.1f} · {rating.grade}",
             9, _score_color(rating.grade), bold=True,

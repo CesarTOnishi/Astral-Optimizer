@@ -4,6 +4,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
 
+from app.ui.motion import AnimatedProgressBar as QProgressBar
+
 from app.ui.image_loader import ImageLoader
 from app.ui.widgets import AvatarLabel, FRIBBELS_ASSETS
 from app.ui.warp_panel import BANNER_CONFIG, SummaryCard, WarpPanel
@@ -16,7 +18,7 @@ class AccountDashboard(QWidget):
         self.image_loader = image_loader or ImageLoader(self)
         self.body = QVBoxLayout(self)
         self.body.setContentsMargins(0, 0, 0, 0)
-        self.body.setSpacing(14)
+        self.body.setSpacing(18)
 
     def _label(self, text, layout, style="muted"):
         label = QLabel(text)
@@ -43,8 +45,12 @@ class AccountDashboard(QWidget):
         icon = AvatarLabel(54, rounded=rounded)
         icon.setToolTip(text.split(" · ", 1)[0])
         row_layout.addWidget(icon)
-        label = self._label(text, row_layout)
-        row_layout.setStretchFactor(label, 1)
+        details = QVBoxLayout()
+        details.setSpacing(3)
+        name, _, metadata = text.partition(" · ")
+        self._label(name, details, "characterName")
+        self._label(metadata, details)
+        row_layout.addLayout(details, 1)
         layout.addWidget(row)
         if icon_path is not None and icon_path.is_file():
             icon.set_image(QPixmap(str(icon_path)))
@@ -86,7 +92,7 @@ class AccountDashboard(QWidget):
         self.body.addWidget(metrics)
         self._label("Resumo da UID principal. Enka mostra apenas personagens públicos; Saltos e inventário refletem os dados salvos neste perfil.", self.body)
 
-        layout = self._section("PITY E SALTOS")
+        layout = self._section("Pity e Saltos")
         self._label("Pity calculado pelo histórico disponível; importações incompletas podem omitir tiros anteriores.", layout)
         self.banner_values = {}
         for kind, title, cap in BANNER_CONFIG:
@@ -112,7 +118,7 @@ class AccountDashboard(QWidget):
             progress.setFixedHeight(6)
             layout.addWidget(progress)
 
-        layout = self._section("ÚLTIMOS RESULTADOS 5★")
+        layout = self._section("Últimos resultados 5★")
         history = five_star_history(records)[:5]
         for record, pity in history:
             avatar_path = FRIBBELS_ASSETS / "icon" / "avatar" / f"{record.item_id}.webp"
@@ -124,7 +130,7 @@ class AccountDashboard(QWidget):
         if not history:
             self._label("Nenhum resultado 5★ individual salvo. Importe seu histórico em Saltos.", layout)
 
-        layout = self._section("INVENTÁRIO DE RELÍQUIAS")
+        layout = self._section("Inventário de relíquias")
         equipped = sum(bool(r.current_character_id) for r in relics)
         maximum = sum(r.relic.level == 15 and r.relic.rarity == 5 for r in relics)
         self._label(f"{equipped} vinculadas ao showcase atual · {len(relics) - equipped} fora do showcase · {maximum} peças 5★ no nível +15", layout)

@@ -167,12 +167,12 @@ class HomePanel(QWidget):
         self._heading_animation = QPropertyAnimation(
             self._heading_opacity, b"opacity", self
         )
-        self._heading_animation.setDuration(motion_duration(560))
+        self._heading_animation.setDuration(motion_duration(220))
         self._heading_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._search_animation = QPropertyAnimation(
             self._search_opacity, b"opacity", self
         )
-        self._search_animation.setDuration(motion_duration(820))
+        self._search_animation.setDuration(motion_duration(280))
         self._search_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._intro.addAnimation(self._heading_animation)
         self._intro.addAnimation(self._search_animation)
@@ -191,6 +191,7 @@ class HomePanel(QWidget):
         QTimer.singleShot(0, self._play_intro)
 
     def _play_intro(self) -> None:
+        self._intro.stop()
         if reduce_motion_enabled():
             self._heading_opacity.setOpacity(1.0)
             self._search_opacity.setOpacity(1.0)

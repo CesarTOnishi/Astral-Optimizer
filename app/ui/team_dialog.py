@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
 
+from app.ui.motion import AnimatedDialog as QDialog
 from app.benchmark.catalog import ASSETS_PATH, CatalogEntry, load_catalog
 from app.ui.widgets import AvatarLabel, FadeComboBox, FadeSpinBox
 

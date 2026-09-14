@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QTimer, Signal, Qt
+from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QComboBox,
@@ -19,8 +19,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.ui.motion import AnimatedDialog as QDialog
 from app.build_history import BuildSnapshot
-from app.preferences import motion_duration
 
 
 def snapshot_date(value: str) -> str:
@@ -164,7 +164,6 @@ class BuildComparisonDialog(QDialog):
         self.setModal(True)
         self.resize(760, 640)
         self.setMinimumSize(640, 520)
-        self._open_animation: QPropertyAnimation | None = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(1, 1, 1, 1)
@@ -285,22 +284,6 @@ class BuildComparisonDialog(QDialog):
         done.clicked.connect(self.accept)
         layout.addWidget(done, alignment=Qt.AlignmentFlag.AlignRight)
         outer.addWidget(modal)
-
-    def showEvent(self, event) -> None:  # noqa: N802 - Qt API
-        super().showEvent(event)
-        QTimer.singleShot(0, self._animate_open)
-
-    def _animate_open(self) -> None:
-        if not self.isVisible():
-            return
-        self.setWindowOpacity(0.0)
-        animation = QPropertyAnimation(self, b"windowOpacity", self)
-        animation.setDuration(motion_duration(220))
-        animation.setStartValue(0.0)
-        animation.setEndValue(1.0)
-        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self._open_animation = animation
-        animation.start()
 
     def mousePressEvent(self, event) -> None:  # type: ignore[no-untyped-def]
         if (
