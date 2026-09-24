@@ -25,6 +25,7 @@ O aplicativo não solicita acesso à conta HoYoverse. As consultas utilizam apen
 Esta versão amplia o acompanhamento de Saltos, migra o backup para o OneDrive e moderniza a experiência visual do aplicativo.
 
 - sincronização da conta durante a tela de carregamento ao abrir o aplicativo;
+- consultas públicas em abas com avatar, apelido, cache local, atualização individual e restauração por perfil;
 - dashboard da UID principal com avatar do jogo, personagens, benchmarks, Saltos e relíquias;
 - central de notificações para atualização do aplicativo e catálogo, backup, mudanças de relíquias e soft pity;
 - Central de novidades ilustrada, acessível pelo ícone ao lado do sino, com atalhos para cada recurso novo;
@@ -45,7 +46,7 @@ Esta versão amplia o acompanhamento de Saltos, migra o backup para o OneDrive e
 
 | Recurso | Funcionalidades |
 | --- | --- |
-| Consulta por UID | Perfil público, personagens, nível, Eidolons, Cones, relíquias e atributos |
+| Consulta por UID | Abas reorganizáveis com perfil público, cache, personagens, nível, Eidolons, Cones, relíquias e atributos |
 | DPS Benchmark | Pontuação, classificação, atributos em combate e dano por habilidade com o motor Fribbels |
 | Times | Time padrão e composição customizada com Eidolons, Cones e sobreposições |
 | Histórico de builds | Até cinco versões por personagem, comparação, exclusão e registro do time utilizado |
@@ -67,6 +68,10 @@ Esta versão amplia o acompanhamento de Saltos, migra o backup para o OneDrive e
 ### Tela inicial e pesquisa por UID
 
 Pesquise qualquer UID válido sem substituir a conta principal salva no perfil local.
+
+Cada consulta pública abre uma aba própria na área de Builds, identificada pelo apelido e avatar da conta. As abas podem ser reorganizadas por arraste e fechadas pelo botão **×**. Pesquisar uma UID já aberta apenas seleciona a aba existente.
+
+O aplicativo preserva, por perfil local, a ordem das abas, a aba selecionada, o personagem ativo e a posição de rolagem. Na próxima abertura, os últimos dados salvos aparecem imediatamente com a data da atualização; as UIDs não são consultadas automaticamente. Use o botão de atualização da barra de abas para consultar somente a conta atual. Se a rede falhar, o último conteúdo válido permanece disponível.
 
 ![Pesquisa pública por UID](docs/images/astral-home.png)
 
@@ -206,6 +211,8 @@ Atalhos disponíveis:
 
 A página de Diagnóstico mostra versão, sistema, caminhos dos bancos e estado do motor Fribbels. Mensagens de erro importantes possuem o botão **Copiar detalhes** para facilitar pedidos de suporte.
 
+Falhas de consulta ao Enka.Network são classificadas como UID inválida, conta inexistente, limite temporário, serviço indisponível, tempo esgotado, problema de conexão ou erro inesperado. Um painel de recuperação oferece apenas as ações adequadas ao caso: **Tentar novamente**, **Continuar com dados salvos**, **Verificar conexão** e **Copiar detalhes**. Uma atualização com erro nunca apaga a última consulta válida armazenada.
+
 ## Notificações e privacidade
 
 O sino no topo concentra alertas de catálogo desatualizado, nova versão, sucesso ou falha de backup, alterações nas relíquias após sincronizar a conta e pity próximo do soft pity.
@@ -330,7 +337,7 @@ python -m unittest discover -s tests -v
 python -m compileall -q app tests
 ```
 
-Os testes cobrem autenticação, benchmark, catálogo, histórico de builds, dashboard da conta, planejamento sequencial, relíquias, privacidade, notificações, preferências, tutorial, sincronização, atualizador, importação e análises de Saltos e separação das edições.
+Os 129 testes cobrem autenticação, abas e cache de UID, recuperação de falhas do Enka.Network, respostas assíncronas, benchmark, catálogo, histórico de builds, dashboard da conta, planejamento sequencial, relíquias, privacidade, notificações, preferências, tutorial, sincronização, atualizador, importação e análises de Saltos e separação das edições.
 
 ## Estrutura do projeto
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 import time
 
 import enka
@@ -11,9 +12,137 @@ from app.models import AccountSummary
 from app.parsers import account_from_showcase
 
 
+@dataclass(frozen=True, slots=True)
+class AccountFetchError:
+    code: str
+    title: str
+    message: str
+    details: str
+    retryable: bool = True
+    check_connection: bool = False
+
+    @property
+    def diagnostic_details(self) -> str:
+        return (
+            f"Categoria: {self.code}\n"
+            f"Tipo técnico: {self.title}\n"
+            f"Mensagem: {self.message}\n"
+            f"Detalhes: {self.details or 'Não informados'}"
+        )
+
+
+def classify_account_error(error: BaseException) -> AccountFetchError:
+    details = f"{type(error).__name__}: {error}"
+    if isinstance(error, enka.errors.WrongUIDFormatError):
+        return AccountFetchError(
+            "invalid_uid",
+            "UID inválida",
+            "A UID precisa conter exatamente 9 números.",
+            details,
+            retryable=False,
+        )
+    if isinstance(error, enka.errors.PlayerDoesNotExistError):
+        return AccountFetchError(
+            "uid_not_found",
+            "Conta não encontrada",
+            "Confira a UID e confirme que o perfil existe no servidor selecionado.",
+            details,
+            retryable=False,
+        )
+    if isinstance(error, enka.errors.RateLimitedError):
+        return AccountFetchError(
+            "rate_limited",
+            "Limite temporário atingido",
+            "O Enka.Network recebeu consultas demais. Aguarde um pouco e tente novamente.",
+            details,
+        )
+    if isinstance(
+        error,
+        (
+            enka.errors.GameMaintenanceError,
+            enka.errors.GatewayTimeoutError,
+            enka.errors.GeneralServerError,
+        ),
+    ):
+        return AccountFetchError(
+            "service_unavailable",
+            "Serviço temporariamente indisponível",
+            "O Enka.Network ou o jogo está em manutenção ou instável. Seus dados salvos não foram alterados.",
+            details,
+        )
+    if isinstance(error, enka.errors.APIRequestTimeoutError):
+        return AccountFetchError(
+            "timeout",
+            "A consulta demorou demais",
+            "O Enka.Network não respondeu a tempo. Verifique sua conexão ou tente novamente.",
+            details,
+            check_connection=True,
+        )
+    if isinstance(error, (asyncio.TimeoutError, TimeoutError)):
+        return AccountFetchError(
+            "timeout",
+            "A consulta demorou demais",
+            "O Enka.Network não respondeu a tempo. Verifique sua conexão ou tente novamente.",
+            details,
+            check_connection=True,
+        )
+    error_chain: list[BaseException] = []
+    current: BaseException | None = error
+    while current is not None and current not in error_chain:
+        error_chain.append(current)
+        current = current.__cause__ or current.__context__
+    network_hint = " ".join(
+        f"{type(item).__name__} {item}" for item in error_chain
+    ).casefold()
+    if isinstance(error, (ConnectionError, OSError)) or any(
+        marker in network_hint
+        for marker in (
+            "connectionerror",
+            "connecterror",
+            "clientconnector",
+            "dns",
+            "name resolution",
+            "network is unreachable",
+            "getaddrinfo",
+        )
+    ):
+        return AccountFetchError(
+            "network",
+            "Sem conexão com o serviço",
+            "Não foi possível alcançar o Enka.Network. Verifique sua conexão com a internet.",
+            details,
+            check_connection=True,
+        )
+    if isinstance(error, enka.errors.EnkaAPIError):
+        return AccountFetchError(
+            "service_unavailable",
+            "Falha no serviço de consulta",
+            "O Enka.Network retornou uma falha temporária. Seus dados salvos não foram alterados.",
+            details,
+        )
+    return AccountFetchError(
+        "unknown",
+        "Não foi possível consultar a conta",
+        "Ocorreu uma falha inesperada durante a consulta. Você pode tentar novamente ou copiar os detalhes.",
+        details,
+    )
+
+
+def ensure_account_error(error: object) -> AccountFetchError:
+    if isinstance(error, AccountFetchError):
+        return error
+    message = str(error).strip() or "Falha desconhecida durante a consulta."
+    return AccountFetchError(
+        "unknown",
+        "Não foi possível consultar a conta",
+        message,
+        message,
+    )
+
+
 class AccountFetchWorker(QThread):
     succeeded = Signal(object)
-    failed = Signal(str)
+    failed = Signal(object)
 
     def __init__(self, uid: str, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -22,18 +151,8 @@ class AccountFetchWorker(QThread):
     def run(self) -> None:
         try:
             account = asyncio.run(self._fetch())
-        except enka.errors.WrongUIDFormatError:
-            self.failed.emit("O UID informado não possui um formato válido.")
-        except enka.errors.PlayerDoesNotExistError:
-            self.failed.emit("Conta não encontrada ou UID incorreto.")
-        except enka.errors.RateLimitedError:
-            self.failed.emit("Limite de consultas atingido. Aguarde e tente novamente.")
-        except enka.errors.GameMaintenanceError:
-            self.failed.emit("O jogo ou o Enka está em manutenção após uma atualização.")
-        except enka.errors.APIRequestTimeoutError:
-            self.failed.emit("A consulta excedeu o tempo limite. Tente novamente.")
         except Exception as exc:  # Mantém a interface utilizável em falhas externas.
-            self.failed.emit(f"Não foi possível consultar a conta: {exc}")
+            self.failed.emit(classify_account_error(exc))
         else:
             self.succeeded.emit(account)
 
@@ -50,7 +169,7 @@ class AccountFetchWorker(QThread):
 
 class EnkaClient(QObject):
     account_loaded = Signal(object, str)
-    request_failed = Signal(str)
+    request_failed = Signal(object)
     loading_changed = Signal(bool)
 
     def __init__(self, parent: QObject | None = None) -> None:

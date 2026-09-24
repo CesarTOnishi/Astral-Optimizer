@@ -1520,3 +1520,120 @@ QLabel#updateReadyWarning {
 from app.visual_style import REFINED_STYLESHEET
 
 APP_STYLESHEET += REFINED_STYLESHEET
+
+APP_STYLESHEET += """
+QFrame#uidQueryBar, QFrame#uidTabsPanel {
+    background-color: #101d31;
+    border: 1px solid #294563;
+    border-radius: 10px;
+}
+QLabel#uidQueryLabel {
+    color: #83dff5;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+QLineEdit#uidQueryInput {
+    min-height: 34px;
+    padding: 0 11px;
+    background-color: #0a1526;
+    border: 1px solid #34577a;
+    border-radius: 7px;
+    color: #f3f8ff;
+    selection-background-color: #2d8fbd;
+}
+QLineEdit#uidQueryInput:focus { border-color: #66d9f3; }
+QPushButton#uidQueryButton, QPushButton#uidTabRefreshButton {
+    min-height: 34px;
+    padding: 0 13px;
+    background-color: #173552;
+    border: 1px solid #3f7194;
+    border-radius: 7px;
+    color: #eaf8ff;
+    font-weight: 700;
+}
+QPushButton#uidQueryButton:hover, QPushButton#uidTabRefreshButton:hover {
+    background-color: #204969;
+    border-color: #6edcf2;
+}
+QTabBar#uidTabBar { background: transparent; }
+QTabBar#uidTabBar::tab {
+    min-width: 130px;
+    max-width: 230px;
+    min-height: 34px;
+    padding: 3px 28px 3px 10px;
+    margin-right: 4px;
+    background-color: #0b1728;
+    border: 1px solid #2b4663;
+    border-radius: 8px;
+    color: #9fb3c9;
+}
+QTabBar#uidTabBar::tab:selected {
+    background-color: #173451;
+    border-color: #63d6ef;
+    color: #ffffff;
+}
+QTabBar#uidTabBar::tab:hover:!selected {
+    background-color: #13263d;
+    color: #d8e9f5;
+}
+QTabBar#uidTabBar QToolButton {
+    border: none;
+    background: transparent;
+    color: #9fb3c9;
+}
+QLabel#uidTabMeta {
+    color: #8097b2;
+    font-size: 10px;
+    padding-left: 3px;
+}
+QLabel#uidTabMeta[state="loading"] { color: #71dff5; }
+QLabel#uidTabMeta[state="error"] { color: #ff9f9f; }
+QLabel#uidTabMeta[state="ready"] { color: #8ccfb7; }
+QFrame#enkaRecoveryPanel {
+    background-color: #171b2c;
+    border: 1px solid #8c5260;
+    border-radius: 10px;
+}
+QLabel#enkaRecoveryIcon {
+    background-color: #382132;
+    border: 1px solid #cf7180;
+    border-radius: 17px;
+    color: #ff9eaa;
+    font-size: 17px;
+    font-weight: 900;
+}
+QLabel#enkaRecoveryTitle {
+    color: #fff4f5;
+    font-size: 13px;
+    font-weight: 800;
+}
+QLabel#enkaRecoveryCategory {
+    padding: 2px 7px;
+    background-color: #342033;
+    border: 1px solid #75465b;
+    border-radius: 7px;
+    color: #ef9eae;
+    font-size: 9px;
+    font-weight: 800;
+}
+QLabel#enkaRecoveryMessage {
+    color: #c8d2df;
+    font-size: 11px;
+}
+QPushButton#enkaRecoveryAction {
+    min-height: 28px;
+    padding: 0 10px;
+    background-color: #202a3d;
+    border: 1px solid #45566f;
+    border-radius: 6px;
+    color: #e5edf7;
+    font-size: 10px;
+    font-weight: 700;
+}
+QPushButton#enkaRecoveryAction:hover {
+    background-color: #2a3950;
+    border-color: #76cce2;
+    color: #ffffff;
+}
+"""

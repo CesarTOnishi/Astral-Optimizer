@@ -21,6 +21,7 @@ QLabel#sectionTitle, QLabel#characterSectionTitle {
     font-size: 13px; font-weight: 600; letter-spacing: 0px; color: #d9e3f2;
 }
 QLabel#detailName, QLabel#catalogDetailName { font-weight: 600; font-size: 24px; }
+QLabel#detailName[compactName="true"] { font-size: 19px; }
 QLabel#muted, QLabel#sectionHint, QLabel#characterMeta { color: #98a8bf; font-size: 11px; }
 QLabel#metricTitle, QLabel#statName { color: #9aacc3; font-size: 11px; font-weight: 500; }
 QLabel#metricValue, QLabel#warpMetricValue { color: #edf4ff; font-size: 24px; font-weight: 600; }

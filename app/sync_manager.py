@@ -28,6 +28,7 @@ _TASK_TITLES = {
     "update-check": "Atualizações",
     "character": "Build do personagem",
     "page": "Aplicativo",
+    "uid-tab": "Consulta de UID",
 }
 
 

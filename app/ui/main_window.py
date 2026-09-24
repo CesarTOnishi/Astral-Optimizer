@@ -6,7 +6,9 @@ import time
 import unicodedata
 
 from PySide6.QtCore import QEvent, QSettings, QStandardPaths, QTimer, Qt, QUrl, Signal
-from PySide6.QtGui import QDesktopServices, QIcon, QKeySequence, QPixmap, QShortcut
+from PySide6.QtGui import (
+    QDesktopServices, QFont, QFontMetrics, QIcon, QKeySequence, QPixmap, QShortcut,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -14,6 +16,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
@@ -27,7 +30,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.api.enka_client import EnkaClient
+from app.api.enka_client import (
+    AccountFetchError,
+    AccountFetchWorker,
+    EnkaClient,
+    ensure_account_error,
+)
 from app.activity_log import ActivityLog
 from app.auth import AuthService
 from app.benchmark import BenchmarkEngine
@@ -49,7 +57,9 @@ from app.models import AccountSummary, CharacterStat, CharacterSummary
 from app.preferences import ExperienceSettings, apply_experience_preferences
 from app.privacy import hide_uid_in_shared_images
 from app.relics import RelicDatabase
+from app.session_state import ResumeState, SessionStateStore
 from app.sync_manager import BackgroundSyncManager
+from app.uid_tabs import UidTabSession, UidTabStore, UidTabWorkspace
 from app.ui.auth_dialogs import AuthDialog, SettingsDialog
 from app.ui.activity_history import ActivityHistoryButton
 from app.ui.build_history import (
@@ -73,11 +83,13 @@ from app.ui.experience import (
     DiagnosticsPanel, ExperienceDialog, GuidedTourOverlay, TourStep,
     copy_error_details,
 )
+from app.ui.error_recovery import EnkaErrorRecoveryPanel
 from app.ui.home_panel import HomePanel
 from app.ui.image_loader import ImageLoader
 from app.ui.loading import LoadingOverlay, load_icon_pixmap
 from app.ui.notifications import NotificationBell, NotificationCenter
 from app.ui.task_center import BackgroundTaskButton
+from app.ui.uid_tabs import UidTabsWidget, updated_at_text
 from app.ui.planner_panel import PlannerPanel
 from app.ui.rank_dialog import RankRedirectDialog
 from app.ui.team_dialog import CustomTeamDialog
@@ -254,6 +266,26 @@ class MainWindow(QMainWindow):
 
         self.enka_client = EnkaClient(self)
         self.auth_service = AuthService()
+        self.uid_tab_store = UidTabStore()
+        initial_owner = (
+            self.auth_service.current_user.id
+            if self.auth_service.current_user is not None else 0
+        )
+        self.uid_workspace = UidTabWorkspace(self.uid_tab_store, initial_owner)
+        self.resume_store = SessionStateStore()
+        self._session_owner_id = initial_owner
+        self._restoring_resume_state = False
+        self._resume_generation = 0
+        self._resume_save_timer = QTimer(self)
+        self._resume_save_timer.setSingleShot(True)
+        self._resume_save_timer.setInterval(350)
+        self._resume_save_timer.timeout.connect(self._save_resume_state)
+        self.uid_tab_workers: dict[str, AccountFetchWorker] = {}
+        self.uid_tab_errors: dict[str, AccountFetchError] = {}
+        self.active_uid_tab = ""
+        self._last_account_error: AccountFetchError | None = None
+        self._last_failed_account_target = "account"
+        self._build_recovery_mode = "uid_tab"
         self.activity_log = ActivityLog(self)
         self.notification_center = NotificationCenter(self)
         self.benchmark_engine = BenchmarkEngine()
@@ -277,6 +309,7 @@ class MainWindow(QMainWindow):
         self.sync_task_count = 0
         self.sync_spinner_frame = 0
         self.benchmark_workers: set[FribbelsBenchmarkWorker] = set()
+        self.benchmark_tab_contexts: dict[str, tuple[int, str]] = {}
         self.drive_workers: set[OneDriveWorker] = set()
         self.update_check_worker: UpdateCheckWorker | None = None
         self.catalog_version_worker: CatalogVersionCheckWorker | None = None
@@ -304,6 +337,7 @@ class MainWindow(QMainWindow):
 
         install_motion()
         self._build_ui()
+        self._connect_resume_state_signals()
         apply_experience_preferences()
         self._setup_shortcuts()
         self.sync_manager.changed.connect(self._sync_status_changed)
@@ -332,6 +366,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(2600, self._check_updates_automatically)
         QTimer.singleShot(3400, self._check_catalog_version)
         QTimer.singleShot(0, self._show_whats_new_if_needed)
+        QTimer.singleShot(0, self._restore_resume_state)
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -358,6 +393,13 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(6, 3, 6, 0)
         layout.setSpacing(10)
         layout.addLayout(self._build_header())
+        layout.addWidget(self._build_uid_query_bar())
+        self.uid_tabs_widget = UidTabsWidget()
+        self.uid_tabs_widget.selected.connect(self._select_uid_tab)
+        self.uid_tabs_widget.close_requested.connect(self._close_uid_tab)
+        self.uid_tabs_widget.refresh_requested.connect(self._refresh_uid_tab)
+        self.uid_tabs_widget.order_changed.connect(self._reorder_uid_tabs)
+        layout.addWidget(self.uid_tabs_widget)
 
         self.status_bar = QFrame()
         self.status_bar.setObjectName("statusBar")
@@ -375,6 +417,18 @@ class MainWindow(QMainWindow):
         status_layout.addWidget(self.status_label, 1)
         status_layout.addWidget(self.copy_error_button)
         layout.addWidget(self.status_bar)
+        self.build_enka_recovery = EnkaErrorRecoveryPanel()
+        self.build_enka_recovery.retry_requested.connect(
+            lambda: self._retry_enka_failure("build")
+        )
+        self.build_enka_recovery.continue_requested.connect(
+            lambda: self._continue_with_saved_enka_data("build")
+        )
+        self.build_enka_recovery.connection_requested.connect(
+            self._open_network_settings
+        )
+        self.build_enka_recovery.copy_requested.connect(self._copy_enka_error)
+        layout.addWidget(self.build_enka_recovery)
         self.build_empty_panel = self._build_build_empty_panel()
         layout.addWidget(self.build_empty_panel, 1)
 
@@ -457,6 +511,7 @@ class MainWindow(QMainWindow):
             "Relíquias": self.relic_database.path,
             "Histórico de builds": self.build_history_database.path,
             "Histórico de atividades": self.activity_log.path,
+            "Abas e cache de UID": self.uid_tab_store.path,
         })
         self.page_stack.addWidget(self.diagnostics_panel)
         self.whats_new_panel = WhatsNewPanel()
@@ -480,6 +535,28 @@ class MainWindow(QMainWindow):
             lambda message: self.sync_manager.update("warp-import", message)
         )
         self.warp_panel.background_failed.connect(self._warp_import_failed)
+        self._restore_uid_tabs_ui()
+
+    def _build_uid_query_bar(self) -> QFrame:
+        frame = QFrame()
+        frame.setObjectName("uidQueryBar")
+        layout = QHBoxLayout(frame)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(8)
+        label = QLabel("CONSULTAR UID")
+        label.setObjectName("uidQueryLabel")
+        layout.addWidget(label)
+        self.build_uid_input = QLineEdit()
+        self.build_uid_input.setObjectName("uidQueryInput")
+        self.build_uid_input.setPlaceholderText("Digite os 9 números da UID")
+        self.build_uid_input.setMaxLength(9)
+        self.build_uid_input.returnPressed.connect(self.search_uid)
+        layout.addWidget(self.build_uid_input, 1)
+        self.build_uid_search_button = QPushButton("Abrir em nova aba")
+        self.build_uid_search_button.setObjectName("uidQueryButton")
+        self.build_uid_search_button.clicked.connect(self.search_uid)
+        layout.addWidget(self.build_uid_search_button)
+        return frame
 
     def _build_build_empty_panel(self) -> QFrame:
         frame = QFrame()
@@ -579,15 +656,28 @@ class MainWindow(QMainWindow):
         account_status_row.addWidget(self.account_status, 1)
         account_status_row.addWidget(self.account_copy_error)
         card_layout.addLayout(account_status_row)
+        self.account_enka_recovery = EnkaErrorRecoveryPanel()
+        self.account_enka_recovery.retry_requested.connect(
+            lambda: self._retry_enka_failure("account")
+        )
+        self.account_enka_recovery.continue_requested.connect(
+            lambda: self._continue_with_saved_enka_data("account")
+        )
+        self.account_enka_recovery.connection_requested.connect(
+            self._open_network_settings
+        )
+        self.account_enka_recovery.copy_requested.connect(self._copy_enka_error)
+        card_layout.addWidget(self.account_enka_recovery)
         layout.addWidget(card)
         self.account_dashboard = AccountDashboard(self.image_loader)
         layout.addWidget(self.account_dashboard)
         layout.addStretch(1)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setWidget(page)
-        return scroll
+        self.account_page_scroll = QScrollArea()
+        self.account_page_scroll.setObjectName("accountPageScroll")
+        self.account_page_scroll.setWidgetResizable(True)
+        self.account_page_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.account_page_scroll.setWidget(page)
+        return self.account_page_scroll
 
     def _build_header(self) -> QHBoxLayout:
         layout = QHBoxLayout()
@@ -1390,6 +1480,14 @@ class MainWindow(QMainWindow):
 
     def _refresh_auth_sidebar(self) -> None:
         user = self.auth_service.current_user
+        next_owner_id = user.id if user is not None else 0
+        if (
+            next_owner_id != self._session_owner_id
+            and hasattr(self, "page_stack")
+            and not self._restoring_resume_state
+        ):
+            self._resume_save_timer.stop()
+            self._save_resume_state()
         logged_in = user is not None
         self.auth_guest_button.setVisible(not logged_in)
         self.auth_user_frame.setVisible(logged_in)
@@ -1418,6 +1516,8 @@ class MainWindow(QMainWindow):
                 self.own_account = None
                 self.own_account_user_id = None
             self._refresh_account_page()
+        if hasattr(self, "uid_tabs_widget"):
+            self._sync_uid_tab_owner()
 
     def _update_sidebar_profile_layout(self) -> None:
         expanded = self.sidebar_expanded
@@ -1437,6 +1537,10 @@ class MainWindow(QMainWindow):
         account = self.own_account
         if user is None or account is None or account.uid != user.game_uid or self.own_account_user_id != user.id:
             return
+        self._capture_active_uid_tab()
+        self.active_uid_tab = ""
+        self._set_public_uid_controls_visible(False)
+        self.build_enka_recovery.clear()
         self.build_source = "own"
         self.display_account(account)
         self._show_build_content(bool(account.characters))
@@ -1446,6 +1550,10 @@ class MainWindow(QMainWindow):
                 break
 
     def _open_own_account_builds(self) -> None:
+        self._capture_active_uid_tab()
+        self.active_uid_tab = ""
+        self._set_public_uid_controls_visible(False)
+        self.build_enka_recovery.clear()
         user = self.auth_service.current_user
         if user is None:
             self.build_source = None
@@ -1515,6 +1623,232 @@ class MainWindow(QMainWindow):
             if user.game_uid else "Nenhuma UID principal configurada."
         )
 
+    def _resume_scroll_widgets(self) -> dict[str, QWidget]:
+        widgets: dict[str, QWidget] = {
+            "builds": self.build_scroll,
+            "builds.characters": self.character_list,
+            "warps.page": self.warp_panel.page_scroll,
+            "warps.banners": self.warp_panel.banner_scroll,
+            "warps.recent": self.warp_panel.recent_list,
+            "warps.table": self.warp_panel.table,
+            "planner": self.planner_panel.scroll,
+            "relics": self.relic_inventory_panel.scroll,
+            "dashboard": self.account_page_scroll,
+            "friends": self.friends_panel.scroll,
+            "catalog.list": self.catalog_panel.scroll,
+            "catalog.detail": self.catalog_panel.detail_scroll,
+        }
+        news_scroll = self.whats_new_panel.findChild(QScrollArea, "whatsNewScroll")
+        if news_scroll is not None:
+            widgets["whats_new"] = news_scroll
+        return widgets
+
+    def _connect_resume_state_signals(self) -> None:
+        self.page_stack.currentChanged.connect(self._schedule_resume_save)
+        for widget in self._resume_scroll_widgets().values():
+            widget.verticalScrollBar().valueChanged.connect(self._schedule_resume_save)
+            widget.horizontalScrollBar().valueChanged.connect(self._schedule_resume_save)
+        combos = (
+            self.warp_panel.account_selector,
+            self.warp_panel.edition_selector,
+            self.planner_panel.strategy,
+            self.relic_inventory_panel.character_filter,
+            self.relic_inventory_panel.status_filter,
+            self.relic_inventory_panel.slot_filter,
+            self.relic_inventory_panel.relic_set_filter,
+            self.relic_inventory_panel.ornament_set_filter,
+            self.relic_inventory_panel.sort_filter,
+            self.catalog_panel.path_filter,
+            self.catalog_panel.rarity_filter,
+        )
+        for combo in combos:
+            combo.currentIndexChanged.connect(self._schedule_resume_save)
+        self.catalog_panel.search.textChanged.connect(self._schedule_resume_save)
+        self.character_list.currentRowChanged.connect(self._schedule_resume_save)
+        self.catalog_panel.character_button.clicked.connect(self._schedule_resume_save)
+        self.catalog_panel.cone_button.clicked.connect(self._schedule_resume_save)
+        for button in self.warp_panel.banner_buttons.values():
+            button.clicked.connect(self._schedule_resume_save)
+
+    def _schedule_resume_save(self, *_args) -> None:
+        if not self._restoring_resume_state:
+            self._resume_save_timer.start()
+
+    def _visible_page_id(self) -> str:
+        widget = self.page_stack.currentWidget()
+        if widget is self.whats_new_panel:
+            return "whats_new"
+        if widget is self.diagnostics_panel:
+            return "diagnostics"
+        index = self.page_stack.currentIndex()
+        if index == 0:
+            return "own_builds" if self.build_source == "own" else "builds"
+        return {
+            1: "warps", 2: "planner", 3: "relics", 4: "dashboard",
+            5: "friends", 6: "home", 7: "catalog",
+        }.get(index, "home")
+
+    @staticmethod
+    def _combo_value(combo) -> str:
+        value = combo.currentData()
+        return "" if value is None else str(value)
+
+    def _capture_resume_state(self) -> ResumeState:
+        self._capture_active_uid_tab()
+        values = {
+            "warps.uid": self.warp_panel.current_uid,
+            "warps.banner": self.warp_panel.selected_gacha_type,
+            "warps.edition": self._combo_value(self.warp_panel.edition_selector),
+            "planner.strategy": self._combo_value(self.planner_panel.strategy),
+            "relics.character": self._combo_value(self.relic_inventory_panel.character_filter),
+            "relics.status": self._combo_value(self.relic_inventory_panel.status_filter),
+            "relics.slot": self._combo_value(self.relic_inventory_panel.slot_filter),
+            "relics.relic_set": self._combo_value(self.relic_inventory_panel.relic_set_filter),
+            "relics.ornament_set": self._combo_value(self.relic_inventory_panel.ornament_set_filter),
+            "relics.sort": self._combo_value(self.relic_inventory_panel.sort_filter),
+            "catalog.mode": self.catalog_panel.mode,
+            "catalog.search": self.catalog_panel.search.text(),
+            "catalog.path": self._combo_value(self.catalog_panel.path_filter),
+            "catalog.rarity": self._combo_value(self.catalog_panel.rarity_filter),
+        }
+        scrolls: dict[str, int] = {}
+        for name, widget in self._resume_scroll_widgets().items():
+            scrolls[f"{name}.v"] = widget.verticalScrollBar().value()
+            scrolls[f"{name}.h"] = widget.horizontalScrollBar().value()
+        uid = self.active_uid_tab if self.active_uid_tab in self.uid_workspace.sessions else ""
+        return ResumeState(
+            page=self._visible_page_id(),
+            uid=uid,
+            character_id=str(self.current_character_id or ""),
+            values=values,
+            scrolls=scrolls,
+        )
+
+    def _save_resume_state(self) -> None:
+        if self._restoring_resume_state:
+            return
+        self.resume_store.save(self._session_owner_id, self._capture_resume_state())
+
+    @staticmethod
+    def _restore_combo(combo, value: str) -> bool:
+        if not value:
+            return False
+        for index in range(combo.count()):
+            if str(combo.itemData(index)) == value:
+                if combo.currentIndex() != index:
+                    combo.setCurrentIndex(index)
+                return True
+        return False
+
+    def _restore_resume_state(self) -> None:
+        self._resume_generation += 1
+        generation = self._resume_generation
+        if not self.resume_store.exists(self._session_owner_id):
+            return
+        state = self.resume_store.load(self._session_owner_id)
+        self._pending_resume_state = state
+        self._restoring_resume_state = True
+        QTimer.singleShot(
+            30_000, lambda: self._expire_pending_resume_state(generation)
+        )
+
+        if state.uid and state.uid in self.uid_workspace.sessions:
+            self.uid_workspace.select(state.uid)
+        destinations = {
+            "home": "InÃ­cio", "builds": "Builds", "own_builds": "Conta",
+            "warps": "Saltos", "planner": "Planejador", "relics": "RelÃ­quias",
+            "friends": "Amigos", "catalog": "Personagens e Cones",
+            "diagnostics": "DiagnÃ³stico", "whats_new": "Novidades",
+        }
+        if state.page == "dashboard":
+            self.page_stack.setCurrentIndex(4)
+            self._refresh_account_page()
+            for button, _icon, _text in self.nav_buttons:
+                button.setChecked(False)
+        else:
+            self._navigate(destinations.get(state.page, "InÃ­cio"))
+        self._apply_resume_state(state, generation, 0)
+
+    def _apply_resume_state(
+        self, state: ResumeState, generation: int, attempt: int
+    ) -> None:
+        if generation != self._resume_generation:
+            return
+        values = state.values
+        warp_uid = values.get("warps.uid", "")
+        if warp_uid and self._restore_combo(self.warp_panel.account_selector, warp_uid):
+            self.warp_panel.current_uid = warp_uid
+        banner = values.get("warps.banner", "")
+        if banner in self.warp_panel.banner_buttons:
+            self.warp_panel._select_banner(banner)
+        self._restore_combo(self.warp_panel.edition_selector, values.get("warps.edition", ""))
+        self._restore_combo(self.planner_panel.strategy, values.get("planner.strategy", ""))
+
+        relic_filters = (
+            (self.relic_inventory_panel.character_filter, "relics.character"),
+            (self.relic_inventory_panel.status_filter, "relics.status"),
+            (self.relic_inventory_panel.slot_filter, "relics.slot"),
+            (self.relic_inventory_panel.relic_set_filter, "relics.relic_set"),
+            (self.relic_inventory_panel.ornament_set_filter, "relics.ornament_set"),
+            (self.relic_inventory_panel.sort_filter, "relics.sort"),
+        )
+        for combo, key in relic_filters:
+            self._restore_combo(combo, values.get(key, ""))
+
+        mode = values.get("catalog.mode", "")
+        if mode in {"characters", "light_cones"} and self.catalog_panel.mode != mode:
+            self.catalog_panel.set_mode(mode)
+        search = values.get("catalog.search", "")
+        if self.catalog_panel.search.text() != search:
+            self.catalog_panel.search.setText(search)
+        self._restore_combo(self.catalog_panel.path_filter, values.get("catalog.path", ""))
+        self._restore_combo(self.catalog_panel.rarity_filter, values.get("catalog.rarity", ""))
+
+        if state.character_id and self.current_characters:
+            for row, character in enumerate(self.current_characters):
+                if character.avatar_id == state.character_id:
+                    self.character_list.setCurrentRow(row)
+                    break
+
+        final_attempt = attempt >= 4
+        for name, widget in self._resume_scroll_widgets().items():
+            for suffix, bar in (
+                ("v", widget.verticalScrollBar()),
+                ("h", widget.horizontalScrollBar()),
+            ):
+                position = state.scrolls.get(f"{name}.{suffix}", 0)
+                if final_attempt or position <= bar.maximum():
+                    bar.setValue(min(position, bar.maximum()))
+        if final_attempt:
+            self._restoring_resume_state = False
+            public_session = self.uid_workspace.sessions.get(state.uid)
+            waiting_for_data = (
+                state.page == "own_builds" and self.own_account is None
+            ) or (
+                state.page == "builds"
+                and bool(state.uid)
+                and (public_session is None or public_session.account is None)
+            )
+            if not waiting_for_data:
+                self._pending_resume_state = None
+            return
+        delays = (0, 80, 180, 360, 700)
+        QTimer.singleShot(
+            delays[attempt + 1],
+            lambda: self._apply_resume_state(state, generation, attempt + 1),
+        )
+
+    def _expire_pending_resume_state(self, generation: int) -> None:
+        if generation == self._resume_generation:
+            self._pending_resume_state = None
+
+    def _apply_pending_resume_after_data(self) -> None:
+        state = getattr(self, "_pending_resume_state", None)
+        if state is None:
+            return
+        self._apply_resume_state(state, self._resume_generation, 4)
+        self._pending_resume_state = None
+
     def _navigate(self, destination: str) -> None:
         if hasattr(self, "relic_inventory_panel") and destination != "Relíquias":
             self.relic_inventory_panel.set_active(False)
@@ -1558,17 +1892,20 @@ class MainWindow(QMainWindow):
         elif destination == "Conta":
             self._open_own_account_builds()
         else:
-            if destination == "Builds" and self.build_source == "own":
-                self.build_source = None
-                self.current_uid = ""
-                self.current_characters = []
-                self.current_character_id = ""
-            loaded = bool(self.current_characters) and self.build_source is not None
-            self._show_build_content(loaded)
-            if not loaded:
-                self.set_status(
-                    "Nenhuma UID pesquisada. Use a tela inicial para ver as builds."
-                )
+            if destination == "Builds":
+                self._set_public_uid_controls_visible(True)
+                selected_uid = self.uid_workspace.selected_uid
+                if selected_uid:
+                    self._activate_uid_tab(selected_uid)
+                else:
+                    self.build_source = None
+                    self._clear_public_build_display()
+                    self.set_status(
+                        "Nenhuma UID pesquisada. Use a busca acima para abrir uma aba."
+                    )
+            else:
+                loaded = bool(self.current_characters) and self.build_source is not None
+                self._show_build_content(loaded)
         for button, _icon, text in self.nav_buttons:
             button.setChecked(text == destination)
 
@@ -1736,7 +2073,11 @@ class MainWindow(QMainWindow):
         """Repete a operação que originou uma falha na central de tarefas."""
         family = key.split(":", 1)[0]
         if family == "account":
-            self.refresh_loaded_account()
+            self._retry_enka_failure(
+                "account"
+                if self._last_failed_account_target in {"account", "auto_account"}
+                else "build"
+            )
         elif family == "catalog":
             self.catalog_panel.synchronize()
         elif family == "warp-import":
@@ -1763,6 +2104,10 @@ class MainWindow(QMainWindow):
             )
             if character is not None:
                 self._display_benchmark(character)
+        elif family == "uid-tab":
+            parts = key.split(":", 3)
+            if len(parts) >= 3 and parts[2] in self.uid_workspace.sessions:
+                self._request_uid_tab(parts[2])
 
     def _advance_sync_spinner(self) -> None:
         if self.sync_state != "syncing":
@@ -1850,6 +2195,9 @@ class MainWindow(QMainWindow):
         self.detail_name.setObjectName("detailName")
         self.detail_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.detail_name.setWordWrap(True)
+        self.detail_name.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         identity = QHBoxLayout()
         identity.setContentsMargins(3, 0, 3, 0)
         identity.setSpacing(7)
@@ -1861,12 +2209,14 @@ class MainWindow(QMainWindow):
         self.path_icon.setObjectName("characterIdentityIcon")
         self.path_icon.setFixedSize(30, 30)
         self.path_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        identity.addWidget(self.element_icon)
-        identity.addWidget(self.detail_name, 1)
-        identity.addWidget(self.path_icon)
         self.detail_rarity = QLabel("☆☆☆☆☆")
         self.detail_rarity.setObjectName("rarity")
         self.detail_rarity.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        identity.addWidget(self.element_icon)
+        identity.addStretch(1)
+        identity.addWidget(self.detail_rarity)
+        identity.addStretch(1)
+        identity.addWidget(self.path_icon)
         badges = QHBoxLayout()
         self.level_badge = QLabel("NV. —")
         self.level_badge.setObjectName("badge")
@@ -1876,8 +2226,8 @@ class MainWindow(QMainWindow):
         badges.addWidget(self.level_badge)
         badges.addWidget(self.eidolon_badge)
         badges.addStretch(1)
+        self.stats_layout.addWidget(self.detail_name)
         self.stats_layout.addLayout(identity)
-        self.stats_layout.addWidget(self.detail_rarity)
         self.stats_layout.addLayout(badges)
 
         section = QLabel("Atributos")
@@ -1994,19 +2344,330 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.build_history_bar)
         return frame
 
+    def _uid_owner_id(self) -> int:
+        user = self.auth_service.current_user
+        return user.id if user is not None else 0
+
+    def _restore_uid_tabs_ui(self) -> None:
+        while self.uid_tabs_widget.tabs.count():
+            self.uid_tabs_widget.tabs.removeTab(0)
+        for session in self.uid_workspace.sessions.values():
+            self.uid_tabs_widget.add_or_update(session.uid, session.title)
+            self._load_uid_tab_avatar(session)
+        selected = self.uid_workspace.selected_uid
+        if selected:
+            self.uid_tabs_widget.set_current_uid(selected, emit=False)
+        self.uid_tabs_widget.setVisible(bool(self.uid_workspace.sessions))
+
+    def _sync_uid_tab_owner(self) -> None:
+        owner_id = self._uid_owner_id()
+        if owner_id == self.uid_workspace.owner_id:
+            return
+        self._capture_active_uid_tab()
+        self._resume_generation += 1
+        self._restoring_resume_state = False
+        self._pending_resume_state = None
+        self.active_uid_tab = ""
+        self.uid_workspace.restore(owner_id)
+        self._session_owner_id = owner_id
+        if hasattr(self, "uid_tabs_widget"):
+            self._restore_uid_tabs_ui()
+            QTimer.singleShot(0, self._restore_resume_state)
+
+    def _set_public_uid_controls_visible(self, visible: bool) -> None:
+        self.build_uid_input.parentWidget().setVisible(visible)
+        self.uid_tabs_widget.setVisible(visible and bool(self.uid_workspace.sessions))
+
+    def _capture_active_uid_tab(self) -> None:
+        session = self.uid_workspace.sessions.get(self.active_uid_tab)
+        if (
+            session is None
+            or self.current_account is None
+            or self.current_account.uid != session.uid
+            or self.build_source not in {"manual", "friend"}
+        ):
+            return
+        session.selected_character_id = self.current_character_id
+        session.scroll_position = self.build_scroll.verticalScrollBar().value()
+        session.benchmark_results = self.benchmark_results
+        session.fribbels_cache = self.fribbels_cache
+        session.unsupported_benchmark_characters = self.unsupported_benchmark_characters
+        self.uid_workspace.persist()
+
+    def _load_uid_tab_avatar(self, session: UidTabSession) -> None:
+        if not session.avatar_url:
+            return
+        self.image_loader.load(
+            session.avatar_url,
+            lambda pixmap, uid=session.uid, url=session.avatar_url:
+                self._set_uid_tab_avatar_if_current(uid, url, pixmap),
+        )
+
+    def _set_uid_tab_avatar_if_current(
+        self, uid: str, url: str, pixmap: QPixmap
+    ) -> None:
+        session = self.uid_workspace.sessions.get(uid)
+        if session is not None and session.avatar_url == url:
+            self.uid_tabs_widget.update_avatar(uid, pixmap)
+
+    def _open_public_uid(self, uid: str, *, source: str = "manual") -> None:
+        self._sync_uid_tab_owner()
+        self._capture_active_uid_tab()
+        session, created = self.uid_workspace.open(uid, source=source)
+        if source == "friend":
+            session.source = "friend"
+            self.uid_workspace.persist()
+        index = self.uid_tabs_widget.add_or_update(uid, session.title)
+        self.uid_tabs_widget.tabs.setCurrentIndex(index)
+        self.uid_tabs_widget.setVisible(True)
+        self._activate_uid_tab(uid)
+        if created or session.account is None:
+            self._request_uid_tab(uid)
+
+    def _select_uid_tab(self, uid: str) -> None:
+        if uid:
+            self._activate_uid_tab(uid)
+
+    def _activate_uid_tab(self, uid: str) -> None:
+        session = self.uid_workspace.sessions.get(uid)
+        if session is None:
+            self.active_uid_tab = ""
+            self._clear_public_build_display()
+            return
+        if self.active_uid_tab != uid:
+            self._capture_active_uid_tab()
+        self.uid_workspace.select(uid)
+        self.active_uid_tab = uid
+        self.build_source = session.source
+        self._set_public_uid_controls_visible(True)
+        self.uid_tabs_widget.set_current_uid(uid, emit=False)
+        self.uid_tabs_widget.set_session_status(
+            updated_at=session.updated_at,
+            loading=session.loading,
+            error=session.error,
+        )
+        self._build_recovery_mode = "uid_tab"
+        if session.error:
+            error = self.uid_tab_errors.get(session.uid) or ensure_account_error(
+                session.error
+            )
+            self.build_enka_recovery.show_error(
+                error, has_saved_data=session.account is not None
+            )
+            self.copy_error_button.setVisible(False)
+        else:
+            self.build_enka_recovery.clear()
+        self.page_stack.setCurrentIndex(0)
+        for button, _icon, text in self.nav_buttons:
+            button.setChecked(text == "Builds")
+        if session.account is None:
+            self._clear_public_build_display()
+            if session.loading:
+                self.set_status(f"Consultando a UID {uid}…")
+            elif session.error:
+                self.set_status(session.error, "error")
+            else:
+                self.set_status(
+                    "Nenhum dado salvo para esta UID. Use o botão atualizar para consultar.",
+                    "error",
+                )
+            return
+        self.benchmark_results = session.benchmark_results
+        self.fribbels_cache = session.fribbels_cache
+        self.unsupported_benchmark_characters = session.unsupported_benchmark_characters
+        self.display_account(
+            session.account,
+            selected_character_id=session.selected_character_id,
+            reset_benchmarks=False,
+        )
+        self._show_build_content(bool(session.account.characters))
+        if session.error:
+            self.set_status(
+                f"{session.error} Os dados anteriores foram preservados.", "error"
+            )
+        else:
+            suffix = f" · {updated_at_text(session.updated_at)}" if session.updated_at else ""
+            self.set_status(f"Dados da UID {uid}{suffix}.", "success")
+        QTimer.singleShot(
+            0,
+            lambda current_uid=uid, position=session.scroll_position:
+                self._restore_uid_scroll(current_uid, position),
+        )
+
+    def _restore_uid_scroll(self, uid: str, position: int) -> None:
+        if self.active_uid_tab == uid:
+            self.build_scroll.verticalScrollBar().setValue(max(position, 0))
+
+    def _clear_public_build_display(self) -> None:
+        self.current_account = None
+        self.current_uid = ""
+        self.current_characters = []
+        self.current_character_id = ""
+        self._show_build_content(False)
+
+    def _close_uid_tab(self, uid: str) -> None:
+        if uid == self.active_uid_tab:
+            self._capture_active_uid_tab()
+        self.uid_workspace.close(uid)
+        self.uid_tab_errors.pop(uid, None)
+        self.uid_tabs_widget.remove_uid(uid)
+        self.active_uid_tab = ""
+        next_uid = self.uid_workspace.selected_uid
+        if next_uid:
+            self.uid_tabs_widget.set_current_uid(next_uid, emit=False)
+            self._activate_uid_tab(next_uid)
+        else:
+            self.uid_tabs_widget.setVisible(False)
+            self._clear_public_build_display()
+            self.set_status("Nenhuma UID aberta. Pesquise uma UID para criar uma aba.")
+
+    def _reorder_uid_tabs(self, ordered_uids: object) -> None:
+        if isinstance(ordered_uids, list):
+            self.uid_workspace.reorder([str(uid) for uid in ordered_uids])
+
+    def _refresh_uid_tab(self, uid: str) -> None:
+        if uid in self.uid_workspace.sessions:
+            self._request_uid_tab(uid)
+
+    def _request_uid_tab(self, uid: str) -> None:
+        session = self.uid_workspace.sessions.get(uid)
+        if session is None or session.loading:
+            return
+        token = self.uid_workspace.begin_request(uid)
+        owner_id = self.uid_workspace.owner_id
+        worker = AccountFetchWorker(uid, self)
+        self.uid_tab_workers[uid] = worker
+        worker.succeeded.connect(
+            lambda account, owner=owner_id, current_uid=uid, request=token:
+                self._uid_tab_account_ready(owner, current_uid, request, account)
+        )
+        worker.failed.connect(
+            lambda message, owner=owner_id, current_uid=uid, request=token:
+                self._uid_tab_account_failed(owner, current_uid, request, message)
+        )
+        worker.finished.connect(
+            lambda current_uid=uid, current_worker=worker:
+                self._uid_tab_worker_finished(current_uid, current_worker)
+        )
+        self.sync_manager.begin(
+            f"uid-tab:{owner_id}:{uid}:{token}",
+            f"Atualizando a UID {uid}…",
+            retryable=True,
+        )
+        if self.active_uid_tab == uid:
+            self.build_enka_recovery.clear()
+            self.copy_error_button.setVisible(False)
+            self.uid_tabs_widget.set_session_status(
+                updated_at=session.updated_at, loading=True
+            )
+            self.set_status(f"Atualizando somente a UID {uid}…")
+        worker.start()
+
+    def _uid_tab_account_ready(
+        self, owner_id: int, uid: str, token: int, account: AccountSummary
+    ) -> None:
+        sync_key = f"uid-tab:{owner_id}:{uid}:{token}"
+        if owner_id != self.uid_workspace.owner_id:
+            self.sync_manager.finish(sync_key, "Consulta descartada após trocar de perfil")
+            return
+        if not self.uid_workspace.complete_request(uid, token, account):
+            self.sync_manager.finish(sync_key, "Resposta antiga descartada")
+            return
+        session = self.uid_workspace.sessions[uid]
+        self.uid_tab_errors.pop(uid, None)
+        self.uid_tabs_widget.add_or_update(uid, session.title)
+        self._load_uid_tab_avatar(session)
+        self.sync_manager.finish(sync_key, f"UID {uid} atualizada")
+        if session.source == "friend" and self.auth_service.current_user is not None:
+            try:
+                self.auth_service.add_friend(
+                    account.uid,
+                    account.nickname,
+                    account.level,
+                    account.world_level,
+                    account.profile_icon_url,
+                )
+            except ValueError:
+                pass
+            self.friends_panel.refresh()
+        if self.active_uid_tab == uid:
+            self._activate_uid_tab(uid)
+            QTimer.singleShot(0, self._apply_pending_resume_after_data)
+
+    def _uid_tab_account_failed(
+        self, owner_id: int, uid: str, token: int, failure: object
+    ) -> None:
+        error = ensure_account_error(failure)
+        message = error.message
+        sync_key = f"uid-tab:{owner_id}:{uid}:{token}"
+        if owner_id != self.uid_workspace.owner_id:
+            self.sync_manager.finish(sync_key, "Consulta descartada após trocar de perfil")
+            return
+        if not self.uid_workspace.fail_request(uid, token, message):
+            self.sync_manager.finish(sync_key, "Resposta antiga descartada")
+            return
+        self.uid_tab_errors[uid] = error
+        self.sync_manager.fail(
+            sync_key,
+            f"Falha ao atualizar a UID {uid}",
+            details=error.diagnostic_details,
+            retryable=error.retryable,
+        )
+        if self.active_uid_tab == uid:
+            session = self.uid_workspace.sessions[uid]
+            self.uid_tabs_widget.set_session_status(
+                updated_at=session.updated_at, error=message
+            )
+            suffix = " Os dados anteriores foram preservados." if session.account else ""
+            self.set_status(f"{message}{suffix}", "error")
+            self.copy_error_button.setVisible(False)
+            self._build_recovery_mode = "uid_tab"
+            self.build_enka_recovery.show_error(
+                error, has_saved_data=session.account is not None
+            )
+
+    def _uid_tab_worker_finished(
+        self, uid: str, worker: AccountFetchWorker
+    ) -> None:
+        if self.uid_tab_workers.get(uid) is worker:
+            del self.uid_tab_workers[uid]
+        worker.deleteLater()
+
     def search_uid(self, requested_uid: str | None = None) -> None:
-        uid = (requested_uid if requested_uid is not None else self.uid_input.text()).strip()
+        if isinstance(requested_uid, str):
+            raw_uid = requested_uid
+        elif self.page_stack.currentIndex() == 0:
+            raw_uid = self.build_uid_input.text()
+        else:
+            raw_uid = self.uid_input.text()
+        uid = raw_uid.strip()
         if len(uid) != 9 or not uid.isdigit():
             self.home_panel.set_message(
                 "O UID deve conter exatamente 9 números.", error=True
             )
-            self.uid_input.setFocus()
+            target = (
+                self.build_uid_input
+                if self.page_stack.currentIndex() == 0 else self.uid_input
+            )
+            target.setFocus()
+            if self.page_stack.currentIndex() == 0:
+                self.set_status("O UID deve conter exatamente 9 números.", "error")
+                self.copy_error_button.setVisible(False)
+                self._build_recovery_mode = "uid_tab"
+                self.build_enka_recovery.show_error(
+                    AccountFetchError(
+                        "invalid_uid",
+                        "UID inválida",
+                        "A UID precisa conter exatamente 9 números.",
+                        f"Valor recebido com {len(uid)} caractere(s).",
+                        retryable=False,
+                    ),
+                    has_saved_data=False,
+                )
             return
         self.home_panel.set_message("")
-        self.pending_account_target = "builds"
-        self._navigate("Builds")
-        self.set_status("Carregando personagens, imagens e relíquias…")
-        self.enka_client.fetch_account(uid)
+        self.build_uid_input.setText(uid)
+        self._open_public_uid(uid)
 
     def add_current_friend(self) -> None:
         account = self.current_account
@@ -2060,10 +2721,74 @@ class MainWindow(QMainWindow):
             self.add_friend_button.setEnabled(True)
 
     def _open_friend_profile(self, uid: str) -> None:
-        self.pending_account_target = "friend"
-        self._navigate("Builds")
-        self.set_status("Carregando o perfil do amigo…")
-        self.enka_client.fetch_account(uid)
+        self._open_public_uid(uid, source="friend")
+
+    def _copy_enka_error(self, error: object) -> None:
+        current = ensure_account_error(error)
+        copy_error_details(current.diagnostic_details, "Consulta ao Enka.Network")
+
+    def _open_network_settings(self) -> None:
+        if not QDesktopServices.openUrl(QUrl("ms-settings:network-status")):
+            self.set_status(
+                "Abra as configurações de Rede e Internet do Windows para verificar a conexão.",
+                "error",
+            )
+
+    def _retry_enka_failure(self, location: str) -> None:
+        own_account_failure = location == "account" or self._build_recovery_mode == "own_account"
+        if own_account_failure:
+            user = self.auth_service.current_user
+            if user is None or not user.game_uid:
+                return
+            if self._last_failed_account_target == "own_builds":
+                self.refresh_loaded_account()
+            else:
+                self._load_saved_uid(force=True)
+            return
+        uid = self.active_uid_tab
+        if uid in self.uid_workspace.sessions:
+            self._request_uid_tab(uid)
+
+    def _continue_with_saved_enka_data(self, location: str) -> None:
+        own_account_failure = location == "account" or self._build_recovery_mode == "own_account"
+        if own_account_failure:
+            account = self.own_account
+            user = self.auth_service.current_user
+            if (
+                account is None
+                or user is None
+                or self.own_account_user_id != user.id
+                or account.uid != user.game_uid
+            ):
+                return
+            self.account_enka_recovery.clear()
+            self.build_enka_recovery.clear()
+            self.account_copy_error.setVisible(False)
+            self.copy_error_button.setVisible(False)
+            if self._last_failed_account_target == "own_builds":
+                self._open_own_character_builds(self.current_character_id)
+                self.set_status("Continuando com os últimos dados salvos da sua conta.")
+            else:
+                self._render_own_account(account)
+                self._refresh_dashboard()
+                self.account_status.setObjectName("statusInfo")
+                self.account_status.setText(
+                    "Exibindo os últimos dados carregados. Você pode atualizar novamente mais tarde."
+                )
+                self.account_status.style().unpolish(self.account_status)
+                self.account_status.style().polish(self.account_status)
+            return
+
+        session = self.uid_workspace.sessions.get(self.active_uid_tab)
+        if session is None or session.account is None:
+            return
+        session.error = ""
+        self.uid_tab_errors.pop(session.uid, None)
+        self.uid_workspace.persist()
+        self.build_enka_recovery.clear()
+        self.copy_error_button.setVisible(False)
+        self._activate_uid_tab(session.uid)
+        self.set_status("Continuando com os últimos dados salvos desta UID.")
 
     def _set_loading(self, loading: bool) -> None:
         self.uid_input.setEnabled(True)
@@ -2080,6 +2805,12 @@ class MainWindow(QMainWindow):
         self.search_button.setText("Pesquisar UID")
         if loading:
             self.account_sync_failed = False
+            if self.pending_account_target in {"account", "auto_account"}:
+                self.account_enka_recovery.clear()
+                self.account_copy_error.setVisible(False)
+            elif self.pending_account_target == "own_builds":
+                self.build_enka_recovery.clear()
+                self.copy_error_button.setVisible(False)
             self.sync_manager.begin(
                 "account",
                 "Consultando personagens, builds e relíquias…",
@@ -2094,10 +2825,17 @@ class MainWindow(QMainWindow):
                 self._initial_account_sync_active = False
                 self.initial_account_sync_finished.emit()
 
-    def _request_failed(self, message: str) -> None:
+    def _request_failed(self, failure: object) -> None:
+        error = ensure_account_error(failure)
+        message = error.message
         self.account_sync_failed = True
+        self._last_account_error = error
+        self._last_failed_account_target = self.pending_account_target
         self.sync_manager.fail(
-            "account", "Falha ao sincronizar a conta", details=message
+            "account",
+            "Falha ao sincronizar a conta",
+            details=error.diagnostic_details,
+            retryable=error.retryable,
         )
         user = self.auth_service.current_user
         if user is not None and self.pending_account_target in {
@@ -2106,21 +2844,33 @@ class MainWindow(QMainWindow):
             self.activity_log.add(
                 "account",
                 "Falha ao sincronizar a conta",
-                message,
+                error.diagnostic_details,
                 owner_id=user.id,
                 kind="error",
             )
         if self.pending_account_target in {"account", "auto_account"}:
             self.account_status.setObjectName("statusError")
             self.account_status.setText(message)
-            self.account_copy_error.setVisible(True)
+            self.account_copy_error.setVisible(False)
             self.account_status.style().unpolish(self.account_status)
             self.account_status.style().polish(self.account_status)
+            self.account_enka_recovery.show_error(
+                error, has_saved_data=self.own_account is not None
+            )
         else:
+            self._build_recovery_mode = "own_account"
             self.set_status(message, "error")
+            self.copy_error_button.setVisible(False)
+            self.build_enka_recovery.show_error(
+                error, has_saved_data=self.own_account is not None
+            )
 
     def _account_loaded(self, account: AccountSummary, message: str) -> None:
         self.account_copy_error.setVisible(False)
+        self.account_enka_recovery.clear()
+        if self.pending_account_target == "own_builds":
+            self.build_enka_recovery.clear()
+        self._last_account_error = None
         self._capture_relic_inventory(account)
         if self.pending_account_target in {"account", "own_builds", "auto_account"}:
             user = self.auth_service.current_user
@@ -2157,6 +2907,7 @@ class MainWindow(QMainWindow):
                     "Seus personagens e benchmarks foram atualizados.",
                     "success" if account.characters else "error",
                 )
+            QTimer.singleShot(0, self._apply_pending_resume_after_data)
             return
         self.build_source = (
             "friend" if self.pending_account_target == "friend" else "manual"
@@ -2266,7 +3017,13 @@ class MainWindow(QMainWindow):
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
 
-    def display_account(self, account: AccountSummary) -> None:
+    def display_account(
+        self,
+        account: AccountSummary,
+        *,
+        selected_character_id: str = "",
+        reset_benchmarks: bool = True,
+    ) -> None:
         self.current_account = account
         self.current_uid = account.uid
         self.account_label.setText(account.nickname)
@@ -2291,10 +3048,11 @@ class MainWindow(QMainWindow):
             )
         self.uid_caption.setText(f"UID {account.uid}")
         self.current_characters = account.characters
-        self.benchmark_results.clear()
-        self.fribbels_cache.clear()
+        if reset_benchmarks:
+            self.benchmark_results = {}
+            self.fribbels_cache = {}
+            self.unsupported_benchmark_characters = set()
         self.active_benchmark_ids.clear()
-        self.unsupported_benchmark_characters.clear()
         self.character_list.clear()
         for character in account.characters:
             item = QListWidgetItem()
@@ -2304,7 +3062,14 @@ class MainWindow(QMainWindow):
             self.character_list.setItemWidget(item, card)
             self.image_loader.load(character.icon_url, card.avatar.set_image)
         if account.characters:
-            self.character_list.setCurrentRow(0)
+            selected_row = next(
+                (
+                    index for index, character in enumerate(account.characters)
+                    if str(character.avatar_id) == selected_character_id
+                ),
+                0,
+            )
+            self.character_list.setCurrentRow(selected_row)
 
     def _set_profile_icon_if_current(self, uid: str, pixmap: QPixmap) -> None:
         if self.current_account is not None and self.current_account.uid == uid:
@@ -2330,13 +3095,44 @@ class MainWindow(QMainWindow):
         finally:
             self.sync_manager.finish("character", "Build preparada")
 
+    def _refresh_detail_name_layout(self) -> None:
+        if not hasattr(self, "detail_name"):
+            return
+        available = max(self.stats_panel.width() - 30, 120)
+        reference_font = QFont(self.detail_name.font())
+        reference_font.setPixelSize(24)
+        text_width = QFontMetrics(reference_font).horizontalAdvance(
+            self.detail_name.text()
+        )
+        wrapped = text_width > available
+        compact = text_width > available * 1.55
+        if self.detail_name.property("compactName") != compact:
+            self.detail_name.setProperty("compactName", compact)
+            self.detail_name.style().unpolish(self.detail_name)
+            self.detail_name.style().polish(self.detail_name)
+        line_height = self.detail_name.fontMetrics().lineSpacing()
+        self.detail_name.setFixedHeight(line_height * (2 if wrapped else 1) + 5)
+        self.detail_name.setToolTip(self.detail_name.text() if wrapped else "")
+        self.content_splitter.setMinimumHeight(790 + (line_height if wrapped else 0))
+
     def _show_character_details(self, row: int) -> None:
         if row < 0 or row >= len(self.current_characters):
             return
         character = self.current_characters[row]
         self.current_character_id = character.avatar_id
+        self._schedule_resume_save()
+        session = self.uid_workspace.sessions.get(self.active_uid_tab)
+        if (
+            session is not None
+            and self.build_source in {"manual", "friend"}
+            and self.current_account is not None
+            and self.current_account.uid == session.uid
+        ):
+            session.selected_character_id = str(character.avatar_id)
+            self.uid_workspace.persist()
         self._refresh_build_history()
         self.detail_name.setText(character.name)
+        QTimer.singleShot(0, self._refresh_detail_name_layout)
         self.detail_rarity.setText("★" * character.rarity)
         self.level_badge.setText(f"NV. {character.level}")
         self.eidolon_badge.setText(f"E{character.eidolon}")
@@ -2477,6 +3273,14 @@ class MainWindow(QMainWindow):
         self.relic_grid.setColumnStretch(0, 1)
         self.relic_grid.setColumnStretch(1, 1 if columns == 2 else 0)
 
+    def closeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
+        self._resume_save_timer.stop()
+        self._restoring_resume_state = False
+        self._save_resume_state()
+        self._capture_active_uid_tab()
+        self.uid_workspace.persist()
+        super().closeEvent(event)
+
     def resizeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
         super().resizeEvent(event)
         if hasattr(self, "size_grip"):
@@ -2504,6 +3308,7 @@ class MainWindow(QMainWindow):
             [round(available * proportion) for proportion in proportions]
         )
         QTimer.singleShot(0, self._reflow_relic_cards)
+        QTimer.singleShot(0, self._refresh_detail_name_layout)
 
     def _team_settings_key(self, character_id: str, suffix: str) -> str:
         uid = self.current_account.uid if self.current_account is not None else "global"
@@ -2657,6 +3462,14 @@ class MainWindow(QMainWindow):
             return
         self.benchmark_card.set_loading()
         worker = FribbelsBenchmarkWorker(character, teammates, cache_key)
+        tab_uid = (
+            self.active_uid_tab
+            if self.build_source in {"manual", "friend"}
+            and self.current_account is not None
+            and self.active_uid_tab == self.current_account.uid
+            else ""
+        )
+        self.benchmark_tab_contexts[cache_key] = (self.uid_workspace.owner_id, tab_uid)
         self.sync_manager.begin(
             f"benchmark:{cache_key}",
             f"Calculando benchmark de {character.name}…",
@@ -2897,44 +3710,122 @@ class MainWindow(QMainWindow):
         if not isinstance(payload, dict):
             return
         character_id = str(payload.get("characterId", ""))
+        uid = cache_key.partition(":")[0]
+        owner_id, tab_uid = self.benchmark_tab_contexts.get(
+            cache_key, (self.uid_workspace.owner_id, "")
+        )
+        if tab_uid and owner_id != self.uid_workspace.owner_id:
+            return
+        session = self.uid_workspace.sessions.get(tab_uid) if tab_uid else None
+        if tab_uid and (session is None or tab_uid != uid):
+            return
+        if (
+            not tab_uid
+            and (
+                self.build_source != "own"
+                or self.current_account is None
+                or self.current_account.uid != uid
+            )
+        ):
+            return
+        characters = (
+            session.account.characters
+            if session is not None and session.account is not None
+            else self.current_characters
+        )
         character = next(
-            (item for item in self.current_characters if str(item.avatar_id) == character_id),
+            (item for item in characters if str(item.avatar_id) == character_id),
             None,
         )
         if character is None:
             return
-        self.fribbels_cache[cache_key] = payload
-        if cache_key != self._benchmark_cache_key(character):
-            return
-        result = self.benchmark_results.get(character_id)
+        target_cache = session.fribbels_cache if session is not None else self.fribbels_cache
+        target_results = (
+            session.benchmark_results if session is not None else self.benchmark_results
+        )
+        target_cache[cache_key] = payload
+        result = target_results.get(character_id)
         if result is None:
             return
         self.benchmark_engine.apply_fribbels_result(character, result, payload)
-        if self.current_character_id == character_id:
+        is_visible_context = (
+            self.active_uid_tab == uid and self.build_source in {"manual", "friend"}
+            if session is not None else self.build_source == "own"
+        )
+        if (
+            self.current_character_id == character_id
+            and self.current_account is not None
+            and self.current_account.uid == uid
+            and is_visible_context
+        ):
             self._render_benchmark(result)
 
     def _fribbels_benchmark_failed(self, cache_key: str, message: str) -> None:
         sync_key = f"benchmark:{cache_key}"
+        uid = cache_key.partition(":")[0]
+        owner_id, tab_uid = self.benchmark_tab_contexts.get(
+            cache_key, (self.uid_workspace.owner_id, "")
+        )
+        if tab_uid and owner_id != self.uid_workspace.owner_id:
+            return
+        session = self.uid_workspace.sessions.get(tab_uid) if tab_uid else None
+        if tab_uid and (session is None or tab_uid != uid):
+            return
+        if (
+            not tab_uid
+            and (
+                self.build_source != "own"
+                or self.current_account is None
+                or self.current_account.uid != uid
+            )
+        ):
+            return
+        characters = (
+            session.account.characters
+            if session is not None and session.account is not None
+            else self.current_characters
+        )
         character = next(
             (
-                item for item in self.current_characters
-                if self._benchmark_cache_key(item) == cache_key
+                item for item in characters
+                if f":{item.avatar_id}:" in cache_key
             ),
             None,
         )
-        if character is not None and self.current_character_id == str(character.avatar_id):
+        is_visible = bool(
+            character is not None
+            and self.current_character_id == str(character.avatar_id)
+            and self.current_account is not None
+            and self.current_account.uid == uid
+            and (
+                self.active_uid_tab == uid
+                and self.build_source in {"manual", "friend"}
+                if session is not None else self.build_source == "own"
+            )
+        )
+        if character is not None:
             character_id = str(character.avatar_id)
             if "não possui DPS Benchmark" in message:
                 self.failed_sync_tasks.add(sync_key)
                 self.sync_manager.finish(sync_key, "Benchmark indisponível para esta build")
-                self.unsupported_benchmark_characters.add(character_id)
-                result = self.benchmark_results.get(character_id)
+                unsupported = (
+                    session.unsupported_benchmark_characters
+                    if session is not None else self.unsupported_benchmark_characters
+                )
+                results = (
+                    session.benchmark_results
+                    if session is not None else self.benchmark_results
+                )
+                unsupported.add(character_id)
+                result = results.get(character_id)
                 if result is not None:
                     self._mark_benchmark_unsupported(result)
-                    self._render_benchmark(result)
+                    if is_visible:
+                        self._render_benchmark(result)
                 return
-            self.benchmark_card.set_engine_error(message)
-            self.set_status(f"Motor Fribbels indisponível: {message}", "error")
+            if is_visible:
+                self.benchmark_card.set_engine_error(message)
+                self.set_status(f"Motor Fribbels indisponível: {message}", "error")
         self.failed_sync_tasks.add(sync_key)
         self.sync_manager.fail(
             sync_key, "Falha ao calcular o benchmark", details=message
@@ -2960,6 +3851,7 @@ class MainWindow(QMainWindow):
         else:
             self.sync_manager.finish(sync_key, "Benchmark calculado")
         self.active_benchmark_ids.discard(worker.request_key)
+        self.benchmark_tab_contexts.pop(worker.request_key, None)
         self.benchmark_workers.discard(worker)
         worker.deleteLater()
         if not self.benchmark_workers:
