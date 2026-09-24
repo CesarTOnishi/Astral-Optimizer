@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.ui.motion import AnimatedProgressBar as QProgressBar
+from app.ui.contextual_help import GUARANTEE_HELP, PITY_HELP, ContextHelpButton
 
 from app.auth import AuthUser
 from app.planner import calculate_planner, sequence_projections
@@ -101,10 +102,18 @@ class PlannerPanel(QWidget):
         for badge in (self.character_guarantee, self.cone_guarantee):
             badge.setObjectName("plannerGuarantee")
             badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        settings.addLayout(self._field_box("CONTADOR DE PITY", self.character_pity), 1, 2)
-        settings.addLayout(self._field_box("CONTADOR DE PITY", self.cone_pity), 1, 3)
-        settings.addLayout(self._field_box("GARANTIA", self.character_guarantee), 2, 2)
-        settings.addLayout(self._field_box("GARANTIA", self.cone_guarantee), 2, 3)
+        settings.addLayout(
+            self._field_box("CONTADOR DE PITY", self.character_pity, PITY_HELP), 1, 2
+        )
+        settings.addLayout(
+            self._field_box("CONTADOR DE PITY", self.cone_pity, PITY_HELP), 1, 3
+        )
+        settings.addLayout(
+            self._field_box("GARANTIA", self.character_guarantee, GUARANTEE_HELP), 2, 2
+        )
+        settings.addLayout(
+            self._field_box("GARANTIA", self.cone_guarantee, GUARANTEE_HELP), 2, 3
+        )
 
         self.strategy = FadeComboBox(self.settings_card)
         self.strategy.setObjectName("plannerStrategySelect")
@@ -228,12 +237,24 @@ class PlannerPanel(QWidget):
         return box
 
     @staticmethod
-    def _field_box(title: str, widget: QWidget) -> QVBoxLayout:
+    def _field_box(
+        title: str,
+        widget: QWidget,
+        help_content: tuple[str, str] | None = None,
+    ) -> QVBoxLayout:
         label = QLabel(title)
         label.setObjectName("metricTitle")
         box = QVBoxLayout()
         box.setSpacing(4)
-        box.addWidget(label)
+        if help_content is None:
+            box.addWidget(label)
+        else:
+            header = QHBoxLayout()
+            header.setSpacing(5)
+            header.addWidget(label)
+            header.addWidget(ContextHelpButton(*help_content))
+            header.addStretch(1)
+            box.addLayout(header)
         box.addWidget(widget)
         return box
 

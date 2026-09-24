@@ -114,6 +114,77 @@ QPushButton#whatsNewTitleButton[unseen="true"] {
     color: #fff3b5; background-color: #332841;
     border-color: #9a6fab;
 }
+QPushButton#activityHistoryButton {
+    color: #a9dff4; background-color: transparent;
+    border: 1px solid transparent; border-radius: 8px;
+}
+QPushButton#activityHistoryButton:hover {
+    color: #ffffff; background-color: #263550; border-color: #4a668b;
+}
+QMenu#activityHistoryMenu {
+    color: #eef4ff; background-color: #0d1728; border: 1px solid #405b7d;
+    border-radius: 11px; padding: 6px;
+}
+QFrame#activityHistoryHeader { background-color: transparent; border: none; }
+QLabel#activityHistoryTitle { color: #f4f8ff; font-size: 12px; font-weight: 850; }
+QLabel#activityHistorySummary { color: #8295b1; font-size: 10px; }
+QFrame#activityHistoryRow {
+    background-color: #121e32; border: 1px solid #263b59; border-radius: 9px;
+}
+QFrame#activityHistoryRow[kind="error"] { background-color: #281924; border-color: #704052; }
+QFrame#activityHistoryRow[kind="warning"] { background-color: #2b2518; border-color: #71603a; }
+QLabel#activityHistoryIcon {
+    color: #9bdfff; background-color: #193750; border: 1px solid #37708f;
+    border-radius: 14px; font-size: 14px; font-weight: 900;
+}
+QFrame#activityHistoryRow[kind="success"] QLabel#activityHistoryIcon {
+    color: #91e6b8; background-color: #17372e; border-color: #34735c;
+}
+QFrame#activityHistoryRow[kind="error"] QLabel#activityHistoryIcon {
+    color: #ffb2be; background-color: #3b202d; border-color: #7b465b;
+}
+QLabel#activityHistoryEventTitle { color: #f4f8ff; font-size: 11px; font-weight: 800; }
+QLabel#activityHistoryMessage { color: #a0afc5; font-size: 10px; }
+QLabel#activityHistoryTime { color: #7185a2; font-size: 9px; }
+QLabel#activityHistoryEmpty { color: #8295b1; background-color: transparent; }
+QPushButton#contextHelpButton {
+    color: #8eddf8; background-color: rgba(20,43,66,190);
+    border: 1px solid #345f7c; border-radius: 13px; padding: 0px;
+}
+QPushButton#contextHelpButton:hover {
+    color: #ffffff; background-color: #205477; border-color: #79d8f5;
+}
+QPushButton#contextHelpButton:pressed { background-color: #10263c; }
+QFrame#contextHelpPopup {
+    color: #eef4ff; background-color: #0e1829;
+    border: 1px solid #3d5b7a; border-radius: 14px;
+}
+QWidget#contextHelpContent { background-color: transparent; }
+QFrame#contextHelpHeader { background-color: transparent; border: none; }
+QFrame#contextHelpIconPlate {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #174862, stop:1 #26365d);
+    border: 1px solid #4383a3; border-radius: 10px;
+}
+QLabel#contextHelpEyebrow {
+    color: #70d8fa; font-size: 8px; font-weight: 850; letter-spacing: 1px;
+}
+QLabel#contextHelpTitle {
+    color: #f7f9ff; font-size: 13px; font-weight: 800;
+}
+QPushButton#contextHelpClose {
+    color: #8fa1ba; background-color: transparent; border: 1px solid transparent;
+    border-radius: 7px; padding: 0px;
+}
+QPushButton#contextHelpClose:hover {
+    color: #ffffff; background-color: #243650; border-color: #3e5878;
+}
+QFrame#contextHelpBody {
+    background-color: #121f33; border: 1px solid #233a56; border-radius: 10px;
+}
+QLabel#contextHelpText {
+    color: #bdc9da; font-size: 10px; line-height: 1.35;
+}
 QMenu#notificationMenu {
     color: #eef4ff; background-color: #10192b; border: 1px solid #40567a;
     border-radius: 10px; padding: 5px;
@@ -140,19 +211,61 @@ QLabel#brandMark { color: #78dcff; font-size: 28px; font-weight: 800; }
 QLabel#brandTitle { color: #f6f8ff; font-size: 20px; font-weight: 750; letter-spacing: 1px; }
 QLabel#muted, QLabel#footer, QLabel#characterMeta, QLabel#sectionHint { color: #8290aa; }
 QLabel#footer { font-size: 11px; }
-QLabel#syncStatus {
+QPushButton#syncStatus {
     color: #8290aa; background-color: #0d1728; border: 1px solid #263a57;
     border-radius: 8px; padding: 7px 8px; font-size: 9px; font-weight: 750;
 }
-QLabel#syncStatus[status="syncing"] {
+QPushButton#syncStatus:hover { color: #d8e8fa; border-color: #496887; }
+QPushButton#syncStatus[status="syncing"] {
     color: #91e5ff; background-color: #10283a; border-color: #356985;
 }
-QLabel#syncStatus[status="success"] {
+QPushButton#syncStatus[status="success"] {
     color: #8ce5b7; background-color: #102c28; border-color: #316a57;
 }
-QLabel#syncStatus[status="error"] {
+QPushButton#syncStatus[status="error"] {
     color: #ff9cab; background-color: #321a26; border-color: #704052;
 }
+QMenu#taskCenterMenu {
+    color: #eef4ff; background-color: #0d1728; border: 1px solid #405b7d;
+    border-radius: 11px; padding: 6px;
+}
+QFrame#taskCenterHeader { background-color: transparent; border: none; }
+QLabel#taskCenterTitle { color: #f4f8ff; font-size: 12px; font-weight: 850; }
+QLabel#taskCenterSummary { color: #8295b1; font-size: 10px; }
+QPushButton#taskCenterClear {
+    color: #91cfe8; background-color: transparent; border: none;
+    padding: 5px 7px; font-size: 10px; font-weight: 700;
+}
+QPushButton#taskCenterClear:hover { color: #ffffff; background-color: #1b2b45; border-radius: 6px; }
+QFrame#taskCenterRow {
+    background-color: #121e32; border: 1px solid #263b59; border-radius: 9px;
+}
+QFrame#taskCenterRow[state="active"] { border-color: #356681; background-color: #11263a; }
+QFrame#taskCenterRow[state="error"] { border-color: #704052; background-color: #281924; }
+QLabel#taskCenterIcon {
+    color: #9bdfff; background-color: #193750; border: 1px solid #37708f;
+    border-radius: 14px; font-size: 14px; font-weight: 900;
+}
+QFrame#taskCenterRow[state="success"] QLabel#taskCenterIcon {
+    color: #91e6b8; background-color: #17372e; border-color: #34735c;
+}
+QFrame#taskCenterRow[state="error"] QLabel#taskCenterIcon {
+    color: #ffb2be; background-color: #3b202d; border-color: #7b465b;
+}
+QLabel#taskCenterTaskTitle { color: #f4f8ff; font-size: 11px; font-weight: 800; }
+QLabel#taskCenterMessage { color: #a0afc5; font-size: 10px; }
+QLabel#taskCenterState {
+    color: #90dff7; background-color: #18354c; border-radius: 6px;
+    padding: 2px 6px; font-size: 8px; font-weight: 850;
+}
+QLabel#taskCenterState[state="success"] { color: #91e6b8; background-color: #17372e; }
+QLabel#taskCenterState[state="error"] { color: #ffb2be; background-color: #3b202d; }
+QPushButton#taskCenterAction {
+    color: #ccecff; background-color: #193653; border: 1px solid #3d6e91;
+    border-radius: 6px; padding: 5px 9px; font-size: 9px; font-weight: 750;
+}
+QPushButton#taskCenterAction:hover { color: #ffffff; background-color: #245077; border-color: #68b8df; }
+QLabel#taskCenterEmpty { color: #8295b1; background-color: transparent; }
 QFrame#searchPanel, QFrame#heroPanel, QFrame#contentPanel,
 QFrame#characterHero, QFrame#statCard {
     border: 1px solid #263452;

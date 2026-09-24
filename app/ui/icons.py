@@ -23,6 +23,7 @@ PATHS = {
     "backup": '<path d="M7 18H6a4 4 0 0 1-1-8 7 7 0 0 1 14-1 4.5 4.5 0 0 1-1 9h-1M12 21V11m-4 4 4-4 4 4"/>',
     "info": '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v.5"/>',
     "bell": '<path d="M5 10a7 7 0 0 1 14 0v5l2 3H3l2-3zM9 21h6"/>',
+    "history": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2M5 5 2 2M5 5v4H1"/>',
     "refresh": '<path d="M20 10a8 8 0 0 0-14-5L3 8m0-5v5h5M4 14a8 8 0 0 0 14 5l3-3m0 5v-5h-5"/>',
     "close": '<path d="m6 6 12 12M18 6 6 18"/>',
     "minimize": '<path d="M5 12h14"/>',

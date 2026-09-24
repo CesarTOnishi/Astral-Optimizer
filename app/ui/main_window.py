@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.api.enka_client import EnkaClient
+from app.activity_log import ActivityLog
 from app.auth import AuthService
 from app.benchmark import BenchmarkEngine
 from app.benchmark.fribbels_client import FribbelsBenchmarkWorker, engine_available
@@ -50,6 +51,7 @@ from app.privacy import hide_uid_in_shared_images
 from app.relics import RelicDatabase
 from app.sync_manager import BackgroundSyncManager
 from app.ui.auth_dialogs import AuthDialog, SettingsDialog
+from app.ui.activity_history import ActivityHistoryButton
 from app.ui.build_history import (
     BuildComparisonDialog,
     BuildHistoryBar,
@@ -60,6 +62,12 @@ from app.ui.motion import AnimatedStack as QStackedWidget, animate_width, instal
 from app.ui.account_dashboard import AccountDashboard
 from app.ui.icons import set_button_icon
 from app.ui.catalog_panel import CatalogPanel
+from app.ui.contextual_help import (
+    BENCHMARK_HELP,
+    BUILD_SOURCE_HELP,
+    RELIC_GRADE_HELP,
+    ContextHelpButton,
+)
 from app.ui.friends_panel import FriendsPanel
 from app.ui.experience import (
     DiagnosticsPanel, ExperienceDialog, GuidedTourOverlay, TourStep,
@@ -69,6 +77,7 @@ from app.ui.home_panel import HomePanel
 from app.ui.image_loader import ImageLoader
 from app.ui.loading import LoadingOverlay, load_icon_pixmap
 from app.ui.notifications import NotificationBell, NotificationCenter
+from app.ui.task_center import BackgroundTaskButton
 from app.ui.planner_panel import PlannerPanel
 from app.ui.rank_dialog import RankRedirectDialog
 from app.ui.team_dialog import CustomTeamDialog
@@ -154,6 +163,16 @@ class AppTitleBar(QFrame):
         self.notification_bell = NotificationBell(window.notification_center, self)
         layout.addWidget(self.notification_bell)
 
+        self.activity_history_button = ActivityHistoryButton(
+            window.activity_log,
+            lambda: (
+                window.auth_service.current_user.id
+                if window.auth_service.current_user is not None else 0
+            ),
+            self,
+        )
+        layout.addWidget(self.activity_history_button)
+
         self.whats_new_button = QPushButton("✧")
         self.whats_new_button.setText("")
         set_button_icon(self.whats_new_button, "warp")
@@ -235,6 +254,7 @@ class MainWindow(QMainWindow):
 
         self.enka_client = EnkaClient(self)
         self.auth_service = AuthService()
+        self.activity_log = ActivityLog(self)
         self.notification_center = NotificationCenter(self)
         self.benchmark_engine = BenchmarkEngine()
         self.image_loader = ImageLoader(self)
@@ -287,6 +307,7 @@ class MainWindow(QMainWindow):
         apply_experience_preferences()
         self._setup_shortcuts()
         self.sync_manager.changed.connect(self._sync_status_changed)
+        self.sync_status.retry_requested.connect(self._retry_background_task)
         self.sync_spinner_timer = QTimer(self)
         self.sync_spinner_timer.setInterval(320)
         self.sync_spinner_timer.timeout.connect(self._advance_sync_spinner)
@@ -296,6 +317,14 @@ class MainWindow(QMainWindow):
         self.enka_client.account_loaded.connect(self._account_loaded)
         self.catalog_panel.background_sync_changed.connect(
             self._catalog_sync_changed
+        )
+        self.catalog_panel.background_sync_progress.connect(
+            lambda message: self.sync_manager.update("catalog", message)
+        )
+        self.catalog_panel.background_sync_failed.connect(
+            lambda message: self.sync_manager.fail(
+                "catalog", "Falha ao atualizar o catálogo", details=message
+            )
         )
         self.catalog_panel.catalog_updated.connect(self._catalog_updated)
         QTimer.singleShot(0, self._show_previous_update_result)
@@ -391,6 +420,7 @@ class MainWindow(QMainWindow):
         self.page_stack.addWidget(content)
         self.warp_panel = WarpPanel()
         self.warp_panel.set_user(self.auth_service.current_user)
+        self.warp_panel.import_activity.connect(self._record_warp_import)
         self.warp_panel.import_completed.connect(self._backup_warps_to_onedrive)
         self.warp_panel.import_completed.connect(lambda _owner: self._refresh_dashboard())
         self.warp_panel.import_completed.connect(
@@ -426,6 +456,7 @@ class MainWindow(QMainWindow):
             "Saltos": self.warp_panel.database.path,
             "Relíquias": self.relic_database.path,
             "Histórico de builds": self.build_history_database.path,
+            "Histórico de atividades": self.activity_log.path,
         })
         self.page_stack.addWidget(self.diagnostics_panel)
         self.whats_new_panel = WhatsNewPanel()
@@ -445,6 +476,10 @@ class MainWindow(QMainWindow):
         self.loading_overlay.setGeometry(root.rect())
         self.loading_overlay.raise_()
         self.warp_panel.busy_changed.connect(self._warp_busy_changed)
+        self.warp_panel.background_progress.connect(
+            lambda message: self.sync_manager.update("warp-import", message)
+        )
+        self.warp_panel.background_failed.connect(self._warp_import_failed)
 
     def _build_build_empty_panel(self) -> QFrame:
         frame = QFrame()
@@ -574,7 +609,15 @@ class MainWindow(QMainWindow):
         self.profile_header_bio.setWordWrap(True)
         self.profile_header_meta = QLabel("Nível — · Equilíbrio — · — conquistas")
         self.profile_header_meta.setObjectName("profileHeaderMeta")
-        identity.addWidget(self.account_label)
+        account_name_row = QHBoxLayout()
+        account_name_row.setSpacing(6)
+        account_name_row.addWidget(self.account_label)
+        account_name_row.addWidget(
+            ContextHelpButton(*BUILD_SOURCE_HELP),
+            alignment=Qt.AlignmentFlag.AlignVCenter,
+        )
+        account_name_row.addStretch(1)
+        identity.addLayout(account_name_row)
         identity.addWidget(self.profile_header_bio)
         identity.addWidget(self.profile_header_meta)
         profile_layout.addLayout(identity, 1)
@@ -683,12 +726,11 @@ class MainWindow(QMainWindow):
         self.side_source.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.side_source)
 
-        self.sync_status = QLabel("●  Sincronizado")
-        self.sync_status.setObjectName("syncStatus")
-        self.sync_status.setProperty("status", "idle")
-        self.sync_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.sync_status.setWordWrap(True)
-        self.sync_status.setToolTip("Nenhuma tarefa em segundo plano")
+        self.sync_status = BackgroundTaskButton(self.sync_manager)
+        self.sync_status.setText("●  Sincronizado")
+        self.sync_status.setToolTip(
+            "Nenhuma tarefa em segundo plano.\nClique para abrir a central."
+        )
         layout.addWidget(self.sync_status)
 
         self.auth_guest_button = QPushButton("◎   Entrar / Cadastrar")
@@ -867,6 +909,16 @@ class MainWindow(QMainWindow):
                 "Central de notificações",
                 "O sino reúne avisos importantes: catálogo desatualizado, nova versão, resultado do backup, relíquias alteradas e pity próximo do soft pity.",
                 lambda: self.title_bar.notification_bell,
+            ),
+            TourStep(
+                "Histórico de atividades",
+                "Este botão mostra acontecimentos recentes que continuam disponíveis após fechar o app: sincronizações, relíquias alteradas, Saltos importados, backups, builds e atualizações.",
+                lambda: self.title_bar.activity_history_button,
+            ),
+            TourStep(
+                "Tarefas em segundo plano",
+                "Clique no indicador de sincronização para acompanhar conta, catálogo, benchmark, backup e importação de Saltos. Se algo falhar, você poderá tentar novamente ou copiar os detalhes.",
+                lambda: self.sync_status,
             ),
             TourStep(
                 "Navegação principal",
@@ -1051,6 +1103,12 @@ class MainWindow(QMainWindow):
         if result is None:
             return
         if result.status == "success":
+            self.activity_log.add(
+                "update",
+                f"Aplicativo atualizado para {APP_VERSION}",
+                result.message,
+                kind="success",
+            )
             self.notification_center.add(
                 "app-update-result",
                 "Atualização concluída",
@@ -1062,6 +1120,12 @@ class MainWindow(QMainWindow):
         detail = result.message
         if result.log_path:
             detail += f" Log: {result.log_path}"
+        self.activity_log.add(
+            "update",
+            "Falha ao atualizar o aplicativo",
+            detail,
+            kind="error",
+        )
         self.notification_center.add(
             "app-update-result",
             "Erro ao aplicar atualização",
@@ -1084,7 +1148,9 @@ class MainWindow(QMainWindow):
             )
         worker = UpdateCheckWorker(self)
         self.update_check_worker = worker
-        self.sync_manager.begin("update-check", "Verificando atualizações…")
+        self.sync_manager.begin(
+            "update-check", "Verificando atualizações…", retryable=True
+        )
         worker.succeeded.connect(self._update_check_succeeded)
         worker.failed.connect(self._update_check_failed)
         worker.finished.connect(self._update_check_finished)
@@ -1119,7 +1185,11 @@ class MainWindow(QMainWindow):
         self._show_update_available(release)
 
     def _update_check_failed(self, message: str) -> None:
-        self.sync_manager.fail("update-check", "Falha ao verificar atualizações")
+        self.sync_manager.fail(
+            "update-check",
+            "Falha ao verificar atualizações",
+            details=message,
+        )
         if self.update_check_manual:
             if self.settings_dialog:
                 self.settings_dialog.set_update_status(
@@ -1212,7 +1282,11 @@ class MainWindow(QMainWindow):
         payload = self.warp_panel.database.export_owner(owner_id)
         worker = OneDriveWorker(lambda: service.save_backup(payload))
         sync_key = f"onedrive-backup:{owner_id}"
-        self.sync_manager.begin(sync_key, "Salvando backup na pasta do OneDrive…")
+        self.sync_manager.begin(
+            sync_key,
+            "Aguardando a pasta sincronizada do OneDrive…",
+            retryable=True,
+        )
         self.drive_workers.add(worker)
         worker.succeeded.connect(
             lambda message: self.warp_panel._set_status(
@@ -1232,14 +1306,23 @@ class MainWindow(QMainWindow):
                 "success",
             )
         )
+        worker.succeeded.connect(
+            lambda message: self.activity_log.add(
+                "backup",
+                "Backup concluído",
+                f"{message} O OneDrive sincronizará o arquivo com a nuvem.",
+                owner_id=owner_id,
+                kind="success",
+            )
+        )
         worker.failed.connect(
             lambda message: self.warp_panel._set_status(
                 f"Importação salva localmente, mas o backup falhou: {message}", "error"
             )
         )
         worker.failed.connect(
-            lambda _message: self.sync_manager.fail(
-                sync_key, "Falha no backup do OneDrive"
+            lambda message: self.sync_manager.fail(
+                sync_key, "Falha no backup do OneDrive", details=message
             )
         )
         worker.failed.connect(
@@ -1248,6 +1331,15 @@ class MainWindow(QMainWindow):
                 "Erro no backup",
                 f"Os dados locais estão seguros, mas o OneDrive falhou: {message}",
                 "error",
+            )
+        )
+        worker.failed.connect(
+            lambda message: self.activity_log.add(
+                "backup",
+                "Falha no backup do OneDrive",
+                message,
+                owner_id=owner_id,
+                kind="error",
             )
         )
         worker.finished.connect(lambda: self._release_drive_worker(worker))
@@ -1499,16 +1591,36 @@ class MainWindow(QMainWindow):
     def _warp_busy_changed(self, busy: bool) -> None:
         if busy:
             self.sync_manager.begin(
-                "warp-import", "Importando e organizando o histórico de Saltos…"
+                "warp-import",
+                "Importando e organizando o histórico de Saltos…",
+                retryable=True,
             )
         else:
             self.sync_manager.finish("warp-import", "Saltos sincronizados")
 
+    def _warp_import_failed(self, message: str) -> None:
+        self.sync_manager.fail(
+            "warp-import",
+            "Falha ao importar o histórico de Saltos",
+            details=message,
+        )
+
+    def _record_warp_import(
+        self, owner_id: int, added: int, total: int, source: str
+    ) -> None:
+        self.activity_log.add(
+            "warps",
+            "Histórico de Saltos importado",
+            f"{added} novo{'s' if added != 1 else ''} de {total} registro{'s' if total != 1 else ''} lido{'s' if total != 1 else ''} · {source}.",
+            owner_id=owner_id,
+            kind="success",
+        )
+
     def _catalog_sync_changed(self, busy: bool, message: str) -> None:
         if busy:
-            self.sync_manager.begin("catalog", message)
+            self.sync_manager.begin("catalog", message, retryable=True)
         elif message.startswith("Falha"):
-            self.sync_manager.fail("catalog", message)
+            self.sync_manager.fail("catalog", message, details=message)
         else:
             self.sync_manager.finish("catalog", message)
 
@@ -1537,8 +1649,14 @@ class MainWindow(QMainWindow):
             self.catalog_version_worker.deleteLater()
         self.catalog_version_worker = None
 
-    def _catalog_updated(self, _sha: str) -> None:
+    def _catalog_updated(self, sha: str) -> None:
         self.notification_center.remove("catalog-outdated")
+        self.activity_log.add(
+            "catalog",
+            "Catálogo atualizado",
+            f"Dados do jogo atualizados para a versão {sha[:8]}.",
+            kind="success",
+        )
 
     def _check_soft_pity_notifications(self) -> None:
         if not hasattr(self, "warp_panel"):
@@ -1614,6 +1732,38 @@ class MainWindow(QMainWindow):
         self.sync_task_count = count
         self._render_sync_status()
 
+    def _retry_background_task(self, key: str) -> None:
+        """Repete a operação que originou uma falha na central de tarefas."""
+        family = key.split(":", 1)[0]
+        if family == "account":
+            self.refresh_loaded_account()
+        elif family == "catalog":
+            self.catalog_panel.synchronize()
+        elif family == "warp-import":
+            self.warp_panel.import_automatically()
+        elif family == "onedrive-backup":
+            try:
+                owner_id = int(key.split(":", 1)[1])
+            except (IndexError, ValueError):
+                return
+            self._backup_warps_to_onedrive(owner_id)
+        elif family == "update-check":
+            self.check_for_updates(manual=True)
+        elif family == "benchmark":
+            request_key = key.split(":", 1)[1] if ":" in key else ""
+            request_parts = request_key.split(":", 2)
+            character_id = request_parts[1] if len(request_parts) > 1 else ""
+            character = next(
+                (
+                    item
+                    for item in self.current_characters
+                    if str(item.avatar_id) == character_id
+                ),
+                self._current_character(),
+            )
+            if character is not None:
+                self._display_benchmark(character)
+
     def _advance_sync_spinner(self) -> None:
         if self.sync_state != "syncing":
             return
@@ -1634,7 +1784,9 @@ class MainWindow(QMainWindow):
         self.sync_status.setText(
             f"{icon}  {full_message}" if self.sidebar_expanded else icon
         )
-        self.sync_status.setToolTip(full_message)
+        self.sync_status.setToolTip(
+            f"{full_message}\nClique para abrir as tarefas em segundo plano."
+        )
         self.sync_status.setProperty("status", self.sync_state)
         self.sync_status.style().unpolish(self.sync_status)
         self.sync_status.style().polish(self.sync_status)
@@ -1767,7 +1919,12 @@ class MainWindow(QMainWindow):
         title = QLabel("DPS BENCHMARK")
         title.setObjectName("benchmarkPageTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        title_row = QHBoxLayout()
+        title_row.addStretch(1)
+        title_row.addWidget(title)
+        title_row.addWidget(ContextHelpButton(*BENCHMARK_HELP))
+        title_row.addStretch(1)
+        layout.addLayout(title_row)
 
         self.benchmark_scale = BenchmarkScale()
         layout.addWidget(self.benchmark_scale)
@@ -1799,6 +1956,7 @@ class MainWindow(QMainWindow):
         self.relic_count = QLabel("0/6")
         self.relic_count.setObjectName("badge")
         header.addWidget(title)
+        header.addWidget(ContextHelpButton(*RELIC_GRADE_HELP))
         header.addStretch(1)
         header.addWidget(self.relic_count)
         outer.addLayout(header)
@@ -1923,7 +2081,9 @@ class MainWindow(QMainWindow):
         if loading:
             self.account_sync_failed = False
             self.sync_manager.begin(
-                "account", "Consultando personagens, builds e relíquias…"
+                "account",
+                "Consultando personagens, builds e relíquias…",
+                retryable=True,
             )
         else:
             if self.account_sync_failed:
@@ -1936,7 +2096,20 @@ class MainWindow(QMainWindow):
 
     def _request_failed(self, message: str) -> None:
         self.account_sync_failed = True
-        self.sync_manager.fail("account", "Falha ao sincronizar a conta")
+        self.sync_manager.fail(
+            "account", "Falha ao sincronizar a conta", details=message
+        )
+        user = self.auth_service.current_user
+        if user is not None and self.pending_account_target in {
+            "account", "own_builds", "auto_account"
+        }:
+            self.activity_log.add(
+                "account",
+                "Falha ao sincronizar a conta",
+                message,
+                owner_id=user.id,
+                kind="error",
+            )
         if self.pending_account_target in {"account", "auto_account"}:
             self.account_status.setObjectName("statusError")
             self.account_status.setText(message)
@@ -1954,6 +2127,13 @@ class MainWindow(QMainWindow):
             if user is None or account.uid != user.game_uid:
                 return
             automatic = self.pending_account_target == "auto_account"
+            self.activity_log.add(
+                "account",
+                "Conta sincronizada" if account.characters else "Conta sem personagens públicos",
+                f"{len(account.characters)} personagem{'s' if len(account.characters) != 1 else ''} carregado{'s' if len(account.characters) != 1 else ''} da UID principal.",
+                owner_id=user.id,
+                kind="success" if account.characters else "warning",
+            )
             self.own_account = account
             self.own_account_user_id = user.id
             self._render_own_account(account)
@@ -2029,6 +2209,13 @@ class MainWindow(QMainWindow):
                 "Relíquias alteradas",
                 "Após atualizar a conta: " + ", ".join(details) + ".",
                 "info",
+            )
+            total_changes = added + removed + moved
+            self.activity_log.add(
+                "relics",
+                f"{total_changes} relíquia{'s' if total_changes != 1 else ''} alterada{'s' if total_changes != 1 else ''}",
+                "Após atualizar a conta: " + ", ".join(details) + ".",
+                owner_id=user.id,
             )
         self.relic_inventory_panel.mark_dirty()
 
@@ -2471,7 +2658,9 @@ class MainWindow(QMainWindow):
         self.benchmark_card.set_loading()
         worker = FribbelsBenchmarkWorker(character, teammates, cache_key)
         self.sync_manager.begin(
-            f"benchmark:{cache_key}", f"Calculando benchmark de {character.name}…"
+            f"benchmark:{cache_key}",
+            f"Calculando benchmark de {character.name}…",
+            retryable=True,
         )
         self.benchmark_workers.add(worker)
         self.active_benchmark_ids.add(cache_key)
@@ -2599,6 +2788,13 @@ class MainWindow(QMainWindow):
         self.set_status(
             f"Build de {character.name} salva com o DPS Benchmark atual.", "success"
         )
+        self.activity_log.add(
+            "build",
+            "Build salva",
+            f"Build de {character.name} salva com o DPS Benchmark atual.",
+            owner_id=owner_id,
+            kind="success",
+        )
 
     def export_current_build(self) -> None:
         character = self._current_character()
@@ -2658,6 +2854,13 @@ class MainWindow(QMainWindow):
             self.set_status("Não foi possível salvar a imagem da build.", "error")
             return
         self.set_status("Cartão da build exportado e pronto para compartilhar.", "success")
+        self.activity_log.add(
+            "build",
+            "Build exportada",
+            f"Cartão de {character.name} salvo como imagem PNG.",
+            owner_id=user.id if user is not None else 0,
+            kind="success",
+        )
 
     def compare_saved_build(self, snapshot_id: int) -> None:
         payload = self._build_snapshot_payload()
@@ -2733,7 +2936,9 @@ class MainWindow(QMainWindow):
             self.benchmark_card.set_engine_error(message)
             self.set_status(f"Motor Fribbels indisponível: {message}", "error")
         self.failed_sync_tasks.add(sync_key)
-        self.sync_manager.fail(sync_key, "Falha ao calcular o benchmark")
+        self.sync_manager.fail(
+            sync_key, "Falha ao calcular o benchmark", details=message
+        )
 
     @staticmethod
     def _mark_benchmark_unsupported(result) -> None:  # type: ignore[no-untyped-def]

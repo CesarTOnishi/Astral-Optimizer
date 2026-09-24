@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QProgres
 from app.ui.motion import AnimatedProgressBar as QProgressBar
 
 from app.ui.image_loader import ImageLoader
+from app.ui.contextual_help import GUARANTEE_HELP, PITY_HELP, ContextHelpButton
 from app.ui.widgets import AvatarLabel, FRIBBELS_ASSETS
 from app.ui.warp_panel import BANNER_CONFIG, SummaryCard, WarpPanel
 from app.warp.statistics import five_star_history, pity_state
@@ -28,12 +29,19 @@ class AccountDashboard(QWidget):
         layout.addWidget(label)
         return label
 
-    def _section(self, title):
+    def _section(self, title, helps=()):
         frame = QFrame()
         frame.setObjectName("accountProfilePanel")
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(16, 14, 16, 14)
-        self._label(title, layout, "sectionTitle")
+        header = QHBoxLayout()
+        section_title = QLabel(title)
+        section_title.setObjectName("sectionTitle")
+        header.addWidget(section_title)
+        for help_content in helps:
+            header.addWidget(ContextHelpButton(*help_content))
+        header.addStretch(1)
+        layout.addLayout(header)
         self.body.addWidget(frame)
         return layout
 
@@ -92,7 +100,7 @@ class AccountDashboard(QWidget):
         self.body.addWidget(metrics)
         self._label("Resumo da UID principal. Enka mostra apenas personagens públicos; Saltos e inventário refletem os dados salvos neste perfil.", self.body)
 
-        layout = self._section("Pity e Saltos")
+        layout = self._section("Pity e Saltos", (PITY_HELP, GUARANTEE_HELP))
         self._label("Pity calculado pelo histórico disponível; importações incompletas podem omitir tiros anteriores.", layout)
         self.banner_values = {}
         for kind, title, cap in BANNER_CONFIG:

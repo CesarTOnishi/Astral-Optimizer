@@ -205,6 +205,8 @@ class InfoCard(QFrame):
 
 class CatalogPanel(QWidget):
     background_sync_changed = Signal(bool, str)
+    background_sync_progress = Signal(str)
+    background_sync_failed = Signal(str)
     catalog_updated = Signal(str)
 
     def __init__(
@@ -1125,7 +1127,7 @@ class CatalogPanel(QWidget):
         self.background_sync_changed.emit(True, "Atualizando catálogo…")
         self.sync_button.setText("Atualizando…")
         self.sync_worker = CatalogSyncWorker(self)
-        self.sync_worker.progress.connect(self._set_status)
+        self.sync_worker.progress.connect(self._sync_progress)
         self.sync_worker.succeeded.connect(self._sync_succeeded)
         self.sync_worker.failed.connect(self._sync_failed)
         self.sync_worker.finished.connect(self._sync_finished)
@@ -1138,6 +1140,10 @@ class CatalogPanel(QWidget):
         self.status.style().unpolish(self.status)
         self.status.style().polish(self.status)
 
+    def _sync_progress(self, message: str) -> None:
+        self._set_status(message)
+        self.background_sync_progress.emit(message)
+
     def _sync_succeeded(self, sha: str) -> None:
         self.repository.reload()
         self._reset_card_cache()
@@ -1149,6 +1155,7 @@ class CatalogPanel(QWidget):
     def _sync_failed(self, message: str) -> None:
         self.sync_failed = True
         self._set_status(f"Não foi possível atualizar: {message}. Usando os dados locais.", "error")
+        self.background_sync_failed.emit(message)
 
     def _sync_finished(self) -> None:
         self.sync_button.setEnabled(True)

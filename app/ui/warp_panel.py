@@ -30,6 +30,13 @@ from PySide6.QtWidgets import (
 from app.auth import AuthUser
 from app.privacy import hide_uid_in_shared_images
 from app.ui.charts import WarpBarChart
+from app.ui.contextual_help import (
+    BANNER_EDITION_HELP,
+    GUARANTEE_HELP,
+    PITY_HELP,
+    RATE_UP_HELP,
+    ContextHelpButton,
+)
 from app.ui.experience import copy_error_details
 from app.ui.warp_import_tutorial import WarpImportTutorialDialog
 from app.ui.warp_share import build_warp_share_data, render_warp_share_card
@@ -96,7 +103,9 @@ OUTCOME_ICONS = {
 
 
 class SummaryCard(QFrame):
-    def __init__(self, title: str) -> None:
+    def __init__(
+        self, title: str, help_content: tuple[str, str] | None = None
+    ) -> None:
         super().__init__()
         self.setObjectName("warpSummaryCard")
         layout = QVBoxLayout(self)
@@ -116,7 +125,16 @@ class SummaryCard(QFrame):
         self.detail.setSizePolicy(
             QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred
         )
-        layout.addWidget(self.title)
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 0)
+        title_row.setSpacing(5)
+        title_row.addWidget(self.title, 1)
+        if help_content is not None:
+            title_row.addWidget(
+                ContextHelpButton(*help_content),
+                alignment=Qt.AlignmentFlag.AlignTop,
+            )
+        layout.addLayout(title_row)
         layout.addWidget(self.value)
         layout.addWidget(self.detail)
 
@@ -182,7 +200,10 @@ class RecentWarpCard(QFrame):
 
 class WarpPanel(QWidget):
     import_completed = Signal(int)
+    import_activity = Signal(int, int, int, str)
     busy_changed = Signal(bool)
+    background_progress = Signal(str)
+    background_failed = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -326,7 +347,11 @@ class WarpPanel(QWidget):
         banner_layout.setSpacing(7)
         banner_title = QLabel("BANNERS")
         banner_title.setObjectName("sectionTitle")
-        banner_layout.addWidget(banner_title)
+        banner_header = QHBoxLayout()
+        banner_header.addWidget(banner_title)
+        banner_header.addWidget(ContextHelpButton(*PITY_HELP))
+        banner_header.addStretch(1)
+        banner_layout.addLayout(banner_header)
         self.banner_scroll = QScrollArea()
         self.banner_scroll.setObjectName("warpBannerScroll")
         self.banner_scroll.setWidgetResizable(True)
@@ -373,7 +398,11 @@ class WarpPanel(QWidget):
 
         edition_label = QLabel("EDIÇÃO DO BANNER")
         edition_label.setObjectName("metricTitle")
-        details_layout.addWidget(edition_label)
+        edition_header = QHBoxLayout()
+        edition_header.addWidget(edition_label)
+        edition_header.addWidget(ContextHelpButton(*BANNER_EDITION_HELP))
+        edition_header.addStretch(1)
+        details_layout.addLayout(edition_header)
         self.edition_selector = FadeComboBox(details)
         self.edition_selector.setMinimumWidth(0)
         self.edition_selector.setIconSize(QSize(36, 36))
@@ -397,7 +426,7 @@ class WarpPanel(QWidget):
         self.total_card = SummaryCard("Total de Saltos")
         self.character_card = SummaryCard("Pity 5★")
         self.cone_card = SummaryCard("Pity 4★")
-        self.guarantee_card = SummaryCard("Próximo 5★")
+        self.guarantee_card = SummaryCard("Próximo 5★", GUARANTEE_HELP)
         for index, card in enumerate(
             (self.total_card, self.character_card, self.cone_card, self.guarantee_card)
         ):
@@ -491,7 +520,11 @@ class WarpPanel(QWidget):
         self.outcome_summary = QLabel("50/50: —")
         self.outcome_summary.setObjectName("warpAnalyticsMetric")
         metrics.addWidget(self.pity_comparison, 1)
-        metrics.addWidget(self.outcome_summary, 1)
+        outcome_box = QHBoxLayout()
+        outcome_box.setSpacing(6)
+        outcome_box.addWidget(self.outcome_summary, 1)
+        outcome_box.addWidget(ContextHelpButton(*RATE_UP_HELP))
+        metrics.addLayout(outcome_box, 1)
         analytics_layout.addLayout(metrics)
         self.gap_report = QLabel("Qualidade do histórico: aguardando dados.")
         self.gap_report.setObjectName("warpGapReport")
@@ -548,7 +581,7 @@ class WarpPanel(QWidget):
             else "Procurando o link do histórico de Saltos…"
         )
         self.worker = WarpImportWorker(cache_path, target_uid)
-        self.worker.progress.connect(self._set_status)
+        self.worker.progress.connect(self._import_progress)
         self.worker.succeeded.connect(self._import_succeeded)
         self.worker.failed.connect(self._import_failed)
         self.worker.finished.connect(self._worker_finished)
@@ -581,6 +614,9 @@ class WarpPanel(QWidget):
             f"Fonte: {Path(source).name}.{warning}",
             "success",
         )
+        self.import_activity.emit(
+            self.owner_id, added, len(valid_records), Path(source).name
+        )
         self.import_completed.emit(self.owner_id)
 
     def _import_failed(self, message: str) -> None:
@@ -591,6 +627,11 @@ class WarpPanel(QWidget):
             "abra o histórico de saltos",
         ))
         self._set_status(message, "error", show_import_tutorial=tutorial_relevant)
+        self.background_failed.emit(message)
+
+    def _import_progress(self, message: str) -> None:
+        self._set_status(message)
+        self.background_progress.emit(message)
 
     def _worker_finished(self) -> None:
         self._set_busy(False)

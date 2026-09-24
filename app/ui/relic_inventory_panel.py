@@ -11,6 +11,7 @@ from app.auth import AuthUser
 from app.benchmark.models import RelicRating
 from app.relics import RelicDatabase, StoredRelic
 from app.ui.image_loader import ImageLoader
+from app.ui.contextual_help import RELIC_GRADE_HELP, ContextHelpButton
 from app.ui.widgets import FadeComboBox, RelicCard, rounded_pixmap
 
 
@@ -45,6 +46,10 @@ class RelicInventoryPanel(QWidget):
         title_box.addWidget(title)
         title_box.addWidget(self.subtitle)
         header.addLayout(title_box)
+        header.addWidget(
+            ContextHelpButton(*RELIC_GRADE_HELP),
+            alignment=Qt.AlignmentFlag.AlignTop,
+        )
         header.addStretch(1)
         outer.addLayout(header)
 
