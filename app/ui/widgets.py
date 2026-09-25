@@ -420,6 +420,12 @@ class ResponsiveImageLabel(QLabel):
         self.setPixmap(QPixmap())
         self.update()
 
+    def clear_image(self) -> None:
+        self.source = QPixmap()
+        self.setPixmap(QPixmap())
+        self.setText("✦")
+        self.update()
+
     def resizeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
         super().resizeEvent(event)
         self.update()
@@ -453,7 +459,7 @@ class LightConeBanner(QFrame):
         super().__init__()
         self.setObjectName("lightConeBanner")
         self.source = QPixmap()
-        self.setFixedHeight(132)
+        self.setFixedHeight(108)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         layout = QVBoxLayout(self)
@@ -568,19 +574,19 @@ class CharacterPortraitCard(QWidget):
         super().__init__()
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(6, 6, 6, 5)
-        layout.setSpacing(3)
+        layout.setContentsMargins(4, 3, 4, 3)
+        layout.setSpacing(2)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.avatar = AvatarLabel(54)
+        self.avatar = AvatarLabel(44)
         name = QLabel(character.name)
         name.setObjectName("portraitName")
         name.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        name.setMaximumWidth(82)
+        name.setMaximumWidth(76)
         layout.addWidget(self.avatar, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(name)
 
     def sizeHint(self) -> QSize:
-        return QSize(94, 91)
+        return QSize(84, 72)
 
 
 class StatRow(QFrame):
@@ -588,9 +594,9 @@ class StatRow(QFrame):
         super().__init__()
         self.setObjectName("statRow")
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(6, 4, 6, 4)
-        layout.setSpacing(5)
-        layout.addWidget(stat_icon_label(stat.key, 16))
+        layout.setContentsMargins(5, 2, 5, 2)
+        layout.setSpacing(4)
+        layout.addWidget(stat_icon_label(stat.key, 14))
         name = QLabel(COMPACT_STAT_NAMES.get(stat.key, stat.name))
         name.setObjectName("rowName")
         value = QLabel(stat.formatted_value)
@@ -839,10 +845,10 @@ class TeamCard(QFrame):
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("teamCard")
-        self.setMaximumHeight(170)
+        self.setMaximumHeight(150)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 9, 10, 10)
-        layout.setSpacing(6)
+        layout.setContentsMargins(8, 7, 8, 8)
+        layout.setSpacing(4)
 
         self.title = QLabel("TIME PADRÃO")
         self.title.setObjectName("benchmarkTitle")
@@ -881,8 +887,8 @@ class TeamCard(QFrame):
             column = QVBoxLayout(member)
             column.setContentsMargins(2, 2, 2, 2)
             column.setSpacing(2)
-            avatar = AvatarLabel(38)
-            cone = AvatarLabel(24, rounded=False)
+            avatar = AvatarLabel(34)
+            cone = AvatarLabel(22, rounded=False)
             eidolon = QLabel("E—")
             eidolon.setObjectName("teamBuildBadge")
             eidolon.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1254,18 +1260,20 @@ class RelicCard(QFrame):
     ) -> None:
         super().__init__()
         self.setObjectName("relicCard")
+        self.setProperty("compactBuild", expand_vertical)
         has_history = previous_holder_name and previous_holder_name != holder_name
         # The old fixed heights compressed labels when fonts or wrapping changed.
         # Let Qt compute the required height for each width and font instead.
-        self.setMinimumWidth(205)
+        self.setMinimumWidth(178 if expand_vertical else 205)
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding if expand_vertical else QSizePolicy.Policy.Preferred,
         )
         layout = QVBoxLayout(self)
         layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(6)
+        margin = 7 if expand_vertical else 10
+        layout.setContentsMargins(margin, margin, margin, margin)
+        layout.setSpacing(4 if expand_vertical else 6)
 
         self.holder_icon: AvatarLabel | None = None
         visible_holder = holder_name or previous_holder_name
@@ -1293,7 +1301,7 @@ class RelicCard(QFrame):
 
         header = QHBoxLayout()
         header.setSpacing(8)
-        self.icon = AvatarLabel(50, rounded=False)
+        self.icon = AvatarLabel(44 if expand_vertical else 50, rounded=False)
         header.addWidget(self.icon)
         title = QVBoxLayout()
         title.setSpacing(3)

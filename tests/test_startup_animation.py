@@ -3,12 +3,13 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QAbstractAnimation
+from PySide6.QtCore import QAbstractAnimation, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
 from app.config import APP_ICON_PNG
 from app.ui.loading import StartupSplash
+from honkai import maximize_on_start
 
 
 class StartupAnimationTests(unittest.TestCase):
@@ -62,3 +63,12 @@ class StartupAnimationTests(unittest.TestCase):
         self.assertFalse(self.splash.isVisible())
         self.assertTrue(self.window.isVisible())
         self.assertEqual(self.window.windowOpacity(), 1.0)
+
+    def test_main_window_is_prepared_to_start_maximized(self):
+        self.app.setProperty("astralReduceMotion", True)
+        maximize_on_start(self.window)
+        self.splash.transition_to(self.window)
+        self.assertTrue(
+            bool(self.window.windowState() & Qt.WindowState.WindowMaximized)
+        )
+        self.assertTrue(self.window.isMaximized())

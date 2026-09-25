@@ -184,8 +184,6 @@ class EnkaClient(QObject):
 
     def fetch_account(self, uid: str, *, force: bool = False) -> None:
         if self.is_busy:
-            if self.worker is not None and self.worker.uid == uid:
-                return
             self.pending_request = (uid, force)
             return
         cached = None if force else self.cache.get(uid)
@@ -220,7 +218,10 @@ class EnkaClient(QObject):
 
     def _account_ready(self, uid: str, account: AccountSummary) -> None:
         self.cache[uid] = (time.time() + account.ttl, account)
-        if self.pending_request is not None and self.pending_request[0] != uid:
+        # Uma solicitação mais nova sempre vence, inclusive para a mesma UID
+        # após troca de perfil. O resultado anterior não deve ser atribuído ao
+        # novo contexto apenas porque os números da UID coincidem.
+        if self.pending_request is not None:
             return
         if account.characters:
             message = f"{len(account.characters)} personagem(ns) carregado(s) do Showcase."

@@ -57,6 +57,7 @@ from app.models import AccountSummary, CharacterStat, CharacterSummary
 from app.preferences import ExperienceSettings, apply_experience_preferences
 from app.privacy import hide_uid_in_shared_images
 from app.relics import RelicDatabase
+from app.section_loading import LoadContext, RelicSyncWorker, SectionLoadController
 from app.session_state import ResumeState, SessionStateStore
 from app.sync_manager import BackgroundSyncManager
 from app.uid_tabs import UidTabSession, UidTabStore, UidTabWorkspace
@@ -92,6 +93,7 @@ from app.ui.task_center import BackgroundTaskButton
 from app.ui.uid_tabs import UidTabsWidget, updated_at_text
 from app.ui.planner_panel import PlannerPanel
 from app.ui.rank_dialog import RankRedirectDialog
+from app.ui.section_loading import SectionStatus
 from app.ui.team_dialog import CustomTeamDialog
 from app.ui.update_dialog import UpdateAvailableDialog, UpdateReadyDialog
 from app.ui.relic_inventory_panel import RelicInventoryPanel
@@ -137,6 +139,17 @@ PRIMARY_STATS = (
     "BreakDamageAddedRatio",
     "SPRatio",
 )
+
+BUILD_SPLITTER_MIN_HEIGHT = 680
+
+
+def build_panel_proportions(width: int) -> tuple[float, float, float]:
+    """Art, build summary and relic grid proportions for the available width."""
+    if width < 780:
+        return 0.30, 0.30, 0.40
+    if width < 1150:
+        return 0.34, 0.25, 0.41
+    return 0.38, 0.23, 0.39
 
 ELEMENT_STATS = {
     "Físico": "PhysicalAddedRatio",
@@ -290,6 +303,9 @@ class MainWindow(QMainWindow):
         self.notification_center = NotificationCenter(self)
         self.benchmark_engine = BenchmarkEngine()
         self.image_loader = ImageLoader(self)
+        self.section_loading = SectionLoadController(self)
+        self.section_statuses: dict[str, SectionStatus] = {}
+        self.relic_sync_workers: set[RelicSyncWorker] = set()
         self.relic_database = RelicDatabase()
         self.build_history_database = BuildHistoryDatabase()
         self.current_characters: list[CharacterSummary] = []
@@ -300,6 +316,8 @@ class MainWindow(QMainWindow):
         self.own_account: AccountSummary | None = None
         self.own_account_user_id: int | None = None
         self.pending_account_target = "builds"
+        self._own_request_owner_id: int | None = None
+        self._own_request_uid = ""
         self.sidebar_expanded = True
         self.account_sync_failed = False
         self.failed_sync_tasks: set[str] = set()
@@ -310,6 +328,7 @@ class MainWindow(QMainWindow):
         self.sync_spinner_frame = 0
         self.benchmark_workers: set[FribbelsBenchmarkWorker] = set()
         self.benchmark_tab_contexts: dict[str, tuple[int, str]] = {}
+        self.benchmark_section_contexts: dict[str, LoadContext] = {}
         self.drive_workers: set[OneDriveWorker] = set()
         self.update_check_worker: UpdateCheckWorker | None = None
         self.catalog_version_worker: CatalogVersionCheckWorker | None = None
@@ -337,6 +356,8 @@ class MainWindow(QMainWindow):
 
         install_motion()
         self._build_ui()
+        self.section_loading.changed.connect(self._section_state_changed)
+        self.section_loading.retry_requested.connect(self._retry_section)
         self._connect_resume_state_signals()
         apply_experience_preferences()
         self._setup_shortcuts()
@@ -391,7 +412,7 @@ class MainWindow(QMainWindow):
         content.setObjectName("appRoot")
         layout = QVBoxLayout(content)
         layout.setContentsMargins(6, 3, 6, 0)
-        layout.setSpacing(10)
+        layout.setSpacing(6)
         layout.addLayout(self._build_header())
         layout.addWidget(self._build_uid_query_bar())
         self.uid_tabs_widget = UidTabsWidget()
@@ -440,7 +461,7 @@ class MainWindow(QMainWindow):
         build_content.setObjectName("buildScrollContent")
         build_layout = QVBoxLayout(build_content)
         build_layout.setContentsMargins(0, 0, 4, 12)
-        build_layout.setSpacing(10)
+        build_layout.setSpacing(7)
         self.selector_panel = self._build_selector()
         build_layout.addWidget(self.selector_panel)
 
@@ -458,14 +479,14 @@ class MainWindow(QMainWindow):
         self.content_splitter.addWidget(self.relics_panel)
         self.content_splitter.setChildrenCollapsible(False)
         self.content_splitter.setHandleWidth(6)
-        self.content_splitter.setSizes([300, 240, 460])
-        self.content_splitter.setStretchFactor(0, 3)
-        self.content_splitter.setStretchFactor(1, 2)
-        self.content_splitter.setStretchFactor(2, 5)
+        self.content_splitter.setSizes([380, 230, 390])
+        self.content_splitter.setStretchFactor(0, 38)
+        self.content_splitter.setStretchFactor(1, 23)
+        self.content_splitter.setStretchFactor(2, 39)
         self.content_splitter.splitterMoved.connect(
             lambda _position, _index: self._reflow_relic_cards()
         )
-        self.content_splitter.setMinimumHeight(790)
+        self.content_splitter.setMinimumHeight(BUILD_SPLITTER_MIN_HEIGHT)
         build_layout.addWidget(self.content_splitter)
         build_layout.addWidget(self._build_build_history_panel())
         build_layout.addWidget(self._build_benchmark_section())
@@ -541,8 +562,8 @@ class MainWindow(QMainWindow):
         frame = QFrame()
         frame.setObjectName("uidQueryBar")
         layout = QHBoxLayout(frame)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(8)
+        layout.setContentsMargins(8, 5, 8, 5)
+        layout.setSpacing(6)
         label = QLabel("CONSULTAR UID")
         label.setObjectName("uidQueryLabel")
         layout.addWidget(label)
@@ -587,8 +608,8 @@ class MainWindow(QMainWindow):
         page = QWidget()
         page.setObjectName("accountPage")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(18, 14, 18, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(12, 9, 12, 12)
+        layout.setSpacing(8)
 
         title = QLabel("Sua conta")
         title.setObjectName("brandTitle")
@@ -596,18 +617,22 @@ class MainWindow(QMainWindow):
             "Seus personagens, Saltos e relíquias em um só lugar."
         )
         subtitle.setObjectName("muted")
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
+        subtitle.setWordWrap(True)
+        heading = QHBoxLayout()
+        heading.setSpacing(10)
+        heading.addWidget(title)
+        heading.addWidget(subtitle, 1, Qt.AlignmentFlag.AlignBottom)
+        layout.addLayout(heading)
 
         card = QFrame()
         card.setObjectName("accountProfilePanel")
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(16, 14, 16, 14)
-        card_layout.setSpacing(8)
-        self.account_profile_avatar = AvatarLabel(78)
+        card_layout.setContentsMargins(12, 9, 12, 9)
+        card_layout.setSpacing(5)
+        self.account_profile_avatar = AvatarLabel(58)
         self.account_profile_avatar.setObjectName("accountProfileAvatar")
         self.account_profile_avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.account_profile_avatar.setFixedSize(78, 78)
+        self.account_profile_avatar.setFixedSize(58, 58)
         self.account_profile_name = QLabel("Conta não carregada")
         self.account_profile_name.setObjectName("detailName")
         self.account_profile_name.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -635,17 +660,17 @@ class MainWindow(QMainWindow):
         self.account_status.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.account_status.setWordWrap(True)
         identity_row = QHBoxLayout()
-        identity_row.setSpacing(16)
+        identity_row.setSpacing(11)
         identity_row.addWidget(self.account_profile_avatar)
         identity = QVBoxLayout()
         identity.setSpacing(4)
         identity.addWidget(self.account_profile_name)
         identity.addWidget(self.account_profile_uid)
         identity.addWidget(self.account_profile_meta)
+        identity.addWidget(self.account_profile_signature)
         identity_row.addLayout(identity, 1)
         identity_row.addWidget(self.account_load_button)
         card_layout.addLayout(identity_row)
-        card_layout.addWidget(self.account_profile_signature)
         account_status_row = QHBoxLayout()
         self.account_copy_error = QPushButton("Copiar detalhes")
         self.account_copy_error.setObjectName("copyErrorButton")
@@ -669,6 +694,8 @@ class MainWindow(QMainWindow):
         self.account_enka_recovery.copy_requested.connect(self._copy_enka_error)
         card_layout.addWidget(self.account_enka_recovery)
         layout.addWidget(card)
+        self.inventory_section_status = self._make_section_status("inventory")
+        layout.addWidget(self.inventory_section_status)
         self.account_dashboard = AccountDashboard(self.image_loader)
         layout.addWidget(self.account_dashboard)
         layout.addStretch(1)
@@ -679,15 +706,74 @@ class MainWindow(QMainWindow):
         self.account_page_scroll.setWidget(page)
         return self.account_page_scroll
 
+    def _make_section_status(self, section: str) -> SectionStatus:
+        status = SectionStatus(section)
+        status.retry_requested.connect(self.section_loading.request_retry)
+        self.section_statuses[section] = status
+        return status
+
+    def _section_state_changed(self, section: str, state: object) -> None:
+        status = self.section_statuses.get(section)
+        if status is not None:
+            status.set_state(state)
+
+    def _load_context_for(self, uid: str) -> LoadContext:
+        owner_id = self._uid_owner_id()
+        current = self.section_loading.context
+        if current.owner_id == owner_id and current.uid == uid:
+            return current
+        return self.section_loading.begin_context(owner_id, uid)
+
+    def _mark_account_sections_pending(self, uid: str) -> LoadContext:
+        context = self._load_context_for(uid)
+        self.section_loading.pending("profile", "Atualizando perfil…", context)
+        self.section_loading.pending(
+            "characters", "Atualizando personagens…", context
+        )
+        return context
+
+    def _track_own_request(self) -> None:
+        user = self.auth_service.current_user
+        if user is None or not user.game_uid:
+            self._own_request_owner_id = None
+            self._own_request_uid = ""
+            return
+        self._own_request_owner_id = user.id
+        self._own_request_uid = user.game_uid
+
+    def _retry_section(self, section: str, context: object) -> None:
+        if not isinstance(context, LoadContext) or not self.section_loading.is_current(context):
+            return
+        if section in {"profile", "characters"}:
+            if context.uid in self.uid_workspace.sessions:
+                self._request_uid_tab(context.uid)
+            else:
+                self.refresh_loaded_account()
+            return
+        if section == "inventory" and self.own_account is not None:
+            user = self.auth_service.current_user
+            if user is not None:
+                self._start_relic_inventory_sync(user.id, self.own_account)
+            return
+        character = self._current_character()
+        if character is None:
+            return
+        if section == "art":
+            self._load_character_art(character, context)
+        elif section == "relics":
+            self._display_relics(character, context=context)
+        elif section == "benchmark":
+            self._display_benchmark(character)
+
     def _build_header(self) -> QHBoxLayout:
         layout = QHBoxLayout()
         profile = QFrame()
         profile.setObjectName("buildProfileHeader")
         profile_layout = QHBoxLayout(profile)
-        profile_layout.setContentsMargins(12, 9, 12, 9)
-        profile_layout.setSpacing(11)
+        profile_layout.setContentsMargins(9, 6, 9, 6)
+        profile_layout.setSpacing(8)
 
-        self.profile_header_avatar = AvatarLabel(58)
+        self.profile_header_avatar = AvatarLabel(46)
         profile_layout.addWidget(self.profile_header_avatar)
 
         identity = QVBoxLayout()
@@ -710,6 +796,8 @@ class MainWindow(QMainWindow):
         identity.addLayout(account_name_row)
         identity.addWidget(self.profile_header_bio)
         identity.addWidget(self.profile_header_meta)
+        self.profile_section_status = self._make_section_status("profile")
+        identity.addWidget(self.profile_section_status)
         profile_layout.addLayout(identity, 1)
 
         self.copy_uid_button = QPushButton("⧉  Copiar UID")
@@ -1447,12 +1535,14 @@ class MainWindow(QMainWindow):
         user = self.auth_service.current_user
         if user is None or not user.game_uid:
             return
+        self._mark_account_sections_pending(user.game_uid)
         self.pending_account_target = "account"
         self.account_copy_error.setVisible(False)
         self.account_status.setObjectName("statusInfo")
         self.account_status.setText("Carregando sua conta principal…")
         self.account_status.style().unpolish(self.account_status)
         self.account_status.style().polish(self.account_status)
+        self._track_own_request()
         self.enka_client.fetch_account(user.game_uid, force=force)
 
     def start_initial_account_sync(self) -> bool:
@@ -1460,12 +1550,14 @@ class MainWindow(QMainWindow):
         if user is None or not user.game_uid or self.enka_client.is_busy:
             return False
         self._initial_account_sync_active = True
+        self._mark_account_sections_pending(user.game_uid)
         self.pending_account_target = "auto_account"
         self.account_copy_error.setVisible(False)
         self.account_status.setObjectName("statusInfo")
         self.account_status.setText("Sincronizando sua conta automaticamente…")
         self.account_status.style().unpolish(self.account_status)
         self.account_status.style().polish(self.account_status)
+        self._track_own_request()
         self.enka_client.fetch_account(user.game_uid, force=True)
         return True
 
@@ -1475,12 +1567,17 @@ class MainWindow(QMainWindow):
             self.set_status("Defina sua UID principal nas configurações.", "error")
             return
         self.pending_account_target = "own_builds"
+        self._mark_account_sections_pending(user.game_uid)
         self.set_status("Atualizando personagens e relíquias da sua conta…")
+        self._track_own_request()
         self.enka_client.fetch_account(user.game_uid, force=True)
 
     def _refresh_auth_sidebar(self) -> None:
         user = self.auth_service.current_user
         next_owner_id = user.id if user is not None else 0
+        if next_owner_id != self._session_owner_id:
+            self._own_request_owner_id = None
+            self._own_request_uid = ""
         if (
             next_owner_id != self._session_owner_id
             and hasattr(self, "page_stack")
@@ -1579,8 +1676,10 @@ class MainWindow(QMainWindow):
             return
         self.pending_account_target = "own_builds"
         self.build_source = "own"
-        self._show_build_content(False)
+        self._mark_account_sections_pending(user.game_uid)
+        self._show_build_placeholders(user.game_uid)
         self.set_status("Carregando seus personagens e benchmarks…")
+        self._track_own_request()
         self.enka_client.fetch_account(user.game_uid)
 
     def _refresh_dashboard(self) -> None:
@@ -2042,7 +2141,11 @@ class MainWindow(QMainWindow):
             return
         self.content_splitter.widget(0).setVisible(True)
         self.content_splitter.widget(2).setVisible(True)
-        self.content_splitter.setSizes([300, 240, 460])
+        available = max(1, self.content_splitter.width())
+        proportions = build_panel_proportions(available)
+        self.content_splitter.setSizes([
+            round(available * proportion) for proportion in proportions
+        ])
 
     def toggle_sidebar(self) -> None:
         self.sidebar_expanded = not self.sidebar_expanded
@@ -2140,8 +2243,8 @@ class MainWindow(QMainWindow):
         frame = QFrame()
         frame.setObjectName("selectorPanel")
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(12, 8, 12, 8)
-        layout.setSpacing(7)
+        layout.setContentsMargins(9, 5, 9, 5)
+        layout.setSpacing(4)
         character_row = QHBoxLayout()
         title = QLabel("Personagens")
         title.setObjectName("sectionTitle")
@@ -2154,6 +2257,9 @@ class MainWindow(QMainWindow):
         self.character_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.character_list.currentRowChanged.connect(self.show_character_details)
         character_row.addWidget(title)
+        self.characters_section_status = self._make_section_status("characters")
+        self.characters_section_status.setMaximumWidth(230)
+        character_row.addWidget(self.characters_section_status)
         character_row.addWidget(self.character_list, 1)
         layout.addLayout(character_row)
         return frame
@@ -2167,6 +2273,8 @@ class MainWindow(QMainWindow):
         layout.setSpacing(0)
         self.character_art = ResponsiveImageLabel()
         layout.addWidget(self.character_art, 1)
+        self.art_section_status = self._make_section_status("art")
+        layout.addWidget(self.art_section_status)
         self.art_caption = QLabel("Selecione um personagem")
         self.art_caption.setObjectName("artCaption")
         self.art_caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -2185,11 +2293,23 @@ class MainWindow(QMainWindow):
         frame.setMinimumWidth(205)
         outer = QVBoxLayout(frame)
         outer.setContentsMargins(5, 5, 5, 5)
+        outer.setSpacing(0)
+        self.stats_scroll = QScrollArea()
+        self.stats_scroll.setObjectName("statsScroll")
+        self.stats_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.stats_scroll.setWidgetResizable(True)
+        self.stats_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.stats_scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
         content = QWidget()
         content.setObjectName("scrollContent")
+        self.stats_content = content
         self.stats_layout = QVBoxLayout(content)
-        self.stats_layout.setContentsMargins(8, 7, 8, 7)
-        self.stats_layout.setSpacing(3)
+        self.stats_layout.setContentsMargins(6, 5, 6, 6)
+        self.stats_layout.setSpacing(2)
 
         self.detail_name = QLabel("Personagem")
         self.detail_name.setObjectName("detailName")
@@ -2238,6 +2358,8 @@ class MainWindow(QMainWindow):
         self.stats_layout.addLayout(self.stat_rows)
 
         self.benchmark_card = BenchmarkCard()
+        self.benchmark_section_status = self._make_section_status("benchmark")
+        self.stats_layout.addWidget(self.benchmark_section_status)
         self.stats_layout.addWidget(self.benchmark_card)
         self.team_card = TeamCard()
         self.team_card.custom_requested.connect(self.use_custom_team)
@@ -2247,7 +2369,8 @@ class MainWindow(QMainWindow):
         self.combat_stats_card = CombatStatsCard()
         self.stats_layout.addWidget(self.combat_stats_card)
         self.stats_layout.addStretch(1)
-        outer.addWidget(content, 1)
+        self.stats_scroll.setWidget(content)
+        outer.addWidget(self.stats_scroll, 1)
         return frame
 
     def _build_light_cone(self) -> QFrame:
@@ -2310,6 +2433,8 @@ class MainWindow(QMainWindow):
         header.addStretch(1)
         header.addWidget(self.relic_count)
         outer.addLayout(header)
+        self.relics_section_status = self._make_section_status("relics")
+        outer.addWidget(self.relics_section_status)
         legend = QLabel("Cada < representa uma melhoria recebida pelo subatributo")
         legend.setObjectName("sectionHint")
         outer.addWidget(legend)
@@ -2335,7 +2460,7 @@ class MainWindow(QMainWindow):
         frame = QFrame()
         frame.setObjectName("buildHistoryPanel")
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setContentsMargins(6, 6, 6, 6)
         self.build_history_bar = BuildHistoryBar(wide=True)
         self.build_history_bar.save_requested.connect(self.save_current_build)
         self.build_history_bar.export_requested.connect(self.export_current_build)
@@ -2438,6 +2563,7 @@ class MainWindow(QMainWindow):
             self._capture_active_uid_tab()
         self.uid_workspace.select(uid)
         self.active_uid_tab = uid
+        context = self._load_context_for(uid)
         self.build_source = session.source
         self._set_public_uid_controls_visible(True)
         self.uid_tabs_widget.set_current_uid(uid, emit=False)
@@ -2461,7 +2587,11 @@ class MainWindow(QMainWindow):
         for button, _icon, text in self.nav_buttons:
             button.setChecked(text == "Builds")
         if session.account is None:
-            self._clear_public_build_display()
+            self.section_loading.pending("profile", "Consultando perfil…", context)
+            self.section_loading.pending(
+                "characters", "Consultando personagens…", context
+            )
+            self._show_build_placeholders(uid)
             if session.loading:
                 self.set_status(f"Consultando a UID {uid}…")
             elif session.error:
@@ -2482,6 +2612,14 @@ class MainWindow(QMainWindow):
         )
         self._show_build_content(bool(session.account.characters))
         if session.error:
+            error = self.uid_tab_errors.get(session.uid) or ensure_account_error(
+                session.error
+            )
+            context = self.section_loading.context
+            self.section_loading.fail(
+                "profile", error.message, details=error.diagnostic_details,
+                retryable=error.retryable, context=context,
+            )
             self.set_status(
                 f"{session.error} Os dados anteriores foram preservados.", "error"
             )
@@ -2504,6 +2642,39 @@ class MainWindow(QMainWindow):
         self.current_characters = []
         self.current_character_id = ""
         self._show_build_content(False)
+
+    def _show_build_placeholders(self, uid: str) -> None:
+        self.current_account = None
+        self.current_uid = uid
+        self.current_characters = []
+        self.current_character_id = ""
+        self.account_label.setText("Consultando conta…")
+        self.profile_header_bio.setText("Os dados aparecerão por seção.")
+        self.profile_header_meta.setText("Nível — · Equilíbrio — · — conquistas")
+        self.profile_header_avatar.clear_image()
+        self.copy_uid_button.setEnabled(False)
+        self.character_list.clear()
+        self.detail_name.setText("Personagem")
+        self.detail_rarity.setText("☆☆☆☆☆")
+        self.level_badge.setText("NV. —")
+        self.eidolon_badge.setText("E—")
+        self.element_icon.clear()
+        self.path_icon.clear()
+        self.character_art.clear_image()
+        self.art_caption.setText("Aguardando personagem")
+        self.uid_caption.setText(f"UID {uid}")
+        self.light_cone_banner.clear_image()
+        self._clear_layout(self.stat_rows)
+        self._clear_layout(self.relic_grid)
+        placeholder = QLabel("As relíquias aparecerão assim que os dados chegarem.")
+        placeholder.setObjectName("muted")
+        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.relic_grid.addWidget(placeholder, 0, 0, 1, 2)
+        context = self.section_loading.context
+        self.section_loading.pending("art", "Aguardando personagem…", context)
+        self.section_loading.pending("relics", "Aguardando relíquias…", context)
+        self.section_loading.pending("benchmark", "Aguardando build…", context)
+        self._show_build_content(True)
 
     def _close_uid_tab(self, uid: str) -> None:
         if uid == self.active_uid_tab:
@@ -2555,6 +2726,7 @@ class MainWindow(QMainWindow):
             retryable=True,
         )
         if self.active_uid_tab == uid:
+            self._mark_account_sections_pending(uid)
             self.build_enka_recovery.clear()
             self.copy_error_button.setVisible(False)
             self.uid_tabs_widget.set_session_status(
@@ -2625,6 +2797,18 @@ class MainWindow(QMainWindow):
             self.build_enka_recovery.show_error(
                 error, has_saved_data=session.account is not None
             )
+            context = self._load_context_for(uid)
+            self.section_loading.fail(
+                "profile", error.message, details=error.diagnostic_details,
+                retryable=error.retryable, context=context,
+            )
+            self.section_loading.fail(
+                "characters", "Personagens não foram atualizados.",
+                details=error.diagnostic_details,
+                retryable=error.retryable, context=context,
+            )
+            for dependent in ("art", "relics", "benchmark"):
+                self.section_loading.ready(dependent, context)
 
     def _uid_tab_worker_finished(
         self, uid: str, worker: AccountFetchWorker
@@ -2828,6 +3012,14 @@ class MainWindow(QMainWindow):
     def _request_failed(self, failure: object) -> None:
         error = ensure_account_error(failure)
         message = error.message
+        user = self.auth_service.current_user
+        if self.pending_account_target in {"account", "own_builds", "auto_account"}:
+            if (
+                user is None
+                or self._own_request_owner_id != user.id
+                or self._own_request_uid != user.game_uid
+            ):
+                return
         self.account_sync_failed = True
         self._last_account_error = error
         self._last_failed_account_target = self.pending_account_target
@@ -2837,7 +3029,6 @@ class MainWindow(QMainWindow):
             details=error.diagnostic_details,
             retryable=error.retryable,
         )
-        user = self.auth_service.current_user
         if user is not None and self.pending_account_target in {
             "account", "own_builds", "auto_account"
         }:
@@ -2864,14 +3055,36 @@ class MainWindow(QMainWindow):
             self.build_enka_recovery.show_error(
                 error, has_saved_data=self.own_account is not None
             )
+        if user is not None and user.game_uid:
+            context = self._load_context_for(user.game_uid)
+            self.section_loading.fail(
+                "profile", error.message, details=error.diagnostic_details,
+                retryable=error.retryable, context=context,
+            )
+            self.section_loading.fail(
+                "characters", "Personagens não foram atualizados.",
+                details=error.diagnostic_details,
+                retryable=error.retryable, context=context,
+            )
+            if self.current_account is None:
+                for dependent in ("art", "relics", "benchmark"):
+                    self.section_loading.ready(dependent, context)
 
     def _account_loaded(self, account: AccountSummary, message: str) -> None:
+        if self.pending_account_target in {"account", "own_builds", "auto_account"}:
+            current_user = self.auth_service.current_user
+            if (
+                current_user is None
+                or self._own_request_owner_id != current_user.id
+                or self._own_request_uid != current_user.game_uid
+                or account.uid != current_user.game_uid
+            ):
+                return
         self.account_copy_error.setVisible(False)
         self.account_enka_recovery.clear()
         if self.pending_account_target == "own_builds":
             self.build_enka_recovery.clear()
         self._last_account_error = None
-        self._capture_relic_inventory(account)
         if self.pending_account_target in {"account", "own_builds", "auto_account"}:
             user = self.auth_service.current_user
             if user is None or account.uid != user.game_uid:
@@ -2887,9 +3100,10 @@ class MainWindow(QMainWindow):
             self.own_account = account
             self.own_account_user_id = user.id
             self._render_own_account(account)
-            self._refresh_dashboard()
             if self.pending_account_target == "own_builds":
                 self._open_own_character_builds(self.current_character_id)
+            QTimer.singleShot(0, self._refresh_dashboard)
+            self._start_relic_inventory_sync(user.id, account)
             if self.pending_account_target == "own_builds":
                 for button, _icon, text in self.nav_buttons:
                     button.setChecked(text == "Conta")
@@ -2925,50 +3139,87 @@ class MainWindow(QMainWindow):
         self._show_build_content(bool(account.characters))
         self.set_status(message, "success" if account.characters else "error")
 
-    def _capture_relic_inventory(self, account: AccountSummary) -> None:
-        user = self.auth_service.current_user
-        if user is None or not user.game_uid or account.uid != user.game_uid:
+    def _start_relic_inventory_sync(
+        self, owner_id: int, account: AccountSummary
+    ) -> None:
+        if any(
+            worker.isRunning()
+            and worker.owner_id == owner_id
+            and worker.account.uid == account.uid
+            for worker in self.relic_sync_workers
+        ):
             return
-        before = {
-            item.fingerprint: item.current_character_id
-            for item in self.relic_database.relics(user.id, account.uid)
-            if item.current_character_id
-        }
-        self.relic_database.sync_account(user.id, account, self.benchmark_engine)
-        after = {
-            item.fingerprint: item.current_character_id
-            for item in self.relic_database.relics(user.id, account.uid)
-            if item.current_character_id
-        }
-        if before and before != after:
-            added = len(after.keys() - before.keys())
-            removed = len(before.keys() - after.keys())
-            moved = sum(
-                before[key] != after[key] for key in before.keys() & after.keys()
+        context = self.section_loading.context
+        if context.uid == account.uid:
+            self.section_loading.pending(
+                "inventory", "Salvando inventário em segundo plano…", context
             )
-            details = []
-            if added:
-                details.append(f"{added} nova{'s' if added != 1 else ''}")
-            if removed:
-                details.append(f"{removed} removida{'s' if removed != 1 else ''}")
-            if moved:
-                details.append(
-                    f"{moved} trocada{'s' if moved != 1 else ''} de personagem"
-                )
-            self.notification_center.add(
-                f"relics:{user.id}:{account.uid}",
-                "Relíquias alteradas",
-                "Após atualizar a conta: " + ", ".join(details) + ".",
-                "info",
-            )
-            total_changes = added + removed + moved
-            self.activity_log.add(
-                "relics",
-                f"{total_changes} relíquia{'s' if total_changes != 1 else ''} alterada{'s' if total_changes != 1 else ''}",
-                "Após atualizar a conta: " + ", ".join(details) + ".",
-                owner_id=user.id,
-            )
+        worker = RelicSyncWorker(
+            self.relic_database, BenchmarkEngine(), owner_id, account
+        )
+        self.relic_sync_workers.add(worker)
+        worker.succeeded.connect(
+            lambda changes, current=worker, load_context=context:
+            self._relic_inventory_synced(current, owner_id, account.uid, changes, load_context)
+        )
+        worker.failed.connect(
+            lambda message, current=worker, load_context=context:
+            self._relic_inventory_sync_failed(current, owner_id, account.uid, message, load_context)
+        )
+        worker.finished.connect(lambda current=worker: self._release_relic_sync(current))
+        worker.start()
+
+    def _relic_inventory_synced(
+        self, worker: RelicSyncWorker, owner_id: int, uid: str,
+        changes: object, context: LoadContext,
+    ) -> None:
+        user = self.auth_service.current_user
+        if user is None or user.id != owner_id or user.game_uid != uid:
+            return
         self.relic_inventory_panel.mark_dirty()
+        QTimer.singleShot(0, self._refresh_dashboard)
+        if self.section_loading.is_current(context):
+            self.section_loading.ready("inventory", context)
+        if not isinstance(changes, dict) or not changes.get("had_previous"):
+            return
+        added = int(changes.get("added", 0))
+        removed = int(changes.get("removed", 0))
+        moved = int(changes.get("moved", 0))
+        if not (added or removed or moved):
+            return
+        details = []
+        if added:
+            details.append(f"{added} nova{'s' if added != 1 else ''}")
+        if removed:
+            details.append(f"{removed} removida{'s' if removed != 1 else ''}")
+        if moved:
+            details.append(f"{moved} trocada{'s' if moved != 1 else ''} de personagem")
+        message = "Após atualizar a conta: " + ", ".join(details) + "."
+        self.notification_center.add(
+            f"relics:{owner_id}:{uid}", "Relíquias alteradas", message, "info"
+        )
+        total_changes = added + removed + moved
+        self.activity_log.add(
+            "relics",
+            f"{total_changes} relíquia{'s' if total_changes != 1 else ''} alterada{'s' if total_changes != 1 else ''}",
+            message, owner_id=owner_id,
+        )
+
+    def _relic_inventory_sync_failed(
+        self, worker: RelicSyncWorker, owner_id: int, uid: str,
+        message: str, context: LoadContext,
+    ) -> None:
+        user = self.auth_service.current_user
+        if user is None or user.id != owner_id or user.game_uid != uid:
+            return
+        self.section_loading.fail(
+            "inventory", "Inventário não foi atualizado.",
+            details=message, context=context,
+        )
+
+    def _release_relic_sync(self, worker: RelicSyncWorker) -> None:
+        self.relic_sync_workers.discard(worker)
+        worker.deleteLater()
 
     def _render_own_account(self, account: AccountSummary) -> None:
         self.account_profile_name.setText(account.nickname)
@@ -3024,8 +3275,18 @@ class MainWindow(QMainWindow):
         selected_character_id: str = "",
         reset_benchmarks: bool = True,
     ) -> None:
+        context = self.section_loading.begin_context(
+            self.uid_workspace.owner_id, account.uid
+        )
+        self.section_loading.pending(
+            "characters", "Preparando personagens…", context
+        )
+        self.section_loading.pending("art", "Aguardando personagem…", context)
+        self.section_loading.pending("relics", "Aguardando relíquias…", context)
+        self.section_loading.pending("benchmark", "Aguardando build…", context)
         self.current_account = account
         self.current_uid = account.uid
+        self.current_characters = account.characters
         self.account_label.setText(account.nickname)
         self.profile_header_bio.setText(account.signature or "Sem biografia pública.")
         self.profile_header_meta.setText(
@@ -3042,18 +3303,34 @@ class MainWindow(QMainWindow):
         if account.profile_icon_url:
             self.image_loader.load(
                 account.profile_icon_url,
-                lambda pixmap, uid=account.uid: self._set_profile_icon_if_current(
-                    uid, pixmap
+                lambda pixmap, uid=account.uid, current=context:
+                self._set_profile_icon_if_current(
+                    uid, pixmap, current
                 ),
             )
         self.uid_caption.setText(f"UID {account.uid}")
-        self.current_characters = account.characters
+        self.section_loading.ready("profile", context)
         if reset_benchmarks:
             self.benchmark_results = {}
             self.fribbels_cache = {}
             self.unsupported_benchmark_characters = set()
         self.active_benchmark_ids.clear()
         self.character_list.clear()
+        QTimer.singleShot(
+            0,
+            lambda current=context, selected=selected_character_id:
+            self._populate_character_section(account, selected, current),
+        )
+
+    def _populate_character_section(
+        self, account: AccountSummary, selected_character_id: str,
+        context: LoadContext,
+    ) -> None:
+        if (
+            not self.section_loading.is_current(context)
+            or self.current_account is not account
+        ):
+            return
         for character in account.characters:
             item = QListWidgetItem()
             card = CharacterPortraitCard(character)
@@ -3061,6 +3338,7 @@ class MainWindow(QMainWindow):
             self.character_list.addItem(item)
             self.character_list.setItemWidget(item, card)
             self.image_loader.load(character.icon_url, card.avatar.set_image)
+        self.section_loading.ready("characters", context)
         if account.characters:
             selected_row = next(
                 (
@@ -3071,8 +3349,14 @@ class MainWindow(QMainWindow):
             )
             self.character_list.setCurrentRow(selected_row)
 
-    def _set_profile_icon_if_current(self, uid: str, pixmap: QPixmap) -> None:
-        if self.current_account is not None and self.current_account.uid == uid:
+    def _set_profile_icon_if_current(
+        self, uid: str, pixmap: QPixmap, context: LoadContext
+    ) -> None:
+        if (
+            self.section_loading.is_current(context)
+            and self.current_account is not None
+            and self.current_account.uid == uid
+        ):
             self.profile_header_avatar.set_image(pixmap)
 
     def show_character_details(self, row: int) -> None:
@@ -3113,7 +3397,9 @@ class MainWindow(QMainWindow):
         line_height = self.detail_name.fontMetrics().lineSpacing()
         self.detail_name.setFixedHeight(line_height * (2 if wrapped else 1) + 5)
         self.detail_name.setToolTip(self.detail_name.text() if wrapped else "")
-        self.content_splitter.setMinimumHeight(790 + (line_height if wrapped else 0))
+        self.content_splitter.setMinimumHeight(
+            BUILD_SPLITTER_MIN_HEIGHT + (line_height if wrapped else 0)
+        )
 
     def _show_character_details(self, row: int) -> None:
         if row < 0 or row >= len(self.current_characters):
@@ -3132,6 +3418,11 @@ class MainWindow(QMainWindow):
             self.uid_workspace.persist()
         self._refresh_build_history()
         self.detail_name.setText(character.name)
+        # Um personagem anterior pode ter deixado a coluna rolada para baixo.
+        # Mostre sempre a identidade e os atributos ao trocar a seleção.
+        QTimer.singleShot(
+            0, lambda: self.stats_scroll.verticalScrollBar().setValue(0)
+        )
         QTimer.singleShot(0, self._refresh_detail_name_layout)
         self.detail_rarity.setText("★" * character.rarity)
         self.level_badge.setText(f"NV. {character.level}")
@@ -3145,15 +3436,42 @@ class MainWindow(QMainWindow):
         )
         self.relic_count.setText(f"{character.relic_count}/6")
 
-        avatar_id = character.avatar_id
+        context = self.section_loading.context
+        self._load_character_art(character, context)
+        self._display_light_cone_art(character, context)
+        self._display_stats(character)
+        self._display_relics(character, context=context)
+        self._display_benchmark(character)
+
+    def _load_character_art(
+        self, character: CharacterSummary, context: LoadContext
+    ) -> None:
+        self.character_art.clear_image()
+        self.section_loading.pending("art", "Carregando ilustração…", context)
+        avatar_id = str(character.avatar_id)
         self.image_loader.load(
             character.splash_url,
-            lambda pixmap: self._set_art_if_current(avatar_id, pixmap),
+            lambda pixmap, current=context, target=avatar_id:
+            self._character_art_loaded(current, target, pixmap),
         )
-        self._display_light_cone_art(character)
-        self._display_stats(character)
-        self._display_relics(character)
-        self._display_benchmark(character)
+
+    def _character_art_loaded(
+        self, context: LoadContext, avatar_id: str, pixmap: QPixmap
+    ) -> None:
+        if (
+            not self.section_loading.is_current(context)
+            or avatar_id != str(self.current_character_id)
+        ):
+            return
+        if pixmap.isNull():
+            self.section_loading.fail(
+                "art", "Não foi possível carregar a ilustração.",
+                details=f"UID {context.uid} · personagem {avatar_id}",
+                context=context,
+            )
+            return
+        self.character_art.set_image(pixmap)
+        self.section_loading.ready("art", context)
 
     @staticmethod
     def _identity_asset_key(value: str, kind: str) -> str:
@@ -3202,7 +3520,9 @@ class MainWindow(QMainWindow):
                 f"{'Elemento' if kind == 'element' else 'Caminho'}: {value}"
             )
 
-    def _display_light_cone_art(self, character: CharacterSummary) -> None:
+    def _display_light_cone_art(
+        self, character: CharacterSummary, context: LoadContext
+    ) -> None:
         self.light_cone_banner.clear_image()
         payload = character.raw.get("fribbels_payload", {})
         equipment = payload.get("equipment", {}) if isinstance(payload, dict) else {}
@@ -3217,12 +3537,18 @@ class MainWindow(QMainWindow):
             return
         self.image_loader.load(
             character.light_cone_icon_url,
-            self.light_cone_banner.set_image,
+            lambda pixmap, current=context, avatar_id=str(character.avatar_id):
+            self._set_light_cone_if_current(current, avatar_id, pixmap),
         )
 
-    def _set_art_if_current(self, avatar_id: str, pixmap: QPixmap) -> None:
-        if avatar_id == self.current_character_id:
-            self.character_art.set_image(pixmap)
+    def _set_light_cone_if_current(
+        self, context: LoadContext, avatar_id: str, pixmap: QPixmap
+    ) -> None:
+        if (
+            self.section_loading.is_current(context)
+            and avatar_id == str(self.current_character_id)
+        ):
+            self.light_cone_banner.set_image(pixmap)
 
     def _display_stats(self, character: CharacterSummary) -> None:
         self._clear_layout(self.stat_rows)
@@ -3236,21 +3562,61 @@ class MainWindow(QMainWindow):
         for stat in ordered:
             self.stat_rows.addWidget(StatRow(stat))
 
-    def _display_relics(self, character: CharacterSummary) -> None:
+    def _display_relics(
+        self, character: CharacterSummary, *, context: LoadContext | None = None
+    ) -> None:
+        context = context or self.section_loading.context
         self._clear_layout(self.relic_grid)
         self.current_relic_cards = []
         if not character.relics:
+            self.section_loading.ready("relics", context)
             self.relic_empty = QLabel("Nenhuma relíquia pública encontrada.")
             self.relic_empty.setObjectName("muted")
             self.relic_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.relic_grid.addWidget(self.relic_empty, 0, 0, 1, 2)
             return
+        batch = {
+            "remaining": len(character.relics), "failed": 0,
+            "avatar_id": str(character.avatar_id),
+        }
+        self.section_loading.pending(
+            "relics", "Carregando imagens das relíquias…", context
+        )
         for index, relic in enumerate(character.relics):
             rating = self.benchmark_engine.rate_relic(character, relic)
             card = RelicCard(relic, rating, expand_vertical=True)
             self.current_relic_cards.append(card)
-            self.image_loader.load(relic.icon_url, card.icon.set_image)
+            self.image_loader.load(
+                relic.icon_url,
+                lambda pixmap, target=card.icon, current=context, state=batch:
+                self._relic_image_loaded(current, state, target, pixmap),
+            )
         self._reflow_relic_cards()
+
+    def _relic_image_loaded(
+        self, context: LoadContext, batch: dict[str, object],
+        target: AvatarLabel, pixmap: QPixmap,
+    ) -> None:
+        if (
+            not self.section_loading.is_current(context)
+            or batch["avatar_id"] != str(self.current_character_id)
+        ):
+            return
+        if pixmap.isNull():
+            batch["failed"] = int(batch["failed"]) + 1
+        else:
+            target.set_image(pixmap)
+        batch["remaining"] = int(batch["remaining"]) - 1
+        if int(batch["remaining"]) > 0:
+            return
+        if int(batch["failed"]):
+            self.section_loading.fail(
+                "relics", "Algumas imagens não foram carregadas.",
+                details=f"{batch['failed']} imagem(ns) indisponível(is).",
+                context=context,
+            )
+        else:
+            self.section_loading.ready("relics", context)
 
     def _reflow_relic_cards(self) -> None:
         if not self.current_relic_cards:
@@ -3260,7 +3626,7 @@ class MainWindow(QMainWindow):
         for row in range(6):
             self.relic_grid.setRowStretch(row, 0)
         available_width = self.relics_panel.width() - 24
-        columns = 2 if available_width >= 417 else 1
+        columns = 2 if available_width >= 365 else 1
         self.relic_scroll.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
             if columns == 2 else Qt.ScrollBarPolicy.ScrollBarAsNeeded
@@ -3298,12 +3664,7 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "content_splitter"):
             return
         available = max(1, self.content_splitter.width())
-        if available < 780:
-            proportions = (0.27, 0.30, 0.43)
-        elif available < 1150:
-            proportions = (0.30, 0.24, 0.46)
-        else:
-            proportions = (0.31, 0.23, 0.46)
+        proportions = build_panel_proportions(available)
         self.content_splitter.setSizes(
             [round(available * proportion) for proportion in proportions]
         )
@@ -3430,6 +3791,7 @@ class MainWindow(QMainWindow):
         return f"{uid}:{character_id}:{team_key}"
 
     def _display_benchmark(self, character: CharacterSummary) -> None:
+        context = self.section_loading.context
         character_id = str(character.avatar_id)
         cache_key = self._benchmark_cache_key(character)
         result = self.benchmark_engine.analyze(character)
@@ -3447,11 +3809,16 @@ class MainWindow(QMainWindow):
         self.benchmark_results[character_id] = result
         self._render_benchmark(result)
         if cached is not None or character_id in self.unsupported_benchmark_characters:
+            self.section_loading.ready("benchmark", context)
             return
         if not engine_available() or not isinstance(
             character.raw.get("fribbels_payload"), dict
         ):
+            self.section_loading.ready("benchmark", context)
             return
+        self.section_loading.pending(
+            "benchmark", "Aprimorando cálculo com o motor Fribbels…", context
+        )
         if cache_key in self.active_benchmark_ids:
             self.benchmark_card.set_loading()
             return
@@ -3470,6 +3837,7 @@ class MainWindow(QMainWindow):
             else ""
         )
         self.benchmark_tab_contexts[cache_key] = (self.uid_workspace.owner_id, tab_uid)
+        self.benchmark_section_contexts[cache_key] = context
         self.sync_manager.begin(
             f"benchmark:{cache_key}",
             f"Calculando benchmark de {character.name}…",
@@ -3759,6 +4127,9 @@ class MainWindow(QMainWindow):
             and is_visible_context
         ):
             self._render_benchmark(result)
+        section_context = self.benchmark_section_contexts.get(cache_key)
+        if section_context is not None:
+            self.section_loading.ready("benchmark", section_context)
 
     def _fribbels_benchmark_failed(self, cache_key: str, message: str) -> None:
         sync_key = f"benchmark:{cache_key}"
@@ -3822,10 +4193,19 @@ class MainWindow(QMainWindow):
                     self._mark_benchmark_unsupported(result)
                     if is_visible:
                         self._render_benchmark(result)
+                section_context = self.benchmark_section_contexts.get(cache_key)
+                if section_context is not None:
+                    self.section_loading.ready("benchmark", section_context)
                 return
             if is_visible:
                 self.benchmark_card.set_engine_error(message)
                 self.set_status(f"Motor Fribbels indisponível: {message}", "error")
+            section_context = self.benchmark_section_contexts.get(cache_key)
+            if section_context is not None:
+                self.section_loading.fail(
+                    "benchmark", "Falha no cálculo avançado.",
+                    details=message, context=section_context,
+                )
         self.failed_sync_tasks.add(sync_key)
         self.sync_manager.fail(
             sync_key, "Falha ao calcular o benchmark", details=message
@@ -3852,6 +4232,7 @@ class MainWindow(QMainWindow):
             self.sync_manager.finish(sync_key, "Benchmark calculado")
         self.active_benchmark_ids.discard(worker.request_key)
         self.benchmark_tab_contexts.pop(worker.request_key, None)
+        self.benchmark_section_contexts.pop(worker.request_key, None)
         self.benchmark_workers.discard(worker)
         worker.deleteLater()
         if not self.benchmark_workers:

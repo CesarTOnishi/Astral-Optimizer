@@ -22,11 +22,92 @@ QLabel#sectionTitle, QLabel#characterSectionTitle {
 }
 QLabel#detailName, QLabel#catalogDetailName { font-weight: 600; font-size: 24px; }
 QLabel#detailName[compactName="true"] { font-size: 19px; }
+QFrame#sectionLoadStatus {
+    background-color: #132137; border: none; border-radius: 7px;
+}
+QFrame#sectionLoadStatus[empty="true"] { background-color: transparent; }
+QFrame#sectionLoadStatus[state="error"] { background-color: #30202b; }
+QLabel#sectionLoadIndicator { color: #72d9f5; font-size: 13px; font-weight: 700; }
+QFrame#sectionLoadStatus[state="error"] QLabel#sectionLoadIndicator { color: #ff8fa5; }
+QLabel#sectionLoadMessage { color: #9fb2ca; font-size: 10px; }
+QPushButton#sectionRetryButton {
+    min-height: 18px; padding: 2px 7px; border: none; border-radius: 5px;
+    background-color: #24425c; color: #dff7ff; font-size: 9px; font-weight: 600;
+}
+QPushButton#sectionRetryButton:hover { background-color: #315875; }
 QLabel#muted, QLabel#sectionHint, QLabel#characterMeta { color: #98a8bf; font-size: 11px; }
 QLabel#metricTitle, QLabel#statName { color: #9aacc3; font-size: 11px; font-weight: 500; }
 QLabel#metricValue, QLabel#warpMetricValue { color: #edf4ff; font-size: 24px; font-weight: 600; }
+QLabel#relicSummaryChip {
+    color: #a9dff0; background-color: #173348; border: 1px solid #2a566d;
+    border-radius: 7px; padding: 5px 8px; font-size: 9px; font-weight: 700;
+}
+QFrame#relicFilterPanel { border: none; border-radius: 10px; background-color: #111c2e; }
+QWidget#relicFilterItem QComboBox {
+    min-height: 24px; padding: 2px 26px 2px 8px; border: 1px solid #2b405a;
+    border-radius: 7px; background-color: #0d1727; font-size: 10px;
+}
+QWidget#relicFilterItem QLabel#metricTitle {
+    color: #8296ae; font-size: 8px; font-weight: 700; padding-left: 2px;
+}
+QPushButton#relicClearFilters {
+    min-height: 22px; padding: 2px 9px; border: 1px solid #31506c;
+    border-radius: 7px; background-color: transparent; color: #a7cbe0;
+    font-size: 9px; font-weight: 600;
+}
+QPushButton#relicClearFilters:hover { background-color: #173149; color: #eaf8ff; }
+QFrame#inventoryRelicCard {
+    background-color: #111d30; border: 1px solid #263a54; border-radius: 11px;
+}
+QFrame#inventoryRelicCard:hover { background-color: #14243a; border-color: #3f6785; }
+QFrame#relicCard[compactBuild="true"] QLabel#relicSlot { font-size: 8px; }
+QFrame#relicCard[compactBuild="true"] QLabel#relicSet { font-size: 9px; }
+QFrame#relicCard[compactBuild="true"] QLabel#rowName { font-size: 9px; }
+QFrame#relicCard[compactBuild="true"] QLabel#relicMainValue { font-size: 11px; }
+QFrame#relicCard[compactBuild="true"] QLabel#relicScoreLabel { font-size: 8px; }
+QFrame#relicCard[compactBuild="true"] QLabel#relicScoreValue { font-size: 9px; }
+QLabel#inventoryRelicSlot { color: #79d9f2; font-size: 8px; font-weight: 700; }
+QLabel#inventoryRelicSet { color: #edf4ff; font-size: 11px; font-weight: 600; }
+QLabel#inventoryRelicMeta { color: #e7c66d; font-size: 9px; }
+QLabel#inventoryRelicGrade {
+    color: #d5eff8; background-color: #1d4052; border: 1px solid #39738c;
+    border-radius: 6px; padding: 2px 6px; font-size: 9px; font-weight: 700;
+}
+QLabel#inventoryRelicScore { color: #f2f7ff; font-size: 16px; font-weight: 700; }
+QLabel#inventoryRelicHolder { color: #b7c5d8; font-size: 9px; font-weight: 600; }
+QLabel#inventoryRelicState {
+    color: #a9f0ca; background-color: #173b36; border-radius: 5px;
+    padding: 2px 5px; font-size: 7px; font-weight: 700;
+}
+QLabel#inventoryRelicState[relicState="anterior"] { color: #aab9cd; background-color: #263247; }
+QLabel#inventoryRelicState[relicState="movida"] { color: #f7cf8d; background-color: #49351f; }
+QFrame#inventoryRelicMain { background-color: #182842; border: none; border-radius: 7px; }
+QLabel#inventoryMainName { color: #aebfd3; font-size: 9px; }
+QLabel#inventoryMainValue { color: #ffffff; font-size: 12px; font-weight: 700; }
+QLabel#inventorySubName { color: #9daec3; font-size: 8px; }
+QLabel#inventorySubValue { color: #e6eef9; font-size: 9px; font-weight: 600; }
+QLabel#inventoryUpgrade { color: #77d5ef; font-size: 8px; font-weight: 700; }
+QScrollArea#statsScroll, QScrollArea#statsScroll QWidget#qt_scrollarea_viewport,
+QScrollArea#statsScroll QWidget#scrollContent {
+    background-color: transparent; border: none;
+}
 QLabel#profileUid { color: #a4b8ce; font-size: 11px; }
 QLabel#profileSignature { color: #97a9c0; font-style: normal; }
+QFrame#accountProfilePanel QLabel#detailName { font-size: 18px; }
+QFrame#accountProfilePanel QLabel#accountProfileAvatar {
+    border-radius: 29px; font-size: 20px;
+}
+QFrame#accountDashboardSection {
+    background-color: #111c2e; border: 1px solid #263a54; border-radius: 11px;
+}
+QFrame#accountMetricCard {
+    background-color: #132137; border: 1px solid #29415e; border-radius: 9px;
+}
+QLabel#accountMetricTitle { color: #95a9c1; font-size: 9px; font-weight: 600; }
+QLabel#accountMetricValue { color: #eef7ff; font-size: 18px; font-weight: 700; }
+QWidget#accountCompactRow { border-bottom: 1px solid #21334b; }
+QWidget#accountCompactRow QLabel#characterName { font-size: 11px; font-weight: 600; }
+QWidget#accountCompactRow QLabel#muted { font-size: 9px; }
 QLabel#sideSection { color: #8496ae; padding: 6px 8px; font-weight: 500; }
 QFrame#sideBar { background-color: #0d1524; border: none; border-radius: 14px; }
 QFrame#sidebarUserPanel { background-color: #131f31; border: none; }
@@ -38,6 +119,11 @@ QFrame#catalogInfoCard, QFrame#relicFilterPanel, QFrame#buildProfileHeader {
 QFrame#statCard { border: none; background-color: #142034; }
 QFrame#statCard:hover, QFrame#catalogInfoCard:hover { border: none; background-color: #16243a; }
 QFrame#characterHero { border: none; }
+QFrame#buildProfileHeader QLabel#profileHeaderName { font-size: 14px; }
+QFrame#buildProfileHeader QLabel#profileHeaderBio { font-size: 10px; }
+QFrame#buildProfileHeader QLabel#profileHeaderMeta { font-size: 9px; }
+QListWidget#portraitList { min-height: 80px; max-height: 80px; }
+QLabel#portraitName { font-size: 9px; }
 QFrame#customTitleBar { border: none; background: #0d1524; }
 QPushButton#navButton, QPushButton#settingsNavButton {
     background-color: transparent; color: #adbed3;

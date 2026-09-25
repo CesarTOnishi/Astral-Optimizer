@@ -12,6 +12,13 @@ from app.ui.loading import StartupSplash
 from app.ui.main_window import MainWindow
 
 
+def maximize_on_start(window: QWidget) -> None:
+    """Prepare the main window to be shown maximized by the splash transition."""
+    window.setWindowState(
+        window.windowState() | Qt.WindowState.WindowMaximized
+    )
+
+
 class UnexpectedWindowGuard(QObject):
     """Impede que widgets internos apareçam como pequenas janelas soltas."""
 
@@ -69,6 +76,7 @@ def main() -> int:
         splash.set_stage("Carregando sua interface e dados locais…", 42)
         app.processEvents()
         window = MainWindow()
+        maximize_on_start(window)
         state["window"] = window
 
         def finish_opening() -> None:
