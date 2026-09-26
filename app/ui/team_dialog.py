@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from copy import deepcopy
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon, QPixmap
@@ -259,14 +260,22 @@ class CustomTeamDialog(QDialog):
         initial: list[dict[str, object]],
         parent: QWidget | None = None,
         excluded_character_id: str = "",
+        member_index: int | None = None,
     ) -> None:
         super().__init__(parent)
+        if member_index is not None and not 0 <= member_index < len(initial):
+            raise ValueError("Invalid team member index")
+        self.member_index = member_index
+        self.initial_team = deepcopy(initial)
         self.setWindowTitle("Time customizado · Astral Optimizer")
         self.setObjectName("customTeamDialog")
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setModal(True)
         self.resize(920, 760)
         self.setMinimumSize(760, 610)
+        if member_index is not None:
+            self.setMinimumSize(640, 560)
+            self.resize(760, 650)
         root = QVBoxLayout(self)
         root.setContentsMargins(18, 16, 18, 16)
         root.setSpacing(12)
@@ -281,10 +290,15 @@ class CustomTeamDialog(QDialog):
         titles = QVBoxLayout()
         titles.setSpacing(2)
         title = QLabel("TIME CUSTOMIZADO")
+        if member_index is not None:
+            title.setText(f"EDITAR COMPANHEIRO {member_index + 1}")
         title.setObjectName("customTeamTitle")
         subtitle = QLabel(
             "Monte a composição usada no cálculo do DPS Benchmark."
         )
+        if member_index is not None:
+            subtitle.setText("Personagem, Cone de Luz, relíquias e ornamento deste companheiro.")
+        subtitle.setWordWrap(True)
         subtitle.setObjectName("customTeamSubtitle")
         titles.addWidget(title)
         titles.addWidget(subtitle)
@@ -323,7 +337,7 @@ class CustomTeamDialog(QDialog):
                 initial[index] if index < len(initial) else None,
                 excluded_character_id,
             )
-            for index in range(3)
+            for index in ([member_index] if member_index is not None else range(3))
         ]
         for editor in self.editors:
             content_layout.addWidget(editor)
@@ -352,12 +366,8 @@ class CustomTeamDialog(QDialog):
         self._update_team_status()
 
     def _update_team_status(self) -> None:
-        selected = [
-            editor.character.currentData()
-            for editor in self.editors
-            if isinstance(editor.character.currentData(), CatalogEntry)
-        ]
-        unique = len({item.id for item in selected})
+        selected = [member.get("characterId") for member in self.team() if member.get("characterId")]
+        unique = len(set(selected))
         if len(selected) == 3 and unique < 3:
             self.team_status.setText("Personagens repetidos")
         else:
@@ -387,4 +397,8 @@ class CustomTeamDialog(QDialog):
         self.validation.setText(f"⚠  {message}")
 
     def team(self) -> list[dict[str, object]]:
+        if self.member_index is not None:
+            team = deepcopy(self.initial_team)
+            team[self.member_index].update(self.editors[0].value())
+            return team
         return [editor.value() for editor in self.editors]

@@ -339,11 +339,12 @@ class UidTabWorkspace:
             self.selected_uid = remaining[min(index, len(remaining) - 1)] if remaining else ""
         self.persist()
 
-    def select(self, uid: str) -> bool:
+    def select(self, uid: str, *, persist: bool = True) -> bool:
         if uid not in self.sessions:
             return False
         self.selected_uid = uid
-        self.persist()
+        if persist:
+            self.persist()
         return True
 
     def reorder(self, uids: list[str]) -> bool:

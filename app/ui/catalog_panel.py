@@ -229,6 +229,7 @@ class CatalogPanel(QWidget):
         self._queued_images: set[int] = set()
         self._active = False
         self._built_once = False
+        self._needs_render = False
         self._selected_cone: CatalogLightCone | None = None
         self._build_ui()
 
@@ -367,12 +368,21 @@ class CatalogPanel(QWidget):
             self._render()
             if not self.repository.has_details:
                 QTimer.singleShot(250, self.synchronize)
+        elif self._needs_render:
+            self._populate_filters()
+            self._render()
+
+    @property
+    def has_cached_view(self) -> bool:
+        return self._built_once and not self._needs_render
 
     def set_mode(self, mode: str) -> None:
         self.mode = mode
         self.character_button.setChecked(mode == "characters")
         self.cone_button.setChecked(mode == "light_cones")
         self._populate_filters()
+        if not self._active:
+            self._needs_render = True
         self._render()
 
     def _populate_filters(self) -> None:
@@ -415,6 +425,7 @@ class CatalogPanel(QWidget):
     def _render(self) -> None:
         if not self._active:
             return
+        self._needs_render = False
         self._detach_grid_cards()
         self.cards.clear()
         entries = self._entries()
@@ -1167,6 +1178,7 @@ class CatalogPanel(QWidget):
         self.background_sync_changed.emit(False, message)
 
     def _reset_card_cache(self) -> None:
+        self._needs_render = True
         self._image_timer.stop()
         self._image_queue.clear()
         self._queued_images.clear()

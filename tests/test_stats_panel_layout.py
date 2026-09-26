@@ -36,10 +36,12 @@ class StatsPanelLayoutTests(unittest.TestCase):
         panel.close()
         window.deleteLater()
 
-    def test_build_columns_prioritize_art_when_maximized(self):
-        self.assertEqual(build_panel_proportions(1500), (0.38, 0.23, 0.39))
-        self.assertEqual(build_panel_proportions(1000), (0.34, 0.25, 0.41))
-        self.assertAlmostEqual(sum(build_panel_proportions(1500)), 1.0)
+    def test_build_columns_reserve_readable_summary_and_relic_space(self):
+        self.assertEqual(build_panel_proportions(776), (0.23, 0.31, 0.46))
+        self.assertEqual(build_panel_proportions(1000), (0.32, 0.25, 0.43))
+        self.assertEqual(build_panel_proportions(1500), (0.38, 0.22, 0.40))
+        for width in (776, 1000, 1500):
+            self.assertAlmostEqual(sum(build_panel_proportions(width)), 1.0)
 
 
 if __name__ == "__main__":

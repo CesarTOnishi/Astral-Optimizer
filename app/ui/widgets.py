@@ -6,8 +6,10 @@ from PySide6.QtCore import QEvent, QEasingCurve, QRectF, QSize, Qt, QTimer, QVar
 from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QComboBox,
     QFrame,
+    QGridLayout,
     QGraphicsDropShadowEffect,
     QHeaderView,
     QHBoxLayout,
@@ -15,6 +17,7 @@ from PySide6.QtWidgets import (
     QLayout,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QSpinBox,
     QStyle,
@@ -33,9 +36,87 @@ from app.preferences import motion_duration, reduce_motion_enabled, themed_color
 
 
 COMPACT_STAT_NAMES = {
-    "StatusProbability": "Acerto de Efeito",
-    "SPRatio": "Regen de Energia",
+    "HP": "PV", "HP%": "PV%", "MaxHP": "PV", "HPDelta": "PV", "HPAddedRatio": "PV%",
+    "ATK": "ATQ", "ATK%": "ATQ%", "Attack": "ATQ", "AttackDelta": "ATQ", "AttackAddedRatio": "ATQ%",
+    "DEF": "DEF", "DEF%": "DEF%", "Defence": "DEF", "DefenceDelta": "DEF", "DefenceAddedRatio": "DEF%",
+    "SPD": "VEL", "SPD%": "VEL%", "Speed": "VEL", "SpeedDelta": "VEL",
+    "CRIT Rate": "Taxa CRIT", "CriticalChance": "Taxa CRIT",
+    "CRIT DMG": "Dano CRIT", "CriticalDamage": "Dano CRIT",
+    "Effect Hit Rate": "Acerto Efeito", "StatusProbability": "Acerto Efeito",
+    "Effect RES": "RES Efeito", "StatusResistance": "RES Efeito",
+    "Break Effect": "Efeito Quebra", "BreakDamageAddedRatio": "Efeito Quebra",
+    "Energy Regeneration Rate": "Regen. Energia", "SPRatio": "Regen. Energia",
+    "Outgoing Healing Boost": "Bônus Cura", "HealRatio": "Bônus Cura",
+    "Physical DMG Boost": "Dano Fís.",
+    "PhysicalAddedRatio": "Dano Fís.",
+    "Fire DMG Boost": "Dano Fogo",
+    "FireAddedRatio": "Dano Fogo",
+    "Ice DMG Boost": "Dano Gelo",
+    "IceAddedRatio": "Dano Gelo",
+    "Lightning DMG Boost": "Dano Raio",
+    "ThunderAddedRatio": "Dano Raio",
+    "Wind DMG Boost": "Dano Vento",
+    "WindAddedRatio": "Dano Vento",
+    "Quantum DMG Boost": "Dano Quânt.",
+    "QuantumAddedRatio": "Dano Quânt.",
+    "Imaginary DMG Boost": "Dano Imag.",
+    "ImaginaryAddedRatio": "Dano Imag.",
+    "Elation": "Dano Euforia",
+    "ElationAddedRatio": "Dano Euforia",
+    "ElationDamageAddedRatio": "Dano Euforia",
 }
+
+
+def compact_stat_name(key: str, name: str) -> str:
+    """Short display labels; the complete source name remains in the tooltip."""
+    if key in COMPACT_STAT_NAMES:
+        return COMPACT_STAT_NAMES[key]
+    replacements = (
+        ("Taxa de Acerto de Efeito", "Acerto Efeito"),
+        ("Acerto de Efeito", "Acerto Efeito"),
+        ("Efeito de Quebra", "Efeito Quebra"),
+        ("Regeneração de Energia", "Regen. Energia"),
+        ("Regen de Energia", "Regen. Energia"),
+        ("Chance de CRIT", "Taxa CRIT"),
+        ("RES a Efeito", "RES Efeito"),
+        ("Dano Imaginário", "Dano Imag."),
+        ("Dano Quântico", "Dano Quânt."),
+        ("Dano Físico", "Dano Fís."),
+        ("Dano de Euforia", "Dano Euforia"),
+        ("Bônus de Cura", "Bônus Cura"),
+    )
+    for full, short in replacements:
+        if name == full:
+            return short
+    return name
+
+
+class ElidedLabel(QLabel):
+    """Keep compact text on one line and expose its full form on hover."""
+
+    def __init__(self, text: str) -> None:
+        super().__init__(text)
+        self.full_text = text
+        self.setToolTip(text)
+        self.setWordWrap(False)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API
+        super().resizeEvent(event)
+        self._update_elision()
+
+    def _update_elision(self) -> None:
+        short = self.fontMetrics().elidedText(
+            self.full_text, Qt.TextElideMode.ElideRight,
+            max(0, self.contentsRect().width()),
+        )
+        if short != self.text():
+            self.setText(short)
+
+    def changeEvent(self, event) -> None:  # noqa: N802 - Qt API
+        super().changeEvent(event)
+        if event.type() in {QEvent.Type.StyleChange, QEvent.Type.FontChange}:
+            self._update_elision()
 
 FRIBBELS_ASSETS = (
     Path(__file__).resolve().parents[2]
@@ -94,6 +175,8 @@ STAT_ICON_FILES = {
     "Imaginary DMG Boost": "IconImaginaryAddedRatio.webp",
     "ImaginaryAddedRatio": "IconImaginaryAddedRatio.webp",
     "ElationAddedRatio": "IconElation.webp",
+    "ElationDamageAddedRatio": "IconElation.webp",
+    "Elation": "IconElation.webp",
     "Score": "IconElation.webp",
 }
 
@@ -118,6 +201,8 @@ def stat_icon_label(stat_key: str, size: int = 15) -> QLabel:
         ))
     else:
         label.setText("✦")
+        # Missing assets must not inherit a font taller than the icon slot.
+        label.setStyleSheet(f"font-size: {max(8, size - 4)}px;")
     return label
 
 
@@ -366,19 +451,36 @@ class AvatarLabel(QLabel):
         super().__init__("✦")
         self.image_size = size
         self.rounded = rounded
+        self._source_pixmap = QPixmap()
+        self._set_display_size(size)
+
+    def _set_display_size(self, size: int) -> None:
+        self.image_size = size
         self.setFixedSize(size, size)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet(
             "background:#16243d; color:#6ed8ff; border:1px solid #35547c; "
-            f"border-radius:{size // 2 if rounded else 12}px; font-size:{max(size // 3, 16)}px;"
+            f"border-radius:{size // 2 if self.rounded else 12}px; font-size:{max(size // 3, 16)}px;"
         )
+
+    def set_display_size(self, size: int) -> None:
+        if size == self.image_size:
+            return
+        self._set_display_size(size)
+        if not self._source_pixmap.isNull():
+            self._render_image()
 
     def set_image(self, pixmap: QPixmap) -> None:
         if pixmap.isNull():
             return
         from app.ui.motion import reveal_image
 
+        self._source_pixmap = QPixmap(pixmap)
         reveal_image(self)
+        self._render_image()
+
+    def _render_image(self) -> None:
+        pixmap = self._source_pixmap
         radius = self.image_size // 2 if self.rounded else 12
         if not self.rounded:
             # Preserve the full art of light cones and equipment in square slots.
@@ -400,6 +502,7 @@ class AvatarLabel(QLabel):
         layer = getattr(self, "_astral_image_layer", None)
         if layer is not None:
             layer.finish()
+        self._source_pixmap = QPixmap()
         self.setPixmap(QPixmap())
         self.setText("✦")
 
@@ -435,11 +538,10 @@ class ResponsiveImageLabel(QLabel):
             super().paintEvent(event)
             return
 
-        zoom = 1.08
         image = self.source.scaled(
-            max(1, round(self.width() * zoom)),
-            max(1, round(self.height() * zoom)),
-            Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+            self.width(),
+            self.height(),
+            Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
         x = (self.width() - image.width()) / 2.0
@@ -459,7 +561,7 @@ class LightConeBanner(QFrame):
         super().__init__()
         self.setObjectName("lightConeBanner")
         self.source = QPixmap()
-        self.setFixedHeight(108)
+        self.setMinimumHeight(116)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         layout = QVBoxLayout(self)
@@ -468,12 +570,12 @@ class LightConeBanner(QFrame):
         self.caption = QLabel("Sem Cone de Luz")
         self.caption.setObjectName("lightConeBannerCaption")
         self.caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.caption.setWordWrap(False)
-        layout.addWidget(self.caption, alignment=Qt.AlignmentFlag.AlignHCenter)
+        self.caption.setWordWrap(True)
+        layout.addWidget(self.caption)
 
     def set_info(self, name: str, level: int, rank: int) -> None:
         prefix = f"S{rank}" if rank else "S—"
-        self.caption.setText(f"{prefix} · {name}")
+        self.caption.setText(f"{name or 'Sem Cone de Luz'}\nNV. {level or '—'} · {prefix}")
         self.caption.setToolTip(
             f"{name}\nNível {level or '—'} · Sobreposição {prefix}"
         )
@@ -594,14 +696,16 @@ class StatRow(QFrame):
         super().__init__()
         self.setObjectName("statRow")
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(5, 2, 5, 2)
+        layout.setContentsMargins(5, 0, 5, 0)
         layout.setSpacing(4)
         layout.addWidget(stat_icon_label(stat.key, 14))
-        name = QLabel(COMPACT_STAT_NAMES.get(stat.key, stat.name))
+        name = ElidedLabel(compact_stat_name(stat.key, stat.name))
         name.setObjectName("rowName")
+        name.setToolTip(stat.name)
+        name.setWordWrap(False)
         value = QLabel(stat.formatted_value)
         value.setObjectName("rowValue")
-        layout.addWidget(name)
+        layout.addWidget(name, 1)
         layout.addStretch(1)
         layout.addWidget(value)
 
@@ -610,7 +714,6 @@ class BenchmarkCard(QFrame):
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("benchmarkCard")
-        self.setMaximumHeight(112)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 9, 12, 10)
         layout.setSpacing(5)
@@ -640,13 +743,31 @@ class BenchmarkCard(QFrame):
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
         layout.addWidget(self.progress)
+        self.progress.hide()
+
+        self.combo = QLabel("Dano de combo · —")
+        self.combo.setObjectName("comboDamage")
+        self.combo.setWordWrap(True)
+        layout.addWidget(self.combo)
 
         self.meta = QLabel("Aguardando personagem")
         self.meta.setObjectName("sectionHint")
         self.meta.setWordWrap(True)
         layout.addWidget(self.meta)
+        layout.setContentsMargins(5, 4, 5, 4)
+        layout.setSpacing(2)
+        layout.removeWidget(self.combo)
+        layout.insertWidget(0, self.combo)
+        score_row.setSpacing(5)
+        score_row.takeAt(1)  # Keep score and grade together in the center.
+        score_row.insertStretch(0, 1)
+        score_row.addStretch(1)
 
     def set_result(self, result: BenchmarkResult) -> None:
+        self.combo.setText(
+            f"Dano de combo · {result.damage_index:,.0f}".replace(",", ".")
+            if result.engine_source == "fribbels" else "Dano de combo · —"
+        )
         if result.engine_source == "unsupported":
             self.mode.setText("SUB DPS")
             self.score.setText("—")
@@ -668,14 +789,16 @@ class BenchmarkCard(QFrame):
         self.meta.hide()
 
     def set_loading(self) -> None:
+        self.combo.setText("Dano de combo · —")
         self.meta.show()
         self.mode.setText("FRIBBELS")
         self.score.setText("…")
         self.grade.setText("…")
         self.progress.setValue(0)
-        self.meta.setText("Calculando rotação, time e benchmarks 0/100/200%â€¦")
+        self.meta.setText("Calculando rotação, time e benchmarks 0/100/200%…")
 
     def set_engine_error(self, message: str) -> None:
+        self.combo.setText("Dano de combo · —")
         self.meta.show()
         self.mode.setText("FALLBACK")
         self.meta.setText(f"Motor Fribbels indisponível: {message}")
@@ -685,16 +808,15 @@ class CombatStatsCard(QFrame):
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("combatStatsCard")
-        self.setMaximumHeight(165)
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(12, 10, 12, 10)
-        self.layout.setSpacing(4)
+        self.layout.setContentsMargins(5, 3, 5, 3)
+        self.layout.setSpacing(2)
 
         title = QLabel("ATRIBUTOS EM COMBATE")
         title.setObjectName("benchmarkTitle")
         self.layout.addWidget(title)
         self.rows = QVBoxLayout()
-        self.rows.setSpacing(1)
+        self.rows.setSpacing(0)
         self.layout.addLayout(self.rows)
 
     def set_result(self, result: BenchmarkResult) -> None:
@@ -711,20 +833,28 @@ class CombatStatsCard(QFrame):
             if not combat_stat_visible(result.archetype, stat.key, result.combat_focus):
                 continue
             row = QHBoxLayout()
-            name = QLabel(f"{stat.name} ↑" if stat.changed else stat.name)
+            row.setSpacing(3)
+            short_name = compact_stat_name(stat.key, stat.name)
+            name = ElidedLabel(f"{short_name}\u00a0↑" if stat.changed else short_name)
             name.setObjectName("combatStatName")
+            name.setToolTip(stat.name)
+            name.setWordWrap(False)
             value = QLabel(stat.formatted_value)
             value.setObjectName("combatStatBuffed" if stat.changed else "combatStatValue")
             value.setAlignment(Qt.AlignmentFlag.AlignRight)
             row.addWidget(stat_icon_label(stat.key, 14))
-            row.addWidget(name)
-            row.addStretch(1)
+            row.addWidget(name, 1)
             row.addWidget(value)
             self.rows.addLayout(row)
 
 
 class AbilityBreakdownCard(QFrame):
     """Dano exato de cada ação da rotação simulada pelo Fribbels."""
+
+    def sizeHint(self) -> QSize:
+        hint = super().sizeHint()
+        hint.setWidth(700)
+        return hint
 
     ACTION_ICONS = {
         "BASIC": "⚔", "SKILL": "✦", "ULT": "◆", "FUA": "↻",
@@ -735,7 +865,7 @@ class AbilityBreakdownCard(QFrame):
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("abilityBreakdownCard")
-        self.setMaximumWidth(520)
+        self.setMaximumWidth(760)
         root = QVBoxLayout(self)
         root.setContentsMargins(14, 13, 14, 14)
         root.setSpacing(8)
@@ -745,6 +875,7 @@ class AbilityBreakdownCard(QFrame):
         titles.setSpacing(1)
         title = QLabel("DANO POR HABILIDADE · BUILD ATUAL")
         title.setObjectName("abilityBreakdownTitle")
+        title.setWordWrap(True)
         subtitle = QLabel("Rotação calculada pelo motor Fribbels")
         subtitle.setObjectName("abilityBreakdownSubtitle")
         titles.addWidget(title)
@@ -792,6 +923,7 @@ class AbilityBreakdownCard(QFrame):
             icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
             name = QLabel(step.label)
             name.setObjectName("abilityDamageName")
+            name.setWordWrap(True)
             value = QLabel(self._format_damage(step.damage))
             value.setObjectName("abilityDamageValue")
             value.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -839,16 +971,24 @@ def combat_stat_visible(
 
 class TeamCard(QFrame):
     custom_requested = Signal()
-    edit_requested = Signal()
+    edit_requested = Signal(int)
     default_requested = Signal()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API
+        super().resizeEvent(event)
+        large = self.width() >= 310
+        for _member, avatar, _eidolon, cone, _superimposition in getattr(
+            self, "member_visuals", ()
+        ):
+            avatar.set_display_size(52 if large else 44)
+            cone.set_display_size(32 if large else 28)
 
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("teamCard")
-        self.setMaximumHeight(150)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 7, 8, 8)
-        layout.setSpacing(4)
+        layout.setContentsMargins(8, 3, 8, 3)
+        layout.setSpacing(3)
 
         self.title = QLabel("TIME PADRÃO")
         self.title.setObjectName("benchmarkTitle")
@@ -862,6 +1002,7 @@ class TeamCard(QFrame):
         for button in (self.default_mode, self.custom_mode):
             button.setObjectName("teamModeButton")
             button.setCheckable(True)
+            button.setMinimumHeight(22)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             modes.addWidget(button)
         self.default_mode.clicked.connect(
@@ -878,32 +1019,33 @@ class TeamCard(QFrame):
             tuple[QWidget, AvatarLabel, QLabel, AvatarLabel, QLabel]
         ] = []
         self._edit_targets: list[QWidget] = []
-        for _ in range(3):
+        for member_index in range(3):
             # O pai explícito impede que o Qt trate o membro como uma pequena
             # janela independente durante as atualizações assíncronas.
             member = QWidget(self)
             member.setObjectName("teamMemberClickable")
             member.setCursor(Qt.CursorShape.PointingHandCursor)
-            column = QVBoxLayout(member)
-            column.setContentsMargins(2, 2, 2, 2)
-            column.setSpacing(2)
-            avatar = AvatarLabel(34)
-            cone = AvatarLabel(22, rounded=False)
+            column = QGridLayout(member)
+            column.setContentsMargins(2, 1, 2, 1)
+            column.setSpacing(1)
+            avatar = AvatarLabel(44)
+            cone = AvatarLabel(28, rounded=False)
             eidolon = QLabel("E—")
             eidolon.setObjectName("teamBuildBadge")
             eidolon.setAlignment(Qt.AlignmentFlag.AlignCenter)
             superimposition = QLabel("S—")
             superimposition.setObjectName("teamBuildBadge")
             superimposition.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            column.addWidget(avatar, alignment=Qt.AlignmentFlag.AlignCenter)
-            column.addWidget(eidolon, alignment=Qt.AlignmentFlag.AlignCenter)
-            column.addWidget(cone, alignment=Qt.AlignmentFlag.AlignCenter)
-            column.addWidget(superimposition, alignment=Qt.AlignmentFlag.AlignCenter)
+            column.addWidget(avatar, 0, 0, alignment=Qt.AlignmentFlag.AlignCenter)
+            column.addWidget(eidolon, 1, 0, alignment=Qt.AlignmentFlag.AlignCenter)
+            column.addWidget(cone, 2, 0, alignment=Qt.AlignmentFlag.AlignCenter)
+            column.addWidget(superimposition, 3, 0, alignment=Qt.AlignmentFlag.AlignCenter)
             members.addWidget(member, 1)
             self.member_visuals.append(
                 (member, avatar, eidolon, cone, superimposition)
             )
             for target in (member, avatar, eidolon, cone, superimposition):
+                target.setProperty("teamMemberIndex", member_index)
                 target.setCursor(Qt.CursorShape.PointingHandCursor)
                 target.installEventFilter(self)
                 self._edit_targets.append(target)
@@ -916,7 +1058,7 @@ class TeamCard(QFrame):
             and event.type() == QEvent.Type.MouseButtonRelease
             and event.button() == Qt.MouseButton.LeftButton
         ):
-            self.edit_requested.emit()
+            self.edit_requested.emit(int(watched.property("teamMemberIndex")))
             return True
         return super().eventFilter(watched, event)
 
@@ -939,7 +1081,7 @@ class TeamCard(QFrame):
             if has_member:
                 tooltip = (
                     f"{result.team_members[index]}\n{result.team_details[index]}"
-                    "\n\nClique para editar o time customizado."
+                    "\n\nClique para editar este companheiro, Cone, relíquias e ornamento no time customizado."
                 )
                 for target in (member, avatar, eidolon, cone, superimposition):
                     target.setToolTip(tooltip)
@@ -979,7 +1121,6 @@ class BenchmarkScale(QWidget):
         super().__init__()
         self.setObjectName("benchmarkScale")
         self.setMinimumHeight(150)
-        self.setMaximumHeight(165)
         self.result: BenchmarkResult | None = None
 
     def set_result(self, result: BenchmarkResult) -> None:
@@ -1098,6 +1239,19 @@ class UpgradeRow(QFrame):
         layout.addWidget(projected)
 
 
+class PageScrollingTable(QTableWidget):
+    """Let the page handle wheel input; every comparison row is visible."""
+
+    def wheelEvent(self, event) -> None:  # noqa: N802 - Qt API
+        parent = self.parentWidget()
+        while parent is not None:
+            if isinstance(parent, QScrollArea):
+                QApplication.sendEvent(parent.viewport(), event)
+                return
+            parent = parent.parentWidget()
+        event.ignore()
+
+
 class UpgradeComparisonTable(QFrame):
     def __init__(
         self,
@@ -1114,17 +1268,18 @@ class UpgradeComparisonTable(QFrame):
 
         title = QLabel(title_text)
         title.setObjectName("benchmarkSectionTitle")
+        title.setWordWrap(True)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
-        self.table = QTableWidget(0, 5)
+        self.table = PageScrollingTable(0, 5)
         self.table.setObjectName("upgradeComparisonTable")
         self.table.setHorizontalHeaderLabels((
             first_header,
-            "Dano de combo Δ %",
-            "Pontuação de DPS Δ %",
-            "Dano de combo Δ",
-            "Pontuação de DPS melhorada",
+            "Combo\nΔ %",
+            "DPS\nΔ %",
+            "Combo\nΔ dano",
+            "DPS\nmelhorado",
         ))
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
@@ -1173,8 +1328,16 @@ class UpgradeComparisonTable(QFrame):
                 if column > 0:
                     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(row, column, item)
-        rows = max(1, len(comparisons))
-        self.table.setFixedHeight(42 + rows * 34 + 2)
+        self._fit_table_height()
+        QTimer.singleShot(0, self._fit_table_height)
+
+    def _fit_table_height(self) -> None:
+        header = self.table.horizontalHeader()
+        header_height = max(header.height(), header.minimumHeight(), header.sizeHint().height())
+        rows_height = sum(self.table.rowHeight(row) for row in range(self.table.rowCount()))
+        if not rows_height:
+            rows_height = self.table.verticalHeader().defaultSectionSize()
+        self.table.setFixedHeight(header_height + rows_height + self.table.frameWidth() * 2 + 2)
 
     @staticmethod
     def _icon_label(path: Path) -> QLabel:
@@ -1271,9 +1434,9 @@ class RelicCard(QFrame):
         )
         layout = QVBoxLayout(self)
         layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
-        margin = 7 if expand_vertical else 10
+        margin = 5 if expand_vertical else 10
         layout.setContentsMargins(margin, margin, margin, margin)
-        layout.setSpacing(4 if expand_vertical else 6)
+        layout.setSpacing(2 if expand_vertical else 6)
 
         self.holder_icon: AvatarLabel | None = None
         visible_holder = holder_name or previous_holder_name
@@ -1300,17 +1463,17 @@ class RelicCard(QFrame):
             layout.addLayout(holder_row)
 
         header = QHBoxLayout()
-        header.setSpacing(8)
-        self.icon = AvatarLabel(44 if expand_vertical else 50, rounded=False)
+        header.setSpacing(6 if expand_vertical else 8)
+        self.icon = AvatarLabel(40 if expand_vertical else 50, rounded=False)
         header.addWidget(self.icon)
         title = QVBoxLayout()
-        title.setSpacing(3)
+        title.setSpacing(2 if expand_vertical else 3)
         slot = QLabel(relic.slot.upper())
         slot.setObjectName("relicSlot")
         slot.setWordWrap(True)
-        set_name = QLabel(relic.set_name)
+        set_name = ElidedLabel(relic.set_name) if expand_vertical else QLabel(relic.set_name)
         set_name.setObjectName("relicSet")
-        set_name.setWordWrap(True)
+        set_name.setWordWrap(not expand_vertical)
         set_name.setToolTip(relic.set_name)
         stars = QLabel("★" * relic.rarity)
         stars.setObjectName("rarity")
@@ -1327,9 +1490,13 @@ class RelicCard(QFrame):
 
         main = QHBoxLayout()
         main.addWidget(stat_icon_label(relic.main_stat.key, 16))
-        main_name = QLabel(relic.main_stat.name)
+        main_name = (ElidedLabel if expand_vertical else QLabel)(
+            compact_stat_name(relic.main_stat.key, relic.main_stat.name)
+            if expand_vertical else relic.main_stat.name
+        )
         main_name.setObjectName("rowName")
-        main_name.setWordWrap(True)
+        main_name.setToolTip(relic.main_stat.name)
+        main_name.setWordWrap(not expand_vertical)
         main_value = QLabel(relic.main_stat.formatted_value)
         main_value.setObjectName("relicMainValue")
         main.addWidget(main_name, 1)
@@ -1341,9 +1508,13 @@ class RelicCard(QFrame):
             row.setContentsMargins(0, 0, 0, 0)
             row.setSpacing(3)
             row.addWidget(stat_icon_label(stat.key, 13))
-            name = QLabel(stat.name)
+            name = (ElidedLabel if expand_vertical else QLabel)(
+                compact_stat_name(stat.key, stat.name)
+                if expand_vertical else stat.name
+            )
             name.setObjectName("relicSub")
-            name.setWordWrap(True)
+            name.setToolTip(stat.name)
+            name.setWordWrap(not expand_vertical)
             upgrades = QLabel("<" * stat.upgrades)
             upgrades.setObjectName("upgradeBadge")
             value = QLabel(stat.formatted_value)
@@ -1356,12 +1527,10 @@ class RelicCard(QFrame):
             # cartão. Antes disso, o Qt o trata como uma janela independente.
             upgrades.setVisible(stat.upgrades > 0)
         if rating is not None:
-            if expand_vertical:
-                layout.addStretch(1)
             score_band = QFrame()
             score_band.setObjectName("relicScoreBand")
             score_row = QHBoxLayout(score_band)
-            score_row.setContentsMargins(7, 4, 5, 4)
+            score_row.setContentsMargins(7, 3 if expand_vertical else 4, 5, 3 if expand_vertical else 4)
             score_row.setSpacing(6)
             score_label = QLabel("Pontuação")
             score_label.setObjectName("relicScoreLabel")
@@ -1374,6 +1543,8 @@ class RelicCard(QFrame):
             score_row.addWidget(score_label)
             score_row.addStretch(1)
             score_row.addWidget(score_value)
+            if expand_vertical:
+                layout.addStretch(1)
             layout.addWidget(score_band)
 
 

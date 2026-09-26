@@ -11,114 +11,147 @@ from app.auth import AuthUser
 from app.relics import RelicDatabase, StoredRelic
 from app.ui.image_loader import ImageLoader
 from app.ui.contextual_help import RELIC_GRADE_HELP, ContextHelpButton
-from app.ui.widgets import AvatarLabel, FadeComboBox, rounded_pixmap, stat_icon_label
+from app.ui.widgets import (
+    AvatarLabel, ElidedLabel, FadeComboBox, compact_stat_name,
+    rounded_pixmap, stat_icon_label,
+)
 
 
 class InventoryRelicCard(QFrame):
-    """Dense inventory-only card; the larger build card remains unchanged."""
+    """Readable inventory card with each piece of data in a clear group."""
 
     def __init__(self, stored: StoredRelic) -> None:
         super().__init__()
         relic = stored.relic
         self.setObjectName("inventoryRelicCard")
-        self.setMinimumWidth(278)
+        self.setMinimumWidth(300)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
+        moved = (
+            stored.is_equipped and stored.previous_character_id
+            and stored.previous_character_id != stored.current_character_id
+        )
+        state_text = "MOVIDA" if moved else ("EQUIPADA" if stored.is_equipped else "ANTERIOR")
+        self.setProperty("relicState", state_text.casefold())
+
         root = QVBoxLayout(self)
-        root.setContentsMargins(11, 10, 11, 10)
-        root.setSpacing(7)
+        root.setContentsMargins(12, 9, 12, 9)
+        root.setSpacing(6)
 
         header = QHBoxLayout()
-        header.setSpacing(9)
-        self.icon = AvatarLabel(52, rounded=False)
-        header.addWidget(self.icon)
+        header.setSpacing(10)
+        self.icon = AvatarLabel(58, rounded=False)
+        header.addWidget(self.icon, alignment=Qt.AlignmentFlag.AlignTop)
 
         identity = QVBoxLayout()
-        identity.setSpacing(1)
+        identity.setSpacing(2)
+        slot_row = QHBoxLayout()
+        slot_row.setSpacing(5)
         slot = QLabel(relic.slot.upper())
         slot.setObjectName("inventoryRelicSlot")
-        set_name = QLabel(relic.set_name)
+        level = QLabel(f"+{relic.level}")
+        level.setObjectName("inventoryRelicLevel")
+        slot_row.addWidget(slot)
+        slot_row.addStretch(1)
+        slot_row.addWidget(level)
+        set_name = ElidedLabel(relic.set_name)
         set_name.setObjectName("inventoryRelicSet")
-        set_name.setWordWrap(True)
-        set_name.setToolTip(relic.set_name)
-        rarity = QLabel(f"{'★' * relic.rarity}  ·  +{relic.level}")
+        rarity = QLabel("★" * relic.rarity)
         rarity.setObjectName("inventoryRelicMeta")
-        identity.addWidget(slot)
+        identity.addLayout(slot_row)
         identity.addWidget(set_name)
         identity.addWidget(rarity)
         header.addLayout(identity, 1)
 
         score = QVBoxLayout()
-        score.setSpacing(1)
+        score.setSpacing(2)
         score.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
         grade = QLabel(stored.grade)
         grade.setObjectName("inventoryRelicGrade")
         grade.setProperty("scoreTier", stored.grade.casefold().replace("+", "plus"))
         value = QLabel(f"{stored.score:.1f}")
         value.setObjectName("inventoryRelicScore")
+        value.setAlignment(Qt.AlignmentFlag.AlignRight)
         score.addWidget(grade, alignment=Qt.AlignmentFlag.AlignRight)
         score.addWidget(value, alignment=Qt.AlignmentFlag.AlignRight)
         header.addLayout(score)
         root.addLayout(header)
 
-        holder_row = QHBoxLayout()
+        holder_band = QFrame()
+        holder_band.setObjectName("inventoryRelicHolderBand")
+        holder_row = QHBoxLayout(holder_band)
+        holder_row.setContentsMargins(7, 5, 7, 5)
         holder_row.setSpacing(6)
         self.holder_icon: AvatarLabel | None = None
         holder_name = stored.holder_name
-        moved = (
-            stored.is_equipped and stored.previous_character_id
-            and stored.previous_character_id != stored.current_character_id
-        )
         if holder_name:
-            self.holder_icon = AvatarLabel(23)
+            self.holder_icon = AvatarLabel(26)
             holder_row.addWidget(self.holder_icon)
-        holder = QLabel(holder_name or "Sem portador")
+        holder = ElidedLabel(holder_name or "Sem portador")
         holder.setObjectName("inventoryRelicHolder")
-        holder.setToolTip(holder_name)
+        if moved:
+            holder.setToolTip(
+                f"{holder_name}\nAnteriormente: {stored.previous_character_name}"
+            )
         holder_row.addWidget(holder, 1)
-        state_text = "MOVIDA" if moved else ("EQUIPADA" if stored.is_equipped else "ANTERIOR")
         state = QLabel(state_text)
         state.setObjectName("inventoryRelicState")
         state.setProperty("relicState", state_text.casefold())
         holder_row.addWidget(state)
-        root.addLayout(holder_row)
+        root.addWidget(holder_band)
 
         main_band = QFrame()
         main_band.setObjectName("inventoryRelicMain")
         main_row = QHBoxLayout(main_band)
-        main_row.setContentsMargins(7, 5, 7, 5)
-        main_row.setSpacing(5)
-        main_row.addWidget(stat_icon_label(relic.main_stat.key, 16))
-        main_name = QLabel(relic.main_stat.name)
+        main_row.setContentsMargins(9, 7, 9, 7)
+        main_row.setSpacing(7)
+        main_row.addWidget(stat_icon_label(relic.main_stat.key, 19))
+        main_name = ElidedLabel(compact_stat_name(relic.main_stat.key, relic.main_stat.name))
         main_name.setObjectName("inventoryMainName")
+        main_name.setToolTip(relic.main_stat.name)
         main_row.addWidget(main_name, 1)
         main_value = QLabel(relic.main_stat.formatted_value)
         main_value.setObjectName("inventoryMainValue")
         main_row.addWidget(main_value)
         root.addWidget(main_band)
 
+        subheading = QLabel("SUBATRIBUTOS")
+        subheading.setObjectName("inventoryRelicSubheading")
+        root.addWidget(subheading)
         substats = QGridLayout()
         substats.setContentsMargins(0, 0, 0, 0)
-        substats.setHorizontalSpacing(10)
-        substats.setVerticalSpacing(5)
+        substats.setHorizontalSpacing(7)
+        substats.setVerticalSpacing(7)
         for index, stat in enumerate(relic.sub_stats):
-            cell = QWidget()
-            row = QHBoxLayout(cell)
-            row.setContentsMargins(0, 0, 0, 0)
-            row.setSpacing(4)
-            row.addWidget(stat_icon_label(stat.key, 13))
-            name = QLabel(stat.name)
+            cell = QFrame()
+            cell.setObjectName("inventoryRelicSubCell")
+            cell_layout = QVBoxLayout(cell)
+            cell_layout.setContentsMargins(7, 5, 7, 5)
+            cell_layout.setSpacing(2)
+            name_row = QHBoxLayout()
+            name_row.setSpacing(4)
+            name_row.addWidget(stat_icon_label(stat.key, 13))
+            name = ElidedLabel(compact_stat_name(stat.key, stat.name))
             name.setObjectName("inventorySubName")
             name.setToolTip(stat.name)
-            row.addWidget(name, 1)
+            name_row.addWidget(name, 1)
+            cell_layout.addLayout(name_row)
+            value_row = QHBoxLayout()
+            value_row.setSpacing(4)
             if stat.upgrades:
                 upgrades = QLabel(f"+{stat.upgrades}")
                 upgrades.setObjectName("inventoryUpgrade")
-                row.addWidget(upgrades)
+                value_row.addWidget(upgrades)
+            value_row.addStretch(1)
             stat_value = QLabel(stat.formatted_value)
             stat_value.setObjectName("inventorySubValue")
-            row.addWidget(stat_value)
+            value_row.addWidget(stat_value)
+            cell_layout.addLayout(value_row)
             substats.addWidget(cell, index // 2, index % 2)
+        if not relic.sub_stats:
+            unavailable = QLabel("Sem subatributos disponíveis")
+            unavailable.setObjectName("inventoryRelicSubEmpty")
+            substats.addWidget(unavailable, 0, 0, 1, 2)
         substats.setColumnStretch(0, 1)
         substats.setColumnStretch(1, 1)
         root.addLayout(substats)
@@ -135,6 +168,7 @@ class RelicInventoryPanel(QWidget):
         self.database = database
         self.image_loader = image_loader
         self.user: AuthUser | None = None
+        self._user_key: tuple[int, str] | None = None
         self.items: list[StoredRelic] = []
         self.cards: list[InventoryRelicCard] = []
         self._active = False
@@ -307,21 +341,25 @@ class RelicInventoryPanel(QWidget):
         self._filters_changed()
 
     def set_user(self, user: AuthUser | None) -> None:
-        previous = (
-            (self.user.id, self.user.game_uid) if self.user is not None else None
-        )
-        self.user = user
+        previous = self._user_key
         current = (user.id, user.game_uid) if user is not None else None
+        self.user = user
+        self._user_key = current
+        if previous == current:
+            return
         self._dirty = True
+        self.items = []
+        self._clear_grid()
         if self._active:
             self.refresh()
-        elif previous != current:
-            self.items = []
-            self._clear_grid()
+
+    @property
+    def has_cached_view(self) -> bool:
+        return not self._dirty
 
     def set_active(self, active: bool) -> None:
         self._active = active
-        if active:
+        if active and self._dirty:
             self.refresh()
 
     def mark_dirty(self) -> None:
@@ -543,8 +581,13 @@ class RelicInventoryPanel(QWidget):
     def _reflow(self) -> None:
         if not self.cards:
             return
-        available = max(self.scroll.viewport().width() - 8, 278)
-        columns = max(1, min(4, available // 300))
+        margins = self.grid.contentsMargins()
+        available = max(
+            self.scroll.viewport().width() - margins.left() - margins.right(),
+            300,
+        )
+        spacing = self.grid.horizontalSpacing()
+        columns = max(1, min(4, (available + spacing) // (300 + spacing)))
         signature = (columns, tuple(id(card) for card in self.cards))
         if signature == getattr(self, "_grid_signature", None):
             return

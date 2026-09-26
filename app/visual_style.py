@@ -39,12 +39,14 @@ QLabel#muted, QLabel#sectionHint, QLabel#characterMeta { color: #98a8bf; font-si
 QLabel#metricTitle, QLabel#statName { color: #9aacc3; font-size: 11px; font-weight: 500; }
 QLabel#metricValue, QLabel#warpMetricValue { color: #edf4ff; font-size: 24px; font-weight: 600; }
 QLabel#relicSummaryChip {
-    color: #a9dff0; background-color: #173348; border: 1px solid #2a566d;
-    border-radius: 7px; padding: 5px 8px; font-size: 9px; font-weight: 700;
+    color: #d4eff8; background-color: #173348; border: 1px solid #315d73;
+    border-radius: 8px; padding: 6px 10px; font-size: 10px; font-weight: 700;
 }
-QFrame#relicFilterPanel { border: none; border-radius: 10px; background-color: #111c2e; }
+QFrame#relicFilterPanel {
+    border: 1px solid #2b405a; border-radius: 11px; background-color: #111c2e;
+}
 QWidget#relicFilterItem QComboBox {
-    min-height: 24px; padding: 2px 26px 2px 8px; border: 1px solid #2b405a;
+    min-height: 27px; padding: 2px 26px 2px 8px; border: 1px solid #385174;
     border-radius: 7px; background-color: #0d1727; font-size: 10px;
 }
 QWidget#relicFilterItem QLabel#metricTitle {
@@ -57,36 +59,82 @@ QPushButton#relicClearFilters {
 }
 QPushButton#relicClearFilters:hover { background-color: #173149; color: #eaf8ff; }
 QFrame#inventoryRelicCard {
-    background-color: #111d30; border: 1px solid #263a54; border-radius: 11px;
+    background-color: #111d30; border: 1px solid #314766;
+    border-left: 3px solid #4d6989; border-radius: 11px;
 }
-QFrame#inventoryRelicCard:hover { background-color: #14243a; border-color: #3f6785; }
-QFrame#relicCard[compactBuild="true"] QLabel#relicSlot { font-size: 8px; }
-QFrame#relicCard[compactBuild="true"] QLabel#relicSet { font-size: 9px; }
-QFrame#relicCard[compactBuild="true"] QLabel#rowName { font-size: 9px; }
-QFrame#relicCard[compactBuild="true"] QLabel#relicMainValue { font-size: 11px; }
-QFrame#relicCard[compactBuild="true"] QLabel#relicScoreLabel { font-size: 8px; }
-QFrame#relicCard[compactBuild="true"] QLabel#relicScoreValue { font-size: 9px; }
-QLabel#inventoryRelicSlot { color: #79d9f2; font-size: 8px; font-weight: 700; }
-QLabel#inventoryRelicSet { color: #edf4ff; font-size: 11px; font-weight: 600; }
-QLabel#inventoryRelicMeta { color: #e7c66d; font-size: 9px; }
+QFrame#inventoryRelicCard[relicState="equipada"] { border-left-color: #5dc9a5; }
+QFrame#inventoryRelicCard[relicState="movida"] { border-left-color: #e7bd75; }
+QFrame#inventoryRelicCard:hover { background-color: #16283f; border-color: #5c83a3; }
+QFrame#relicCard[compactBuild="true"] QLabel#relicSlot { font-size: 10px; }
+QFrame#relicCard[compactBuild="true"] QLabel#relicSet { font-size: 11px; }
+QFrame#relicCard[compactBuild="true"] QLabel#rowName { font-size: 11px; }
+QFrame#relicCard[compactBuild="true"] QLabel#relicMainValue { font-size: 13px; }
+QFrame#relicCard[compactBuild="true"] QLabel#relicScoreLabel { font-size: 10px; }
+QFrame#relicCard[compactBuild="true"] QLabel#relicScoreValue { font-size: 11px; }
+QFrame#artPanel, QFrame#statsPanel, QFrame#relicsPanel {
+    background-color: #111c2e; border: 1px solid #263a54; border-radius: 12px;
+}
+QFrame#benchmarkCard { background-color: #173348; border: 1px solid #2a566d; border-radius: 10px; }
+QFrame#relicCard[compactBuild="true"] {
+    background-color: #142034; border: 1px solid #29415e; border-radius: 10px;
+}
+QFrame#relicCard[compactBuild="true"]:hover { border-color: #3f6785; }
+QLabel#comboDamage { color: #a9dff0; font-size: 13px; font-weight: 600; }
+QFrame#statsPanel QFrame#statRow { padding: 0; border-bottom: 1px solid #21334b; }
+QFrame#statsPanel QFrame#benchmarkCard QProgressBar { min-height: 6px; max-height: 6px; }
+QFrame#statsPanel QFrame#benchmarkCard, QFrame#statsPanel QFrame#teamCard,
+QFrame#statsPanel QFrame#combatStatsCard { background: transparent; border: none; }
+QFrame#statsPanel QLabel#detailName { font-size: 20px; }
+QFrame#statsPanel QLabel#rowName { font-size: 11px; }
+QFrame#statsPanel QLabel#benchmarkScore, QFrame#statsPanel QLabel#benchmarkGrade {
+    font-size: 17px; font-weight: 600;
+}
+QFrame#statsPanel QLabel#comboDamage { font-size: 11px; }
+QFrame#statsPanel QLabel#badge, QFrame#statsPanel QLabel#eidolonBadge {
+    background: transparent; border: none; padding: 0 3px; font-size: 11px;
+}
+QFrame#statsPanel QFrame#statRow { border-bottom: 1px dotted #29415e; }
+QFrame#statsPanel QLabel#rowValue { font-size: 12px; font-weight: 600; }
+QLabel#inventoryRelicSlot { color: #83d8ec; font-size: 9px; font-weight: 700; }
+QLabel#inventoryRelicLevel {
+    color: #f3d188; background-color: #3a3327; border: 1px solid #675739;
+    border-radius: 5px; padding: 1px 5px; font-size: 9px; font-weight: 700;
+}
+QLabel#inventoryRelicSet { color: #f3f7ff; font-size: 13px; font-weight: 700; }
+QLabel#inventoryRelicMeta { color: #f7d576; font-size: 12px; letter-spacing: 1px; }
 QLabel#inventoryRelicGrade {
-    color: #d5eff8; background-color: #1d4052; border: 1px solid #39738c;
-    border-radius: 6px; padding: 2px 6px; font-size: 9px; font-weight: 700;
+    color: #cceffa; background-color: #1d4052; border: 1px solid #39738c;
+    border-radius: 6px; padding: 2px 6px; font-size: 10px; font-weight: 700;
 }
-QLabel#inventoryRelicScore { color: #f2f7ff; font-size: 16px; font-weight: 700; }
-QLabel#inventoryRelicHolder { color: #b7c5d8; font-size: 9px; font-weight: 600; }
+QLabel#inventoryRelicScore { color: #ffffff; font-size: 20px; font-weight: 700; }
+QFrame#inventoryRelicHolderBand {
+    background-color: #16253b; border: 1px solid #2a405c; border-radius: 7px;
+}
+QLabel#inventoryRelicHolder { color: #d4e0ee; font-size: 10px; font-weight: 600; }
 QLabel#inventoryRelicState {
     color: #a9f0ca; background-color: #173b36; border-radius: 5px;
-    padding: 2px 5px; font-size: 7px; font-weight: 700;
+    padding: 3px 6px; font-size: 8px; font-weight: 700;
 }
 QLabel#inventoryRelicState[relicState="anterior"] { color: #aab9cd; background-color: #263247; }
 QLabel#inventoryRelicState[relicState="movida"] { color: #f7cf8d; background-color: #49351f; }
-QFrame#inventoryRelicMain { background-color: #182842; border: none; border-radius: 7px; }
-QLabel#inventoryMainName { color: #aebfd3; font-size: 9px; }
-QLabel#inventoryMainValue { color: #ffffff; font-size: 12px; font-weight: 700; }
-QLabel#inventorySubName { color: #9daec3; font-size: 8px; }
-QLabel#inventorySubValue { color: #e6eef9; font-size: 9px; font-weight: 600; }
-QLabel#inventoryUpgrade { color: #77d5ef; font-size: 8px; font-weight: 700; }
+QFrame#inventoryRelicMain {
+    background-color: #1c3550; border: 1px solid #315879; border-radius: 8px;
+}
+QLabel#inventoryMainName { color: #c8d9e9; font-size: 11px; font-weight: 600; }
+QLabel#inventoryMainValue { color: #ffffff; font-size: 15px; font-weight: 700; }
+QLabel#inventoryRelicSubheading {
+    color: #8daac2; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+}
+QLabel#inventoryRelicSubEmpty { color: #91a8bf; font-size: 10px; padding: 7px; }
+QFrame#inventoryRelicSubCell {
+    background-color: #14243a; border: 1px solid #283e5a; border-radius: 7px;
+}
+QLabel#inventorySubName { color: #afc1d5; font-size: 10px; }
+QLabel#inventorySubValue { color: #f1f7ff; font-size: 12px; font-weight: 700; }
+QLabel#inventoryUpgrade {
+    color: #9ce0ee; background-color: #1c4057; border-radius: 4px;
+    padding: 0 4px; font-size: 9px; font-weight: 700;
+}
 QScrollArea#statsScroll, QScrollArea#statsScroll QWidget#qt_scrollarea_viewport,
 QScrollArea#statsScroll QWidget#scrollContent {
     background-color: transparent; border: none;
@@ -103,11 +151,11 @@ QFrame#accountDashboardSection {
 QFrame#accountMetricCard {
     background-color: #132137; border: 1px solid #29415e; border-radius: 9px;
 }
-QLabel#accountMetricTitle { color: #95a9c1; font-size: 9px; font-weight: 600; }
-QLabel#accountMetricValue { color: #eef7ff; font-size: 18px; font-weight: 700; }
+QLabel#accountMetricTitle { color: #95a9c1; font-size: 11px; font-weight: 600; }
+QLabel#accountMetricValue { color: #eef7ff; font-size: 28px; font-weight: 700; }
 QWidget#accountCompactRow { border-bottom: 1px solid #21334b; }
 QWidget#accountCompactRow QLabel#characterName { font-size: 11px; font-weight: 600; }
-QWidget#accountCompactRow QLabel#muted { font-size: 9px; }
+QWidget#accountCompactRow QLabel#muted { font-size: 11px; }
 QLabel#sideSection { color: #8496ae; padding: 6px 8px; font-weight: 500; }
 QFrame#sideBar { background-color: #0d1524; border: none; border-radius: 14px; }
 QFrame#sidebarUserPanel { background-color: #131f31; border: none; }

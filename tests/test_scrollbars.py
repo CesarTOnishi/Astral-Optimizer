@@ -112,3 +112,30 @@ class ScrollbarTests(unittest.TestCase):
         self.assertEqual(button.text(), "Início")
         self.assertEqual(button.styleSheet(), "")
         fake._refresh_auth_sidebar.assert_not_called()
+
+    def test_restored_window_collapses_sidebar_without_overriding_manual_choice(self):
+        widgets = [QFrame(), QPushButton(), QLabel(), QLabel(), QLabel(), QPushButton()]
+        self.widgets.extend(widgets)
+        fake = SimpleNamespace(
+            width=lambda: 900,
+            sidebar_expanded=True, _sidebar_user_choice=False,
+            _sidebar_auto_collapsed=False,
+            sidebar=widgets[0], sidebar_toggle=widgets[1],
+            side_brand=widgets[2], nav_section=widgets[3], side_source=widgets[4],
+            nav_buttons=[(widgets[5], "home", "Início")],
+            _update_sidebar_profile_layout=Mock(), _render_sync_status=Mock(),
+        )
+        fake.toggle_sidebar = lambda: MainWindow.toggle_sidebar(fake)
+        MainWindow._fit_sidebar_to_window(fake)
+        self.assertFalse(fake.sidebar_expanded)
+        self.assertEqual(fake.sidebar.width(), 62)
+        self.assertTrue(fake._sidebar_auto_collapsed)
+        fake.toggle_sidebar()  # Explicit choice at the same window size.
+        MainWindow._fit_sidebar_to_window(fake)
+        self.assertTrue(fake.sidebar_expanded)
+        fake._sidebar_user_choice = False
+        MainWindow._fit_sidebar_to_window(fake)
+        fake.width = lambda: 1280
+        MainWindow._fit_sidebar_to_window(fake)
+        self.assertTrue(fake.sidebar_expanded)
+        self.assertEqual(fake.sidebar.width(), 230)

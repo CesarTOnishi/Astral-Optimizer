@@ -61,6 +61,20 @@ class UidTabPersistenceTests(unittest.TestCase):
         self.assertEqual(len(workspace.sessions), 1)
         self.assertEqual(workspace.selected_uid, original.uid)
 
+    def test_selection_can_wait_for_ui_animation_before_persisting(self) -> None:
+        workspace = UidTabWorkspace(self.store, owner_id=2)
+        first, _ = workspace.open("700000001")
+        second, _ = workspace.open("700000002")
+        self.assertTrue(workspace.select(first.uid, persist=False))
+        self.assertEqual(workspace.selected_uid, first.uid)
+        self.assertEqual(
+            UidTabWorkspace(self.store, owner_id=2).selected_uid, second.uid
+        )
+        workspace.persist()
+        self.assertEqual(
+            UidTabWorkspace(self.store, owner_id=2).selected_uid, first.uid
+        )
+
     def test_profiles_are_isolated_and_close_keeps_cache(self) -> None:
         first_profile = UidTabWorkspace(self.store, owner_id=1)
         session, _ = first_profile.open("800000001")

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QProgressBar, QSizePolicy, QVBoxLayout, QWidget
 
 from app.ui.motion import AnimatedProgressBar as QProgressBar
 
@@ -17,16 +17,17 @@ class CompactMetricCard(QFrame):
     def __init__(self, title: str, value: str) -> None:
         super().__init__()
         self.setObjectName("accountMetricCard")
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 7, 10, 7)
-        layout.setSpacing(8)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(6)
         label = QLabel(title)
         label.setObjectName("accountMetricTitle")
         label.setWordWrap(True)
         self.value = QLabel(value)
         self.value.setObjectName("accountMetricValue")
-        layout.addWidget(label, 1)
         layout.addWidget(self.value)
+        layout.addWidget(label)
 
 
 class AccountDashboard(QWidget):
@@ -35,7 +36,8 @@ class AccountDashboard(QWidget):
         self.image_loader = image_loader or ImageLoader(self)
         self.body = QVBoxLayout(self)
         self.body.setContentsMargins(0, 0, 0, 0)
-        self.body.setSpacing(9)
+        self.body.setSpacing(14)
+        self.body.setAlignment(Qt.AlignmentFlag.AlignTop)
         self._metric_cards: list[CompactMetricCard] = []
         self._section_frames: list[QFrame] = []
         self._metric_columns = 0
@@ -53,11 +55,13 @@ class AccountDashboard(QWidget):
         frame = QFrame()
         frame.setObjectName("accountDashboardSection")
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(12, 10, 12, 11)
-        layout.setSpacing(5)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         header = QHBoxLayout()
         section_title = QLabel(title)
         section_title.setObjectName("sectionTitle")
+        section_title.setWordWrap(True)
         header.addWidget(section_title)
         for help_content in helps:
             header.addWidget(ContextHelpButton(*help_content))
@@ -190,7 +194,7 @@ class AccountDashboard(QWidget):
         if not self._metric_cards or not hasattr(self, "metrics_grid"):
             return
         width = max(self.width(), 1)
-        metric_columns = 4 if width >= 760 else 2
+        metric_columns = 4 if width >= 760 else (2 if width >= 360 else 1)
         if metric_columns != self._metric_columns:
             self._metric_columns = metric_columns
             while self.metrics_grid.count():
@@ -204,20 +208,23 @@ class AccountDashboard(QWidget):
                     column, 1 if column < metric_columns else 0
                 )
 
-        section_columns = 2 if width >= 820 else 1
+        section_columns = 3 if width >= 1200 else (2 if width >= 820 else 1)
         if section_columns == self._section_columns:
             return
         self._section_columns = section_columns
         while self.sections_grid.count():
             self.sections_grid.takeAt(0)
-        if section_columns == 2:
+        if section_columns == 3:
+            for column, frame in enumerate(self._section_frames):
+                self.sections_grid.addWidget(frame, 0, column)
+        elif section_columns == 2:
             self.sections_grid.addWidget(self._section_frames[0], 0, 0)
             self.sections_grid.addWidget(self._section_frames[1], 0, 1)
             self.sections_grid.addWidget(self._section_frames[2], 1, 0, 1, 2)
         else:
             for row, frame in enumerate(self._section_frames):
                 self.sections_grid.addWidget(frame, row, 0)
-        for column in range(2):
+        for column in range(3):
             self.sections_grid.setColumnStretch(
                 column, 1 if column < section_columns else 0
             )

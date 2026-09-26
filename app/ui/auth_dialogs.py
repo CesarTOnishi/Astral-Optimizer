@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -45,6 +46,7 @@ from app.preferences import (
     apply_experience_preferences, motion_duration, themed_color,
 )
 from app.ui.widgets import FadeComboBox
+from app.ui.background_controls import BackgroundControls
 from app.warp import (
     WarpDatabase,
     latest_cache_candidates,
@@ -326,6 +328,7 @@ class PrivacyCheckBox(QCheckBox):
 
 class SettingsDialog(QDialog):
     update_requested = Signal()
+    close_to_tray_changed = Signal()
 
     def __init__(
         self,
@@ -605,6 +608,12 @@ class SettingsDialog(QDialog):
         )
         application.addWidget(update_panel)
 
+        self.background_controls = BackgroundControls()
+        self.background_controls.close_to_tray_changed.connect(
+            self.close_to_tray_changed.emit
+        )
+        application.addWidget(self.background_controls)
+
         cache_panel = QFrame()
         cache_panel.setObjectName("settingsUpdatePanel")
         cache_layout = QVBoxLayout(cache_panel)
@@ -643,8 +652,15 @@ class SettingsDialog(QDialog):
         diagnostics.setObjectName("secondaryButton")
         diagnostics.clicked.connect(self._open_diagnostics)
         application.addWidget(diagnostics)
-        application.addStretch(1)
-        self.settings_stack.addWidget(app_page)
+        application_scroll = QScrollArea()
+        application_scroll.setObjectName("settingsApplicationScroll")
+        application_scroll.setWidgetResizable(True)
+        application_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        application_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        application_scroll.setWidget(app_page)
+        self.settings_stack.addWidget(application_scroll)
 
         self.settings_message = QLabel("")
         self.settings_message.setObjectName("authMessage")

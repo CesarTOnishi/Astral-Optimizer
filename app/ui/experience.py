@@ -25,6 +25,7 @@ from app.preferences import (
     apply_experience_preferences, themed_color,
 )
 from app.ui.widgets import FadeComboBox
+from app.ui.background_controls import BackgroundControls
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,6 +230,7 @@ class GuidedTourOverlay(QWidget):
 
 class ExperienceDialog(QDialog):
     preferences_changed = Signal()
+    close_to_tray_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -285,6 +287,12 @@ class ExperienceDialog(QDialog):
         hint.setObjectName("muted")
         hint.setWordWrap(True)
         layout.addWidget(hint)
+
+        self.background_controls = BackgroundControls()
+        self.background_controls.close_to_tray_changed.connect(
+            self.close_to_tray_changed.emit
+        )
+        layout.addWidget(self.background_controls)
 
         tutorial = QPushButton("Rever tutorial interativo")
         tutorial.setObjectName("secondaryButton")

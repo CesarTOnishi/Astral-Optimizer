@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from copy import deepcopy
 import json
 import time
 import unicodedata
 
-from PySide6.QtCore import QEvent, QSettings, QStandardPaths, QTimer, Qt, QUrl, Signal
+from PySide6.QtCore import QEvent, QRect, QSettings, QStandardPaths, QTimer, Qt, QUrl, Signal
 from PySide6.QtGui import (
-    QDesktopServices, QFont, QFontMetrics, QIcon, QKeySequence, QPixmap, QShortcut,
+    QAction, QDesktopServices, QFont, QFontMetrics, QIcon, QKeySequence, QPixmap,
+    QShortcut,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -20,12 +22,13 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QMenu,
     QPushButton,
     QSizePolicy,
     QSizeGrip,
     QScrollArea,
-    QSplitter,
     QStackedWidget,
+    QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
 )
@@ -37,6 +40,7 @@ from app.api.enka_client import (
     ensure_account_error,
 )
 from app.activity_log import ActivityLog
+from app.background import BackgroundSettings
 from app.auth import AuthService
 from app.benchmark import BenchmarkEngine
 from app.benchmark.fribbels_client import FribbelsBenchmarkWorker, engine_available
@@ -71,6 +75,7 @@ from app.ui.build_history import (
 from app.ui.build_share import render_build_share_card
 from app.ui.motion import AnimatedStack as QStackedWidget, animate_width, install_motion
 from app.ui.account_dashboard import AccountDashboard
+from app.ui.build_layout import BuildDetailSplitter, build_panel_proportions
 from app.ui.icons import set_button_icon
 from app.ui.catalog_panel import CatalogPanel
 from app.ui.contextual_help import (
@@ -140,16 +145,8 @@ PRIMARY_STATS = (
     "SPRatio",
 )
 
-BUILD_SPLITTER_MIN_HEIGHT = 680
+BUILD_SPLITTER_MIN_HEIGHT = 700
 
-
-def build_panel_proportions(width: int) -> tuple[float, float, float]:
-    """Art, build summary and relic grid proportions for the available width."""
-    if width < 780:
-        return 0.30, 0.30, 0.40
-    if width < 1150:
-        return 0.34, 0.25, 0.41
-    return 0.38, 0.23, 0.39
 
 ELEMENT_STATS = {
     "Físico": "PhysicalAddedRatio",
@@ -288,11 +285,20 @@ class MainWindow(QMainWindow):
         self.resume_store = SessionStateStore()
         self._session_owner_id = initial_owner
         self._restoring_resume_state = False
+        self._session_closed = False
+        self._quit_requested = False
+        self.background_settings = BackgroundSettings()
+        self._tray_icon: QSystemTrayIcon | None = None
+        self._tray_menu: QMenu | None = None
         self._resume_generation = 0
         self._resume_save_timer = QTimer(self)
         self._resume_save_timer.setSingleShot(True)
         self._resume_save_timer.setInterval(350)
         self._resume_save_timer.timeout.connect(self._save_resume_state)
+        self._uid_tab_persist_timer = QTimer(self)
+        self._uid_tab_persist_timer.setSingleShot(True)
+        self._uid_tab_persist_timer.setInterval(400)
+        self._uid_tab_persist_timer.timeout.connect(self.uid_workspace.persist)
         self.uid_tab_workers: dict[str, AccountFetchWorker] = {}
         self.uid_tab_errors: dict[str, AccountFetchError] = {}
         self.active_uid_tab = ""
@@ -319,6 +325,8 @@ class MainWindow(QMainWindow):
         self._own_request_owner_id: int | None = None
         self._own_request_uid = ""
         self.sidebar_expanded = True
+        self._sidebar_user_choice = False
+        self._sidebar_auto_collapsed = False
         self.account_sync_failed = False
         self.failed_sync_tasks: set[str] = set()
         self.sync_manager = BackgroundSyncManager(self)
@@ -337,6 +345,7 @@ class MainWindow(QMainWindow):
         self.settings_dialog: SettingsDialog | None = None
         self.update_check_manual = False
         self.update_prompt_open = False
+        self._pending_update_release: ReleaseInfo | None = None
         self.benchmark_results = {}
         self.fribbels_cache: dict[str, dict[str, object]] = {}
         self.active_benchmark_ids: set[str] = set()
@@ -344,6 +353,20 @@ class MainWindow(QMainWindow):
         self.team_settings = QSettings("Astral Optimizer", "Custom Teams")
         self.update_settings = QSettings("Astral Optimizer", "Updates")
         self.current_relic_cards: list[RelicCard] = []
+        self._uid_relic_cards: dict[
+            tuple[int, str, str], tuple[AccountSummary, list[RelicCard]]
+        ] = {}
+        self._visible_relic_key: tuple[int, str, str] | None = None
+        self._visible_relic_account: AccountSummary | None = None
+        self._uid_stat_rows: dict[
+            tuple[int, str, str], tuple[AccountSummary, list[StatRow]]
+        ] = {}
+        self._visible_stat_key: tuple[int, str, str] | None = None
+        self._visible_stat_account: AccountSummary | None = None
+        self._uid_character_lists: dict[
+            tuple[int, str], tuple[AccountSummary, QListWidget]
+        ] = {}
+        self._reuse_session_benchmark = False
         self._detail_request = 0
         self._initial_account_sync_active = False
         self.experience_settings = ExperienceSettings()
@@ -356,6 +379,7 @@ class MainWindow(QMainWindow):
 
         install_motion()
         self._build_ui()
+        self._configure_tray()
         self.section_loading.changed.connect(self._section_state_changed)
         self.section_loading.retry_requested.connect(self._retry_section)
         self._connect_resume_state_signals()
@@ -461,11 +485,11 @@ class MainWindow(QMainWindow):
         build_content.setObjectName("buildScrollContent")
         build_layout = QVBoxLayout(build_content)
         build_layout.setContentsMargins(0, 0, 4, 12)
-        build_layout.setSpacing(7)
+        build_layout.setSpacing(12)
         self.selector_panel = self._build_selector()
         build_layout.addWidget(self.selector_panel)
 
-        self.content_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.content_splitter = BuildDetailSplitter()
         self.art_panel = self._build_art_panel()
         self.stats_panel = self._build_stats_panel()
         self.relics_panel = self._build_relics_panel()
@@ -479,13 +503,12 @@ class MainWindow(QMainWindow):
         self.content_splitter.addWidget(self.relics_panel)
         self.content_splitter.setChildrenCollapsible(False)
         self.content_splitter.setHandleWidth(6)
-        self.content_splitter.setSizes([380, 230, 390])
+        self.content_splitter.setSizes([380, 220, 400])
         self.content_splitter.setStretchFactor(0, 38)
-        self.content_splitter.setStretchFactor(1, 23)
-        self.content_splitter.setStretchFactor(2, 39)
-        self.content_splitter.splitterMoved.connect(
-            lambda _position, _index: self._reflow_relic_cards()
-        )
+        self.content_splitter.setStretchFactor(1, 22)
+        self.content_splitter.setStretchFactor(2, 40)
+        self.content_splitter.composition_changed.connect(self._reflow_relic_cards)
+        self.content_splitter.composition_changed.connect(self._refresh_detail_name_layout)
         self.content_splitter.setMinimumHeight(BUILD_SPLITTER_MIN_HEIGHT)
         build_layout.addWidget(self.content_splitter)
         build_layout.addWidget(self._build_build_history_panel())
@@ -627,7 +650,7 @@ class MainWindow(QMainWindow):
         card = QFrame()
         card.setObjectName("accountProfilePanel")
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(12, 9, 12, 9)
+        card_layout.setContentsMargins(20, 18, 20, 18)
         card_layout.setSpacing(5)
         self.account_profile_avatar = AvatarLabel(58)
         self.account_profile_avatar.setObjectName("accountProfileAvatar")
@@ -636,6 +659,8 @@ class MainWindow(QMainWindow):
         self.account_profile_name = QLabel("Conta não carregada")
         self.account_profile_name.setObjectName("detailName")
         self.account_profile_name.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.account_profile_name.setWordWrap(True)
+        self.account_profile_name.setTextFormat(Qt.TextFormat.PlainText)
         self.account_profile_uid = QLabel("—")
         self.account_profile_uid.setObjectName("profileUid")
         self.account_profile_uid.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -702,6 +727,7 @@ class MainWindow(QMainWindow):
         self.account_page_scroll = QScrollArea()
         self.account_page_scroll.setObjectName("accountPageScroll")
         self.account_page_scroll.setWidgetResizable(True)
+        self.account_page_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.account_page_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.account_page_scroll.setWidget(page)
         return self.account_page_scroll
@@ -716,6 +742,8 @@ class MainWindow(QMainWindow):
         status = self.section_statuses.get(section)
         if status is not None:
             status.set_state(state)
+            if section in {"art", "relics", "benchmark"}:
+                status.setVisible(state.status != "ready")
 
     def _load_context_for(self, uid: str) -> LoadContext:
         owner_id = self._uid_owner_id()
@@ -989,6 +1017,7 @@ class MainWindow(QMainWindow):
         if user is None:
             dialog = ExperienceDialog(self)
             try:
+                dialog.close_to_tray_changed.connect(self._configure_tray)
                 dialog.exec()
                 apply_experience_preferences()
                 if dialog.replay_tutorial:
@@ -1004,6 +1033,7 @@ class MainWindow(QMainWindow):
         )
         try:
             self.settings_dialog = dialog
+            dialog.close_to_tray_changed.connect(self._configure_tray)
             dialog.update_requested.connect(lambda: self.check_for_updates(manual=True))
             dialog.exec()
             self.settings_dialog = None
@@ -1381,8 +1411,12 @@ class MainWindow(QMainWindow):
         self.update_check_worker = None
 
     def _show_update_available(self, release: ReleaseInfo) -> None:
+        if not self.isVisible() and self.settings_dialog is None:
+            self._pending_update_release = release
+            return
         if self.update_prompt_open:
             return
+        self._pending_update_release = None
         self.update_prompt_open = True
         can_install = running_from_bundle() and bool(release.download_url)
         parent = self.settings_dialog or self
@@ -1763,14 +1797,13 @@ class MainWindow(QMainWindow):
         for combo in combos:
             combo.currentIndexChanged.connect(self._schedule_resume_save)
         self.catalog_panel.search.textChanged.connect(self._schedule_resume_save)
-        self.character_list.currentRowChanged.connect(self._schedule_resume_save)
         self.catalog_panel.character_button.clicked.connect(self._schedule_resume_save)
         self.catalog_panel.cone_button.clicked.connect(self._schedule_resume_save)
         for button in self.warp_panel.banner_buttons.values():
             button.clicked.connect(self._schedule_resume_save)
 
     def _schedule_resume_save(self, *_args) -> None:
-        if not self._restoring_resume_state:
+        if not self._restoring_resume_state and not self._session_closed:
             self._resume_save_timer.start()
 
     def _visible_page_id(self) -> str:
@@ -1824,7 +1857,7 @@ class MainWindow(QMainWindow):
         )
 
     def _save_resume_state(self) -> None:
-        if self._restoring_resume_state:
+        if self._restoring_resume_state or self._session_closed:
             return
         self.resume_store.save(self._session_owner_id, self._capture_resume_state())
 
@@ -1955,47 +1988,66 @@ class MainWindow(QMainWindow):
             self.catalog_panel.set_active(False)
         if destination == "Saltos":
             self.page_stack.setCurrentIndex(1)
-            self._defer_with_loading(
-                "page", "Organizando seu histórico de Saltos…",
-                self.warp_panel.refresh,
-            )
         elif destination == "Planejador":
             self.page_stack.setCurrentIndex(2)
-            self._defer_with_loading(
-                "page", "Calculando probabilidades e objetivos…",
-                self.planner_panel.refresh,
-            )
         elif destination == "Relíquias":
             self.page_stack.setCurrentIndex(3)
-            self._defer_with_loading(
-                "page", "Organizando suas relíquias salvas…",
-                lambda: self.relic_inventory_panel.set_active(True),
-            )
+            if self.relic_inventory_panel.has_cached_view:
+                self.relic_inventory_panel.set_active(True)
+            else:
+                self._defer_with_loading(
+                    "page", "Organizando suas relíquias salvas…",
+                    lambda: self.relic_inventory_panel.set_active(True),
+                )
         elif destination == "Amigos":
             self.page_stack.setCurrentIndex(5)
-            self.friends_panel.refresh()
         elif destination == "Início":
             self.page_stack.setCurrentIndex(6)
         elif destination == "Personagens e Cones":
             self.page_stack.setCurrentIndex(7)
-            self._defer_with_loading(
-                "page", "Abrindo o catálogo de personagens e cones…",
-                lambda: self.catalog_panel.set_active(True),
-            )
+            if self.catalog_panel.has_cached_view:
+                self.catalog_panel.set_active(True)
+            else:
+                self._defer_with_loading(
+                    "page", "Abrindo o catálogo de personagens e cones…",
+                    lambda: self.catalog_panel.set_active(True),
+                )
         elif destination == "Novidades":
             self.page_stack.setCurrentWidget(self.whats_new_panel)
             self._mark_whats_new_seen()
         elif destination == "Diagnóstico":
             self.page_stack.setCurrentWidget(self.diagnostics_panel)
-            self.diagnostics_panel.refresh()
         elif destination == "Conta":
-            self._open_own_account_builds()
+            user = self.auth_service.current_user
+            if (
+                user is not None
+                and self.own_account is not None
+                and self.current_account is self.own_account
+                and self.own_account_user_id == user.id
+                and self.own_account.uid == user.game_uid
+                and self.build_source == "own"
+            ):
+                self.page_stack.setCurrentIndex(0)
+            else:
+                self._open_own_account_builds()
         else:
             if destination == "Builds":
                 self._set_public_uid_controls_visible(True)
                 selected_uid = self.uid_workspace.selected_uid
                 if selected_uid:
-                    self._activate_uid_tab(selected_uid)
+                    session = self.uid_workspace.sessions.get(selected_uid)
+                    if (
+                        session is not None
+                        and session.account is not None
+                        and session.account is self.current_account
+                        and self.active_uid_tab == selected_uid
+                        and self.build_source == session.source
+                        and not session.loading
+                        and not session.error
+                    ):
+                        self.page_stack.setCurrentIndex(0)
+                    else:
+                        self._activate_uid_tab(selected_uid)
                 else:
                     self.build_source = None
                     self._clear_public_build_display()
@@ -2139,15 +2191,13 @@ class MainWindow(QMainWindow):
         self._refresh_friend_action(loaded)
         if not loaded:
             return
-        self.content_splitter.widget(0).setVisible(True)
-        self.content_splitter.widget(2).setVisible(True)
-        available = max(1, self.content_splitter.width())
-        proportions = build_panel_proportions(available)
-        self.content_splitter.setSizes([
-            round(available * proportion) for proportion in proportions
-        ])
+        self.art_panel.setVisible(True)
+        self.relics_panel.setVisible(True)
+        self.content_splitter.reflow()
 
     def toggle_sidebar(self) -> None:
+        self._sidebar_user_choice = True
+        self._sidebar_auto_collapsed = False
         self.sidebar_expanded = not self.sidebar_expanded
         expanded = self.sidebar_expanded
         animate_width(self.sidebar, 230 if expanded else 62)
@@ -2165,6 +2215,25 @@ class MainWindow(QMainWindow):
             button.setText(text if expanded else "")
         self._update_sidebar_profile_layout()
         self._render_sync_status()
+
+    def _fit_sidebar_to_window(self) -> None:
+        if not hasattr(self, "sidebar"):
+            return
+        if self.width() <= 1050 and self.sidebar_expanded and not self._sidebar_user_choice:
+            self.toggle_sidebar()
+            self._sidebar_user_choice = False
+            self._sidebar_auto_collapsed = True
+            animation = getattr(self.sidebar, "_astral_width_animation", None)
+            if animation is not None:
+                animation.stop()
+            self.sidebar.setFixedWidth(62)
+        elif self.width() >= 1250 and self._sidebar_auto_collapsed:
+            self.toggle_sidebar()
+            self._sidebar_user_choice = False
+            animation = getattr(self.sidebar, "_astral_width_animation", None)
+            if animation is not None:
+                animation.stop()
+            self.sidebar.setFixedWidth(230)
 
     def _sync_status_changed(self, state: str, message: str, count: int) -> None:
         self.sync_state = state
@@ -2242,6 +2311,7 @@ class MainWindow(QMainWindow):
     def _build_selector(self) -> QFrame:
         frame = QFrame()
         frame.setObjectName("selectorPanel")
+        frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(9, 5, 9, 5)
         layout.setSpacing(4)
@@ -2249,20 +2319,87 @@ class MainWindow(QMainWindow):
         title = QLabel("Personagens")
         title.setObjectName("sectionTitle")
         title.setFixedWidth(100)
-        self.character_list = QListWidget()
-        self.character_list.setObjectName("portraitList")
-        self.character_list.setFlow(QListWidget.Flow.LeftToRight)
-        self.character_list.setWrapping(False)
-        self.character_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.character_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.character_list.currentRowChanged.connect(self.show_character_details)
+        self.character_list_stack = QStackedWidget()
+        self.character_list_stack.setObjectName("portraitListStack")
+        self.character_list_stack.setFixedHeight(84)
+        self.character_list = self._make_character_list()
+        self._own_character_list = self.character_list
+        self.character_list_stack.addWidget(self.character_list)
         character_row.addWidget(title)
         self.characters_section_status = self._make_section_status("characters")
         self.characters_section_status.setMaximumWidth(230)
         character_row.addWidget(self.characters_section_status)
-        character_row.addWidget(self.character_list, 1)
+        character_row.addWidget(self.character_list_stack, 1)
         layout.addLayout(character_row)
         return frame
+
+    def _make_character_list(self) -> QListWidget:
+        listing = QListWidget()
+        listing.setObjectName("portraitList")
+        listing.setFlow(QListWidget.Flow.LeftToRight)
+        listing.setWrapping(False)
+        listing.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        listing.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        listing.currentRowChanged.connect(
+            lambda row, current=listing: self.show_character_details(row)
+            if self.character_list is current else None
+        )
+        listing.currentRowChanged.connect(self._schedule_resume_save)
+        listing.horizontalScrollBar().valueChanged.connect(self._schedule_resume_save)
+        return listing
+
+    def _use_character_list(self, account: AccountSummary) -> bool:
+        session = self.uid_workspace.sessions.get(self.active_uid_tab)
+        if session is not None and session.account is account:
+            key = (self.uid_workspace.owner_id, session.uid)
+            cached = self._uid_character_lists.get(key)
+            if cached is None:
+                listing = self._make_character_list()
+                self.character_list_stack.addWidget(listing)
+            else:
+                previous_account, listing = cached
+                if (
+                    previous_account is account
+                    and listing.count() == len(account.characters)
+                ):
+                    self.character_list = listing
+                    self.character_list_stack.setCurrentWidget(listing)
+                    return True
+                listing.clear()
+            self._uid_character_lists[key] = (account, listing)
+        else:
+            listing = self._own_character_list
+        self.character_list = listing
+        self.character_list_stack.setCurrentWidget(listing)
+        return False
+
+    def _drop_uid_character_list(self, uid: str, *, owner_id: int | None = None) -> None:
+        key = (self.uid_workspace.owner_id if owner_id is None else owner_id, uid)
+        cached = self._uid_character_lists.pop(key, None)
+        if cached is None:
+            return
+        listing = cached[1]
+        if self.character_list is listing:
+            self.character_list = self._own_character_list
+            self.character_list_stack.setCurrentWidget(self.character_list)
+        self.character_list_stack.removeWidget(listing)
+        listing.deleteLater()
+
+    def _drop_uid_relic_cards(self, uid: str, *, owner_id: int | None = None) -> None:
+        owner = self.uid_workspace.owner_id if owner_id is None else owner_id
+        for key in list(self._uid_relic_cards):
+            if key[0] == owner and key[1] == uid:
+                _account, cards = self._uid_relic_cards.pop(key)
+                for card in cards:
+                    card.deleteLater()
+
+    def _drop_uid_stat_rows(self, uid: str, *, owner_id: int | None = None) -> None:
+        owner = self.uid_workspace.owner_id if owner_id is None else owner_id
+        for key in list(self._uid_stat_rows):
+            if key[0] == owner and key[1] == uid:
+                _account, rows = self._uid_stat_rows.pop(key)
+                for row in rows:
+                    row.deleteLater()
 
     def _build_art_panel(self) -> QFrame:
         frame = QFrame()
@@ -2278,6 +2415,7 @@ class MainWindow(QMainWindow):
         self.art_caption = QLabel("Selecione um personagem")
         self.art_caption.setObjectName("artCaption")
         self.art_caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.art_caption.setWordWrap(True)
         layout.addWidget(self.art_caption)
         self.uid_caption = QLabel("UID —")
         self.uid_caption.setObjectName("muted")
@@ -2309,11 +2447,12 @@ class MainWindow(QMainWindow):
         self.stats_content = content
         self.stats_layout = QVBoxLayout(content)
         self.stats_layout.setContentsMargins(6, 5, 6, 6)
-        self.stats_layout.setSpacing(2)
+        self.stats_layout.setSpacing(3)
 
         self.detail_name = QLabel("Personagem")
         self.detail_name.setObjectName("detailName")
-        self.detail_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.detail_name.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        self.detail_name.setTextFormat(Qt.TextFormat.PlainText)
         self.detail_name.setWordWrap(True)
         self.detail_name.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
@@ -2346,15 +2485,16 @@ class MainWindow(QMainWindow):
         badges.addWidget(self.level_badge)
         badges.addWidget(self.eidolon_badge)
         badges.addStretch(1)
-        self.stats_layout.addWidget(self.detail_name)
         self.stats_layout.addLayout(identity)
+        self.stats_layout.addWidget(self.detail_name)
         self.stats_layout.addLayout(badges)
 
         section = QLabel("Atributos")
         section.setObjectName("sectionTitle")
         self.stats_layout.addWidget(section)
-        self.stat_rows = QVBoxLayout()
+        self.stat_rows = QGridLayout()
         self.stat_rows.setSpacing(0)
+        self.stat_rows.setHorizontalSpacing(10)
         self.stats_layout.addLayout(self.stat_rows)
 
         self.benchmark_card = BenchmarkCard()
@@ -2422,9 +2562,11 @@ class MainWindow(QMainWindow):
         frame.setMinimumWidth(225)
         outer = QVBoxLayout(frame)
         outer.setContentsMargins(8, 8, 8, 8)
+        outer.setSpacing(4)
 
         header = QHBoxLayout()
-        title = QLabel("RELÍQUIAS EQUIPADAS")
+        title = QLabel("Relíquias e ornamentos")
+        title.setWordWrap(False)
         title.setObjectName("sectionTitle")
         self.relic_count = QLabel("0/6")
         self.relic_count.setObjectName("badge")
@@ -2437,6 +2579,7 @@ class MainWindow(QMainWindow):
         outer.addWidget(self.relics_section_status)
         legend = QLabel("Cada < representa uma melhoria recebida pelo subatributo")
         legend.setObjectName("sectionHint")
+        legend.setWordWrap(True)
         outer.addWidget(legend)
 
         self.relic_scroll = QScrollArea()
@@ -2450,6 +2593,7 @@ class MainWindow(QMainWindow):
         self.relic_grid.setVerticalSpacing(7)
         self.relic_empty = QLabel("As relíquias do personagem aparecerão aqui.")
         self.relic_empty.setObjectName("muted")
+        self.relic_empty.setWordWrap(True)
         self.relic_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.relic_grid.addWidget(self.relic_empty, 0, 0, 1, 2)
         self.relic_scroll.setWidget(content)
@@ -2461,7 +2605,7 @@ class MainWindow(QMainWindow):
         frame.setObjectName("buildHistoryPanel")
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(6, 6, 6, 6)
-        self.build_history_bar = BuildHistoryBar(wide=True)
+        self.build_history_bar = BuildHistoryBar(wide=False)
         self.build_history_bar.save_requested.connect(self.save_current_build)
         self.build_history_bar.export_requested.connect(self.export_current_build)
         self.build_history_bar.compare_requested.connect(self.compare_saved_build)
@@ -2488,7 +2632,14 @@ class MainWindow(QMainWindow):
         owner_id = self._uid_owner_id()
         if owner_id == self.uid_workspace.owner_id:
             return
+        self._uid_tab_persist_timer.stop()
         self._capture_active_uid_tab()
+        previous_owner = self.uid_workspace.owner_id
+        for cached_owner, cached_uid in list(self._uid_character_lists):
+            if cached_owner == previous_owner:
+                self._drop_uid_character_list(cached_uid, owner_id=cached_owner)
+                self._drop_uid_relic_cards(cached_uid, owner_id=cached_owner)
+                self._drop_uid_stat_rows(cached_uid, owner_id=cached_owner)
         self._resume_generation += 1
         self._restoring_resume_state = False
         self._pending_resume_state = None
@@ -2503,7 +2654,7 @@ class MainWindow(QMainWindow):
         self.build_uid_input.parentWidget().setVisible(visible)
         self.uid_tabs_widget.setVisible(visible and bool(self.uid_workspace.sessions))
 
-    def _capture_active_uid_tab(self) -> None:
+    def _capture_active_uid_tab(self, *, persist: bool = True) -> None:
         session = self.uid_workspace.sessions.get(self.active_uid_tab)
         if (
             session is None
@@ -2517,7 +2668,8 @@ class MainWindow(QMainWindow):
         session.benchmark_results = self.benchmark_results
         session.fribbels_cache = self.fribbels_cache
         session.unsupported_benchmark_characters = self.unsupported_benchmark_characters
-        self.uid_workspace.persist()
+        if persist:
+            self.uid_workspace.persist()
 
     def _load_uid_tab_avatar(self, session: UidTabSession) -> None:
         if not session.avatar_url:
@@ -2537,7 +2689,7 @@ class MainWindow(QMainWindow):
 
     def _open_public_uid(self, uid: str, *, source: str = "manual") -> None:
         self._sync_uid_tab_owner()
-        self._capture_active_uid_tab()
+        self._capture_active_uid_tab(persist=False)
         session, created = self.uid_workspace.open(uid, source=source)
         if source == "friend":
             session.source = "friend"
@@ -2545,7 +2697,8 @@ class MainWindow(QMainWindow):
         index = self.uid_tabs_widget.add_or_update(uid, session.title)
         self.uid_tabs_widget.tabs.setCurrentIndex(index)
         self.uid_tabs_widget.setVisible(True)
-        self._activate_uid_tab(uid)
+        if self.active_uid_tab != uid:
+            self._activate_uid_tab(uid)
         if created or session.account is None:
             self._request_uid_tab(uid)
 
@@ -2560,8 +2713,9 @@ class MainWindow(QMainWindow):
             self._clear_public_build_display()
             return
         if self.active_uid_tab != uid:
-            self._capture_active_uid_tab()
-        self.uid_workspace.select(uid)
+            self._capture_active_uid_tab(persist=False)
+        self.uid_workspace.select(uid, persist=False)
+        self._uid_tab_persist_timer.start()
         self.active_uid_tab = uid
         context = self._load_context_for(uid)
         self.build_source = session.source
@@ -2605,6 +2759,7 @@ class MainWindow(QMainWindow):
         self.benchmark_results = session.benchmark_results
         self.fribbels_cache = session.fribbels_cache
         self.unsupported_benchmark_characters = session.unsupported_benchmark_characters
+        self._reuse_session_benchmark = True
         self.display_account(
             session.account,
             selected_character_id=session.selected_character_id,
@@ -2624,8 +2779,7 @@ class MainWindow(QMainWindow):
                 f"{session.error} Os dados anteriores foram preservados.", "error"
             )
         else:
-            suffix = f" · {updated_at_text(session.updated_at)}" if session.updated_at else ""
-            self.set_status(f"Dados da UID {uid}{suffix}.", "success")
+            self.status_bar.hide()
         QTimer.singleShot(
             0,
             lambda current_uid=uid, position=session.scroll_position:
@@ -2637,6 +2791,7 @@ class MainWindow(QMainWindow):
             self.build_scroll.verticalScrollBar().setValue(max(position, 0))
 
     def _clear_public_build_display(self) -> None:
+        self._reuse_session_benchmark = False
         self.current_account = None
         self.current_uid = ""
         self.current_characters = []
@@ -2644,6 +2799,7 @@ class MainWindow(QMainWindow):
         self._show_build_content(False)
 
     def _show_build_placeholders(self, uid: str) -> None:
+        self._reuse_session_benchmark = False
         self.current_account = None
         self.current_uid = uid
         self.current_characters = []
@@ -2653,6 +2809,8 @@ class MainWindow(QMainWindow):
         self.profile_header_meta.setText("Nível — · Equilíbrio — · — conquistas")
         self.profile_header_avatar.clear_image()
         self.copy_uid_button.setEnabled(False)
+        self.character_list = self._own_character_list
+        self.character_list_stack.setCurrentWidget(self.character_list)
         self.character_list.clear()
         self.detail_name.setText("Personagem")
         self.detail_rarity.setText("☆☆☆☆☆")
@@ -2679,6 +2837,9 @@ class MainWindow(QMainWindow):
     def _close_uid_tab(self, uid: str) -> None:
         if uid == self.active_uid_tab:
             self._capture_active_uid_tab()
+        self._drop_uid_character_list(uid)
+        self._drop_uid_relic_cards(uid)
+        self._drop_uid_stat_rows(uid)
         self.uid_workspace.close(uid)
         self.uid_tab_errors.pop(uid, None)
         self.uid_tabs_widget.remove_uid(uid)
@@ -3259,6 +3420,7 @@ class MainWindow(QMainWindow):
             self.auth_avatar.set_image(pixmap)
 
     def set_status(self, message: str, kind: str = "info") -> None:
+        self.status_bar.show()
         object_name = {"success": "statusSuccess", "error": "statusError"}.get(
             kind, "statusInfo"
         )
@@ -3275,6 +3437,9 @@ class MainWindow(QMainWindow):
         selected_character_id: str = "",
         reset_benchmarks: bool = True,
     ) -> None:
+        session = self.uid_workspace.sessions.get(self.active_uid_tab)
+        if session is None or session.account is not account:
+            self._reuse_session_benchmark = False
         context = self.section_loading.begin_context(
             self.uid_workspace.owner_id, account.uid
         )
@@ -3287,6 +3452,7 @@ class MainWindow(QMainWindow):
         self.current_account = account
         self.current_uid = account.uid
         self.current_characters = account.characters
+        reused_list = self._use_character_list(account)
         self.account_label.setText(account.nickname)
         self.profile_header_bio.setText(account.signature or "Sem biografia pública.")
         self.profile_header_meta.setText(
@@ -3315,12 +3481,26 @@ class MainWindow(QMainWindow):
             self.fribbels_cache = {}
             self.unsupported_benchmark_characters = set()
         self.active_benchmark_ids.clear()
-        self.character_list.clear()
-        QTimer.singleShot(
-            0,
-            lambda current=context, selected=selected_character_id:
-            self._populate_character_section(account, selected, current),
-        )
+        if reused_list:
+            self.section_loading.ready("characters", context)
+            selected_row = next(
+                (
+                    index for index, character in enumerate(account.characters)
+                    if str(character.avatar_id) == selected_character_id
+                ),
+                0,
+            )
+            if self.character_list.currentRow() != selected_row:
+                self.character_list.setCurrentRow(selected_row)
+            elif account.characters:
+                self.show_character_details(selected_row)
+        else:
+            self.character_list.clear()
+            QTimer.singleShot(
+                0,
+                lambda current=context, selected=selected_character_id:
+                self._populate_character_section(account, selected, current),
+            )
 
     def _populate_character_section(
         self, account: AccountSummary, selected_character_id: str,
@@ -3394,12 +3574,28 @@ class MainWindow(QMainWindow):
             self.detail_name.setProperty("compactName", compact)
             self.detail_name.style().unpolish(self.detail_name)
             self.detail_name.style().polish(self.detail_name)
-        line_height = self.detail_name.fontMetrics().lineSpacing()
-        self.detail_name.setFixedHeight(line_height * (2 if wrapped else 1) + 5)
+        # heightForWidth is bounded by the previous fixed height: adding padding
+        # to it repeatedly made the header grow on every resize/character switch.
+        metrics = self.detail_name.fontMetrics()
+        text_height = metrics.boundingRect(
+            QRect(0, 0, available, 10000),
+            Qt.TextFlag.TextWordWrap, self.detail_name.text(),
+        ).height()
+        self.detail_name.setFixedHeight(max(metrics.lineSpacing(), text_height) + 4)
         self.detail_name.setToolTip(self.detail_name.text() if wrapped else "")
-        self.content_splitter.setMinimumHeight(
-            BUILD_SPLITTER_MIN_HEIGHT + (line_height if wrapped else 0)
-        )
+        self._reflow_stat_rows()
+
+    def _reflow_stat_rows(self) -> None:
+        if not hasattr(self, "stat_rows"):
+            return
+        rows = []
+        while self.stat_rows.count():
+            rows.append(self.stat_rows.takeAt(0).widget())
+        columns = 1
+        for index, row in enumerate(rows):
+            self.stat_rows.addWidget(row, index // columns, index % columns)
+        self.stat_rows.setColumnStretch(0, 1)
+        self.stat_rows.setColumnStretch(1, 1 if columns == 2 else 0)
 
     def _show_character_details(self, row: int) -> None:
         if row < 0 or row >= len(self.current_characters):
@@ -3416,7 +3612,6 @@ class MainWindow(QMainWindow):
         ):
             session.selected_character_id = str(character.avatar_id)
             self.uid_workspace.persist()
-        self._refresh_build_history()
         self.detail_name.setText(character.name)
         # Um personagem anterior pode ter deixado a coluna rolada para baixo.
         # Mostre sempre a identidade e os atributos ao trocar a seleção.
@@ -3551,41 +3746,159 @@ class MainWindow(QMainWindow):
             self.light_cone_banner.set_image(pixmap)
 
     def _display_stats(self, character: CharacterSummary) -> None:
-        self._clear_layout(self.stat_rows)
-        by_key = {stat.key: stat for stat in character.stats}
-        ordered: list[CharacterStat] = [
-            by_key[key] for key in PRIMARY_STATS if key in by_key
-        ]
-        element_key = ELEMENT_STATS.get(character.element)
-        if element_key and element_key in by_key:
-            ordered.append(by_key[element_key])
-        for stat in ordered:
-            self.stat_rows.addWidget(StatRow(stat))
+        if not hasattr(self, "uid_workspace"):
+            self._clear_layout(self.stat_rows)
+            by_key = {stat.key: stat for stat in character.stats}
+            ordered = [by_key[key] for key in PRIMARY_STATS if key in by_key]
+            element_key = ELEMENT_STATS.get(character.element)
+            if element_key and element_key in by_key:
+                ordered.append(by_key[element_key])
+            for index, stat in enumerate(ordered):
+                self.stat_rows.addWidget(StatRow(stat), index, 0)
+            self._reflow_stat_rows()
+            return
+        old_rows: list[StatRow] = []
+        while self.stat_rows.count():
+            item = self.stat_rows.takeAt(0)
+            widget = item.widget()
+            if isinstance(widget, StatRow):
+                widget.hide()
+                old_rows.append(widget)
+            elif widget is not None:
+                widget.deleteLater()
+        old_key = self._visible_stat_key
+        old_account = self._visible_stat_account
+        old_session = (
+            self.uid_workspace.sessions.get(old_key[1]) if old_key else None
+        )
+        if (
+            old_rows and old_key is not None and old_account is not None
+            and old_key[0] == self.uid_workspace.owner_id
+            and old_session is not None and old_session.account is old_account
+        ):
+            previous = self._uid_stat_rows.pop(old_key, None)
+            if previous is not None:
+                for row in previous[1]:
+                    row.deleteLater()
+            self._uid_stat_rows[old_key] = (old_account, old_rows)
+            while len(self._uid_stat_rows) > 8:
+                oldest = next(iter(self._uid_stat_rows))
+                _account, rows = self._uid_stat_rows.pop(oldest)
+                for row in rows:
+                    row.deleteLater()
+        else:
+            for row in old_rows:
+                row.deleteLater()
+        session = self.uid_workspace.sessions.get(self.active_uid_tab)
+        public = session is not None and session.account is self.current_account
+        key = (
+            (self.uid_workspace.owner_id, session.uid, str(character.avatar_id))
+            if public else None
+        )
+        self._visible_stat_key = key
+        self._visible_stat_account = self.current_account if public else None
+        cached = self._uid_stat_rows.pop(key, None) if key is not None else None
+        if cached is not None and cached[0] is self.current_account:
+            rows = cached[1]
+        else:
+            if cached is not None:
+                for row in cached[1]:
+                    row.deleteLater()
+            rows = []
+            by_key = {stat.key: stat for stat in character.stats}
+            ordered: list[CharacterStat] = [
+                by_key[key] for key in PRIMARY_STATS if key in by_key
+            ]
+            element_key = ELEMENT_STATS.get(character.element)
+            if element_key and element_key in by_key:
+                ordered.append(by_key[element_key])
+            rows = [StatRow(stat) for stat in ordered]
+        for index, row in enumerate(rows):
+            self.stat_rows.addWidget(row, index, 0)
+            row.show()
+        self._reflow_stat_rows()
 
     def _display_relics(
         self, character: CharacterSummary, *, context: LoadContext | None = None
     ) -> None:
         context = context or self.section_loading.context
-        self._clear_layout(self.relic_grid)
+        old_cards = list(self.current_relic_cards)
+        while self.relic_grid.count():
+            item = self.relic_grid.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.hide()
+                if widget not in old_cards:
+                    widget.deleteLater()
+        old_key = self._visible_relic_key
+        old_account = self._visible_relic_account
+        old_session = (
+            self.uid_workspace.sessions.get(old_key[1]) if old_key else None
+        )
+        if (
+            old_cards and old_key is not None and old_account is not None
+            and old_key[0] == self.uid_workspace.owner_id
+            and old_session is not None and old_session.account is old_account
+        ):
+            previous = self._uid_relic_cards.pop(old_key, None)
+            if previous is not None:
+                for card in previous[1]:
+                    card.deleteLater()
+            self._uid_relic_cards[old_key] = (old_account, old_cards)
+            while len(self._uid_relic_cards) > 8:
+                oldest = next(iter(self._uid_relic_cards))
+                _account, cards = self._uid_relic_cards.pop(oldest)
+                for card in cards:
+                    card.deleteLater()
+        else:
+            for card in old_cards:
+                card.deleteLater()
         self.current_relic_cards = []
+        session = self.uid_workspace.sessions.get(self.active_uid_tab)
+        public = session is not None and session.account is self.current_account
+        key = (
+            (self.uid_workspace.owner_id, session.uid, str(character.avatar_id))
+            if public else None
+        )
+        self._visible_relic_key = key
+        self._visible_relic_account = self.current_account if public else None
         if not character.relics:
             self.section_loading.ready("relics", context)
             self.relic_empty = QLabel("Nenhuma relíquia pública encontrada.")
             self.relic_empty.setObjectName("muted")
+            self.relic_empty.setWordWrap(True)
             self.relic_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.relic_grid.addWidget(self.relic_empty, 0, 0, 1, 2)
             return
+        cached = self._uid_relic_cards.pop(key, None) if key is not None else None
+        restored_cards = cached is not None and cached[0] is self.current_account
+        if restored_cards:
+            self.current_relic_cards = cached[1]
+        else:
+            if cached is not None:
+                for card in cached[1]:
+                    card.deleteLater()
+            for relic in character.relics:
+                rating = self.benchmark_engine.rate_relic(character, relic)
+                self.current_relic_cards.append(
+                    RelicCard(relic, rating, expand_vertical=True)
+                )
+        pending_images = [
+            (relic, card)
+            for relic, card in zip(character.relics, self.current_relic_cards)
+            if not restored_cards or card.icon.pixmap().isNull()
+        ]
+        if pending_images:
+            self.section_loading.pending(
+                "relics", "Carregando imagens das relíquias…", context
+            )
+        else:
+            self.section_loading.ready("relics", context)
         batch = {
-            "remaining": len(character.relics), "failed": 0,
+            "remaining": len(pending_images), "failed": 0,
             "avatar_id": str(character.avatar_id),
         }
-        self.section_loading.pending(
-            "relics", "Carregando imagens das relíquias…", context
-        )
-        for index, relic in enumerate(character.relics):
-            rating = self.benchmark_engine.rate_relic(character, relic)
-            card = RelicCard(relic, rating, expand_vertical=True)
-            self.current_relic_cards.append(card)
+        for relic, card in pending_images:
             self.image_loader.load(
                 relic.icon_url,
                 lambda pixmap, target=card.icon, current=context, state=batch:
@@ -3625,26 +3938,98 @@ class MainWindow(QMainWindow):
             self.relic_grid.takeAt(0)
         for row in range(6):
             self.relic_grid.setRowStretch(row, 0)
-        available_width = self.relics_panel.width() - 24
-        columns = 2 if available_width >= 365 else 1
+        available_width = self.relic_scroll.viewport().width()
+        card_width = max(178, *(card.minimumSizeHint().width() for card in self.current_relic_cards))
+        columns = 2 if available_width >= card_width * 2 + self.relic_grid.horizontalSpacing() else 1
         self.relic_scroll.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-            if columns == 2 else Qt.ScrollBarPolicy.ScrollBarAsNeeded
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         for index, card in enumerate(self.current_relic_cards):
             self.relic_grid.addWidget(card, index // columns, index % columns)
-        used_rows = (len(self.current_relic_cards) + columns - 1) // columns
-        for row in range(used_rows):
+            card.show()
+        self.relic_grid.setAlignment(Qt.AlignmentFlag(0))
+        for row in range((len(self.current_relic_cards) + columns - 1) // columns):
             self.relic_grid.setRowStretch(row, 1)
         self.relic_grid.setColumnStretch(0, 1)
         self.relic_grid.setColumnStretch(1, 1 if columns == 2 else 0)
 
+    def _configure_tray(self) -> None:
+        enabled = (
+            self.background_settings.close_to_tray()
+            and QSystemTrayIcon.isSystemTrayAvailable()
+        )
+        if enabled and self._tray_icon is None:
+            tray = QSystemTrayIcon(self.windowIcon(), self)
+            tray.setToolTip("Astral Optimizer")
+            menu = QMenu(self)
+            open_action = QAction("Abrir Astral Optimizer", menu)
+            open_action.triggered.connect(self._restore_from_tray)
+            exit_action = QAction("Sair do Astral Optimizer", menu)
+            exit_action.triggered.connect(self._quit_from_tray)
+            menu.addAction(open_action)
+            menu.addSeparator()
+            menu.addAction(exit_action)
+            tray.setContextMenu(menu)
+            tray.activated.connect(self._tray_activated)
+            self._tray_menu = menu
+            self._tray_icon = tray
+        if self._tray_icon is not None:
+            self._tray_icon.setVisible(enabled)
+        app = QApplication.instance()
+        if app is not None:
+            app.setQuitOnLastWindowClosed(not enabled)
+        self.title_bar.close_button.setToolTip(
+            "Manter na bandeja" if enabled else "Fechar"
+        )
+
+    def _tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
+        if reason in (
+            QSystemTrayIcon.ActivationReason.Trigger,
+            QSystemTrayIcon.ActivationReason.DoubleClick,
+        ):
+            self._restore_from_tray()
+
+    def _restore_from_tray(self) -> None:
+        self.show()
+        if self.isMinimized():
+            self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
+    def _quit_from_tray(self) -> None:
+        self._quit_requested = True
+        self.close()
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
+
+    def showEvent(self, event) -> None:  # type: ignore[no-untyped-def]
+        super().showEvent(event)
+        release = self._pending_update_release
+        if release is not None:
+            QTimer.singleShot(
+                0, lambda current=release: self._show_update_available(current)
+            )
+
     def closeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
+        if (
+            not self._quit_requested
+            and self.background_settings.close_to_tray()
+            and self._tray_icon is not None
+            and self._tray_icon.isVisible()
+        ):
+            event.ignore()
+            self.hide()
+            return
         self._resume_save_timer.stop()
+        self._uid_tab_persist_timer.stop()
         self._restoring_resume_state = False
         self._save_resume_state()
         self._capture_active_uid_tab()
         self.uid_workspace.persist()
+        self._session_closed = True
+        if self._tray_icon is not None:
+            self._tray_icon.hide()
         super().closeEvent(event)
 
     def resizeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
@@ -3661,13 +4046,10 @@ class MainWindow(QMainWindow):
         if hasattr(self, "loading_overlay"):
             self.loading_overlay.setGeometry(self.centralWidget().rect())
             self.loading_overlay.raise_()
+        self._fit_sidebar_to_window()
         if not hasattr(self, "content_splitter"):
             return
-        available = max(1, self.content_splitter.width())
-        proportions = build_panel_proportions(available)
-        self.content_splitter.setSizes(
-            [round(available * proportion) for proportion in proportions]
-        )
+        self.content_splitter.reflow()
         QTimer.singleShot(0, self._reflow_relic_cards)
         QTimer.singleShot(0, self._refresh_detail_name_layout)
 
@@ -3683,7 +4065,7 @@ class MainWindow(QMainWindow):
             team = json.loads(str(raw))
         except (TypeError, ValueError, json.JSONDecodeError):
             return None
-        return team if isinstance(team, list) and len(team) == 3 else None
+        return team if isinstance(team, list) and len(team) == 3 and all(isinstance(member, dict) for member in team) else None
 
     def _uses_custom_team(self, character_id: str) -> bool:
         enabled = self.team_settings.value(
@@ -3692,6 +4074,11 @@ class MainWindow(QMainWindow):
         return bool(enabled and self._custom_team(character_id))
 
     def _default_team_for_editor(self, character: CharacterSummary) -> list[dict[str, object]]:
+        uid = self.current_account.uid if self.current_account is not None else "global"
+        cached = getattr(self, "fribbels_cache", {}).get(f"{uid}:{character.avatar_id}:default", {})
+        teammates = cached.get("teammates") if isinstance(cached, dict) else None
+        if isinstance(teammates, list) and len(teammates) == 3 and all(isinstance(member, dict) for member in teammates):
+            return deepcopy(teammates)
         preset = default_team(character)
         if preset is None:
             return []
@@ -3707,7 +4094,7 @@ class MainWindow(QMainWindow):
             for member in preset.members
         ]
 
-    def open_custom_team_dialog(self) -> None:
+    def open_custom_team_dialog(self, member_index: int | None = None) -> None:
         character = next(
             (
                 item for item in self.current_characters
@@ -3717,11 +4104,23 @@ class MainWindow(QMainWindow):
         )
         if character is None:
             return
-        initial = self._custom_team(str(character.avatar_id))
+        character_id = str(character.avatar_id)
+        initial = self._custom_team(character_id)
+        if not self._uses_custom_team(character_id):
+            initial = self._default_team_for_editor(character)
+            if initial:
+                self.team_settings.setValue(
+                    self._team_settings_key(character_id, "members"),
+                    json.dumps(initial, ensure_ascii=False),
+                )
+                self.team_settings.setValue(self._team_settings_key(character_id, "custom"), True)
+                self.team_card.set_mode(True)
+                self._display_benchmark(character)
         dialog = CustomTeamDialog(
             initial or self._default_team_for_editor(character),
             self,
             str(character.avatar_id),
+            member_index=member_index if initial else None,
         )
         if not dialog.exec():
             self.team_card.set_mode(self._uses_custom_team(str(character.avatar_id)))
@@ -3773,11 +4172,14 @@ class MainWindow(QMainWindow):
             return
         character_id = str(character.avatar_id)
         if not self._custom_team(character_id):
-            self.team_card.set_mode(False)
-            self.set_status(
-                "Nenhum time customizado salvo. Clique nas imagens do time para configurar."
+            initial = self._default_team_for_editor(character)
+            if not initial:
+                self.open_custom_team_dialog()
+                return
+            self.team_settings.setValue(
+                self._team_settings_key(character_id, "members"),
+                json.dumps(initial, ensure_ascii=False),
             )
-            return
         self.team_settings.setValue(self._team_settings_key(character_id, "custom"), True)
         self.team_card.set_mode(True)
         self.set_status("Time customizado selecionado. Recalculando o DPS Benchmark…")
@@ -3793,6 +4195,12 @@ class MainWindow(QMainWindow):
     def _display_benchmark(self, character: CharacterSummary) -> None:
         context = self.section_loading.context
         character_id = str(character.avatar_id)
+        reused = self.benchmark_results.get(character_id) if self._reuse_session_benchmark else None
+        self._reuse_session_benchmark = False
+        if reused is not None:
+            self._render_benchmark(reused)
+            self.section_loading.ready("benchmark", context)
+            return
         cache_key = self._benchmark_cache_key(character)
         result = self.benchmark_engine.analyze(character)
         teammates = (

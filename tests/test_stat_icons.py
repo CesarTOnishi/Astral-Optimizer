@@ -6,7 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication, QLabel
 
 from app.models import CharacterStat
-from app.ui.widgets import StatRow, stat_icon_path
+from app.ui.widgets import StatRow, compact_stat_name, stat_icon_path
 
 
 class StatIconTests(unittest.TestCase):
@@ -36,6 +36,9 @@ class StatIconTests(unittest.TestCase):
             "QuantumAddedRatio",
             "ImaginaryAddedRatio",
             "Score",
+            "Elation",
+            "ElationAddedRatio",
+            "ElationDamageAddedRatio",
         )
         self.assertTrue(all(stat_icon_path(key).is_file() for key in keys))
 
@@ -52,6 +55,25 @@ class StatIconTests(unittest.TestCase):
         self.assertIsNotNone(icon)
         self.assertIsNotNone(icon.pixmap())
         self.assertFalse(icon.pixmap().isNull())
+
+    def test_compact_names_cover_elements_and_effect_stats(self) -> None:
+        expected = {
+            "PhysicalAddedRatio": "Dano Fís.",
+            "FireAddedRatio": "Dano Fogo",
+            "IceAddedRatio": "Dano Gelo",
+            "ThunderAddedRatio": "Dano Raio",
+            "WindAddedRatio": "Dano Vento",
+            "QuantumAddedRatio": "Dano Quânt.",
+            "ImaginaryAddedRatio": "Dano Imag.",
+            "ElationAddedRatio": "Dano Euforia",
+            "BreakDamageAddedRatio": "Efeito Quebra",
+            "StatusProbability": "Acerto Efeito",
+            "SPRatio": "Regen. Energia",
+        }
+        for key, short_name in expected.items():
+            with self.subTest(key=key):
+                self.assertEqual(compact_stat_name(key, "Nome completo"), short_name)
+        self.assertEqual(compact_stat_name("unknown", "Taxa de Acerto de Efeito"), "Acerto Efeito")
 
 
 if __name__ == "__main__":
