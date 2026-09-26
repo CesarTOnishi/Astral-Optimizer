@@ -88,6 +88,21 @@ class WarpTests(unittest.TestCase):
                 target.planner_settings(12)["goal_sequence"], "E0,S1,E2"
             )
             self.assertEqual(target.planner_settings(12)["daily_jades"], 90)
+            source.save_planner_pity_override(7, "600000001", {
+                "use_imported": False,
+                "character_pity": 45,
+                "character_guaranteed": True,
+                "cone_pity": 18,
+                "cone_guaranteed": False,
+            })
+            target.restore_owner(source.export_owner(7), owner_id=12)
+            self.assertEqual(target.planner_pity_override(12, "600000001"), {
+                "use_imported": 0,
+                "character_pity": 45,
+                "character_guaranteed": 1,
+                "cone_pity": 18,
+                "cone_guaranteed": 0,
+            })
             self.assertEqual(
                 target.planner_settings(12)["target_date"], "2026-12-01"
             )

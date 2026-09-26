@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 import math
 import re
+
+from app.performance import measured
 
 
 REFUND_MULTIPLIERS = {
@@ -121,11 +124,38 @@ def sequence_projections(
     light_cone_guaranteed: bool,
 ) -> tuple[SequenceProjection, ...]:
     goals = parse_goal_sequence(sequence)
+    statistics = _route_statistics(
+        goals, character_pity, character_guaranteed,
+        light_cone_pity, light_cone_guaranteed,
+    )
+    return tuple(
+        SequenceProjection(
+            label=goal,
+            chance=min(max(cumulative_chance[min(max(0, budget), len(cumulative_chance) - 1)], 0.0), 1.0),
+            optimistic_warps=optimistic,
+            expected_warps=expected,
+            pessimistic_warps=pessimistic,
+            worst_case=worst_case,
+        )
+        for goal, (cumulative_chance, optimistic, expected, pessimistic, worst_case)
+        in zip(goals, statistics)
+    )
+
+
+@lru_cache(maxsize=16)
+def _route_statistics(
+    goals: tuple[str, ...],
+    character_pity: int,
+    character_guaranteed: bool,
+    light_cone_pity: int,
+    light_cone_guaranteed: bool,
+) -> tuple[tuple[tuple[float, ...], int, float, int, int], ...]:
+    """Keep route distributions until pity, guarantee or route changes."""
     cumulative = [1.0]
     current_e, current_s = -1, 0
     used_character_start = False
     used_cone_start = False
-    results: list[SequenceProjection] = []
+    results: list[tuple[tuple[float, ...], int, float, int, int]] = []
     for goal in goals:
         target = int(goal[1:])
         if goal[0] == "E":
@@ -150,14 +180,17 @@ def sequence_projections(
                 )
                 used_cone_start = True
                 cumulative = _convolve(cumulative, cost)
-        chance = sum(cumulative[: min(max(0, budget) + 1, len(cumulative))])
-        results.append(SequenceProjection(
-            label=goal,
-            chance=min(max(chance, 0.0), 1.0),
-            optimistic_warps=_quantile(cumulative, 0.10),
-            expected_warps=sum(i * p for i, p in enumerate(cumulative)),
-            pessimistic_warps=_quantile(cumulative, 0.90),
-            worst_case=len(cumulative) - 1,
+        running = 0.0
+        chance_by_budget = []
+        for probability in cumulative:
+            running += probability
+            chance_by_budget.append(running)
+        results.append((
+            tuple(chance_by_budget),
+            _quantile(cumulative, 0.10),
+            sum(i * p for i, p in enumerate(cumulative)),
+            _quantile(cumulative, 0.90),
+            len(cumulative) - 1,
         ))
     return tuple(results)
 
@@ -241,44 +274,36 @@ def _milestones(
         path.append("cone")
     path.extend(["cone"] * 4)
 
-    cumulative = [1.0]
     character_level = -1
     cone_level = 0
-    used_character_start = False
-    used_cone_start = False
-    results: list[PlannerMilestone] = []
+    goals: list[str] = []
+    labels: list[str] = []
     for warp_type in path:
         if warp_type == "character":
             character_level += 1
-            cost = _cost_pmf(
-                character_pity if not used_character_start else 0,
-                character_guaranteed if not used_character_start else False,
-                90,
-                0.5625,
-                CHARACTER_DISTRIBUTION,
-            )
-            used_character_start = True
+            goals.append(f"E{character_level}")
         else:
             cone_level += 1
-            cost = _cost_pmf(
-                light_cone_pity if not used_cone_start else 0,
-                light_cone_guaranteed if not used_cone_start else False,
-                80,
-                0.78125,
-                LIGHT_CONE_DISTRIBUTION,
-            )
-            used_cone_start = True
-        cumulative = _convolve(cumulative, cost)
-        chance = sum(cumulative[: min(budget + 1, len(cumulative))])
-        expected = sum(index * probability for index, probability in enumerate(cumulative))
-        label = (
+            goals.append(f"S{cone_level}")
+        labels.append(
             f"E{character_level} S{cone_level}"
             if character_level >= 0 else f"S{cone_level}"
         )
-        results.append(PlannerMilestone(label, min(max(chance, 0.0), 1.0), expected))
-    return tuple(results)
+    statistics = _route_statistics(
+        tuple(goals), character_pity, character_guaranteed,
+        light_cone_pity, light_cone_guaranteed,
+    )
+    return tuple(
+        PlannerMilestone(
+            label,
+            min(max(chance_by_budget[min(max(0, budget), len(chance_by_budget) - 1)], 0.0), 1.0),
+            expected,
+        )
+        for label, (chance_by_budget, _, expected, _, _) in zip(labels, statistics)
+    )
 
 
+@measured("Planejador")
 def calculate_planner(
     *,
     jades: int,

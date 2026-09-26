@@ -406,6 +406,12 @@ QLabel#statusError { color: #ff9b9b; background-color: #321b27; }
 QFrame#settingsUpdatePanel {
     background-color: #101a2d; border: 1px solid #2d4263; border-radius: 10px;
 }
+QDateEdit#settingsReminderDate {
+    color: #eaf3ff; background-color: #15243d; border: 1px solid #355476;
+    border-radius: 6px; min-height: 22px; padding: 4px 9px;
+}
+QDateEdit#settingsReminderDate:focus { border-color: #74cffa; }
+QDateEdit#settingsReminderDate:disabled { color: #798ba7; border-color: #26384f; }
 QFrame#settingsPrivacyPanel {
     background-color: #101a2d; border: 1px solid #2d4263; border-radius: 10px;
 }
@@ -470,23 +476,27 @@ QFrame#buildHistoryPanel {
     background-color: #171d35; border: 1px solid #424c73; border-radius: 11px;
 }
 QLabel#buildHistoryTitle {
-    color: #b9ddff; font-size: 9px; font-weight: 850;
+    color: #b9ddff; font-size: 11px; font-weight: 850;
 }
 QLabel#buildHistoryCounter {
     color: #9deaff; background-color: #15364e; border: 1px solid #34708e;
-    border-radius: 7px; padding: 1px 7px; font-size: 8px; font-weight: 850;
+    border-radius: 7px; padding: 1px 7px; font-size: 10px; font-weight: 850;
 }
+QLabel#buildHistoryRetentionLabel { color: #9db3d0; font-size: 10px; }
+QSpinBox#buildHistoryRetention { min-height: 18px; padding: 3px 7px; font-size: 11px; }
 QComboBox#buildHistorySelector {
     min-height: 18px; padding: 5px 28px 5px 9px; border-radius: 7px;
-    font-size: 9px;
+    font-size: 11px;
 }
 QPushButton#buildHistorySave, QPushButton#buildHistoryExport, QPushButton#buildHistoryCompare,
-QPushButton#buildHistoryDelete {
+QPushButton#buildHistoryDelete, QPushButton#buildHistoryEdit,
+QPushButton#buildHistoryFavorite {
     color: #dceaff; background-color: #172943; border: 1px solid #3a5679;
-    border-radius: 7px; padding: 6px 7px; font-size: 8px; font-weight: 800;
+    border-radius: 7px; padding: 6px 7px; font-size: 10px; font-weight: 800;
 }
 QPushButton#buildHistorySave:hover, QPushButton#buildHistoryExport:hover,
-QPushButton#buildHistoryCompare:hover {
+QPushButton#buildHistoryCompare:hover, QPushButton#buildHistoryEdit:hover,
+QPushButton#buildHistoryFavorite:hover {
     color: #ffffff; background-color: #214268; border-color: #65b8e2;
 }
 QPushButton#buildHistoryDelete { color: #ffb0ba; }
@@ -494,9 +504,35 @@ QPushButton#buildHistoryDelete:hover {
     color: #ffffff; background-color: #58263a; border-color: #b65370;
 }
 QPushButton#buildHistorySave:disabled, QPushButton#buildHistoryExport:disabled,
-QPushButton#buildHistoryCompare:disabled,
+QPushButton#buildHistoryCompare:disabled, QPushButton#buildHistoryEdit:disabled,
+QPushButton#buildHistoryFavorite:disabled,
 QPushButton#buildHistoryDelete:disabled {
     color: #65738a; background-color: #111a2a; border-color: #29384f;
+}
+QDialog#buildMetadataDialog { background-color: transparent; }
+QFrame#buildMetadataCard {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #101b2d, stop:1 #1c1b37);
+    border: 1px solid #4a6388; border-radius: 13px;
+}
+QLabel#buildMetadataTitle { color: #e9f5ff; font-size: 14px; font-weight: 850; }
+QLabel#buildMetadataLabel { color: #a7bed9; font-size: 10px; font-weight: 800; }
+QLabel#buildMetadataHint { color: #9caec6; font-size: 10px; }
+QDialog#buildMetadataDialog QLineEdit,
+QPlainTextEdit#buildMetadataNote {
+    color: #edf5ff; background-color: #0c1729;
+    border: 1px solid #385476; border-radius: 8px;
+    padding: 8px 10px; selection-background-color: #396b97;
+}
+QDialog#buildMetadataDialog QLineEdit:focus,
+QPlainTextEdit#buildMetadataNote:focus { border-color: #75c9ed; }
+QDialog#buildMetadataDialog QCheckBox { color: #d9e7f8; spacing: 8px; }
+QDialog#buildMetadataDialog QCheckBox::indicator {
+    width: 16px; height: 16px; border: 1px solid #6587ac;
+    border-radius: 4px; background-color: #0d1b30;
+}
+QDialog#buildMetadataDialog QCheckBox::indicator:checked {
+    background-color: #3e9bc4; border-color: #83dcf2;
 }
 QFrame#relicsPanel { background-color: #242552; }
 QWidget#warpPage { background-color: #080d19; }
@@ -1204,6 +1240,12 @@ QLabel#plannerResourceIcon {
 QSpinBox#plannerResourceSpin {
     min-height: 20px; padding: 6px 10px;
 }
+QCheckBox#plannerUseImportedPity, QCheckBox#plannerManualGuarantee {
+    color: #edf5ff; spacing: 7px; font-size: 11px; font-weight: 700;
+}
+QLabel#plannerPitySource {
+    color: #a8cfff; font-size: 10px; padding: 1px 0;
+}
 QLabel#plannerPityValue, QLabel#plannerGuarantee {
     color: #eef5ff; background-color: #192d4e; border: 1px solid #355783;
     border-radius: 4px; min-height: 24px; padding: 2px 7px;
@@ -1498,7 +1540,7 @@ QLabel#tutorialText {
     color: #bccae0; font-size: 12px; padding: 4px 28px;
 }
 QLabel#tutorialSteps { color: #8dcde9; font-size: 13px; }
-QLabel#diagnosticsSummary {
+QPlainTextEdit#diagnosticsSummary {
     color: #cbd9eb; background-color: #0c1626; border: 1px solid #314967;
     border-radius: 12px; padding: 18px; font-family: "Consolas", "Cascadia Mono";
     font-size: 11px;

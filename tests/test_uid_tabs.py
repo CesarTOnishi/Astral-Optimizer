@@ -3,7 +3,9 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from app.models import AccountSummary, CharacterStat, CharacterSummary, RelicSummary
-from app.uid_tabs import UidTabStore, UidTabWorkspace
+from app.uid_tabs import (
+    MAX_UID_TABS, UidTabLimitError, UidTabSession, UidTabStore, UidTabWorkspace,
+)
 
 
 def sample_account(uid: str, nickname: str = "Trailblazer") -> AccountSummary:
@@ -75,7 +77,7 @@ class UidTabPersistenceTests(unittest.TestCase):
             UidTabWorkspace(self.store, owner_id=2).selected_uid, first.uid
         )
 
-    def test_profiles_are_isolated_and_close_keeps_cache(self) -> None:
+    def test_profiles_are_isolated_and_close_deletes_uid_cache(self) -> None:
         first_profile = UidTabWorkspace(self.store, owner_id=1)
         session, _ = first_profile.open("800000001")
         token = first_profile.begin_request(session.uid)
@@ -85,10 +87,49 @@ class UidTabPersistenceTests(unittest.TestCase):
         restored = UidTabWorkspace(self.store, owner_id=1)
         self.assertEqual(len(restored.sessions), 0)
         cached, _updated_at = self.store.load_account(1, session.uid)
-        self.assertIsNotNone(cached)
+        self.assertIsNone(cached)
         other_profile = UidTabWorkspace(self.store, owner_id=9)
         self.assertEqual(len(other_profile.sessions), 0)
         self.assertEqual(self.store.load_account(9, session.uid), (None, ""))
+
+    def test_eight_tabs_limit_keeps_existing_tabs_selectable(self) -> None:
+        workspace = UidTabWorkspace(self.store, owner_id=2)
+        for index in range(MAX_UID_TABS):
+            workspace.open(f"70000000{index}")
+        selected_before = workspace.selected_uid
+        with self.assertRaisesRegex(UidTabLimitError, "8 abas"):
+            workspace.open("799999999")
+        self.assertEqual(len(workspace.sessions), MAX_UID_TABS)
+        self.assertEqual(workspace.selected_uid, selected_before)
+        existing, created = workspace.open("700000000")
+        self.assertFalse(created)
+        self.assertEqual(existing.uid, workspace.selected_uid)
+        workspace.close("700000000")
+        new_session, created = workspace.open("799999999")
+        self.assertTrue(created)
+        self.assertEqual(new_session.uid, "799999999")
+
+    def test_restoring_old_workspace_trims_excess_and_keeps_selected(self) -> None:
+        sessions = []
+        for index in range(MAX_UID_TABS + 2):
+            uid = f"7000000{index:02d}"
+            # Legacy data may contain more tabs than the new limit.
+            sessions.append(UidTabSession(uid=uid))
+            self.store.save_account(3, sample_account(uid))
+        self.store.save_tabs(3, sessions, sessions[-1].uid)
+        restored = UidTabWorkspace(self.store, owner_id=3)
+        self.assertEqual(len(restored.sessions), MAX_UID_TABS)
+        self.assertEqual(restored.selected_uid, sessions[-1].uid)
+        self.assertIn(sessions[-1].uid, restored.sessions)
+        self.assertEqual(self.store.load_account(3, sessions[-2].uid), (None, ""))
+        self.assertEqual(len(UidTabWorkspace(self.store, owner_id=3).sessions), MAX_UID_TABS)
+
+    def test_restore_prunes_closed_legacy_uid_only_for_current_profile(self) -> None:
+        self.store.save_account(1, sample_account("701000001"))
+        self.store.save_account(2, sample_account("701000001"))
+        UidTabWorkspace(self.store, owner_id=1)
+        self.assertEqual(self.store.load_account(1, "701000001"), (None, ""))
+        self.assertIsNotNone(self.store.load_account(2, "701000001")[0])
 
     def test_late_or_wrong_async_response_is_rejected(self) -> None:
         workspace = UidTabWorkspace(self.store, owner_id=3)

@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 
 from app.auth import AuthUser
 from app.privacy import hide_uid_in_shared_images
+from app.performance import PERFORMANCE
 from app.ui.charts import WarpBarChart
 from app.ui.contextual_help import (
     BANNER_EDITION_HELP,
@@ -39,6 +40,7 @@ from app.ui.contextual_help import (
 )
 from app.ui.experience import copy_error_details
 from app.ui.warp_import_tutorial import WarpImportTutorialDialog
+from app.ui.warp_import_preview import WarpImportPreviewDialog
 from app.ui.warp_share import build_warp_share_data, render_warp_share_card
 from app.ui.widgets import AvatarLabel, FadeComboBox, FRIBBELS_ASSETS
 from app.warp import (
@@ -49,6 +51,8 @@ from app.warp import (
     set_import_tutorial_seen,
 )
 from app.warp.models import WarpRecord, WarpSummary
+from app.warp.importer import WarpImportBatch
+from app.warp.preview import preview_warp_import
 from app.warp.analytics import analyze_warps
 from app.warp.statistics import (
     FiveStarOutcome,
@@ -589,15 +593,47 @@ class WarpPanel(QWidget):
 
     def _import_succeeded(self, payload: object, source: str) -> None:
         spreadsheet = payload if isinstance(payload, StarRailStationImport) else None
-        records = spreadsheet.records if spreadsheet else payload if isinstance(payload, list) else []
-        valid_records = [record for record in records if isinstance(record, WarpRecord)]
+        batch = payload if isinstance(payload, WarpImportBatch) else None
+        records = (
+            spreadsheet.records if spreadsheet else batch.records if batch else
+            payload if isinstance(payload, list) else []
+        )
         if self.owner_id is None:
             self._set_status("A sessão foi encerrada durante a importação.", "error")
             return
-        added = self.database.add_records(valid_records, self.owner_id)
-        if spreadsheet is not None:
-            for summary in spreadsheet.summaries:
-                self.database.upsert_summary(summary, self.owner_id)
+        owner_id = self.owner_id
+        existing = self.database.existing_record_keys(
+            owner_id,
+            {record.uid for record in records if isinstance(record, WarpRecord) and record.uid},
+        )
+        preview = preview_warp_import(
+            records, existing,
+            rejected_count=spreadsheet.rejected_count if spreadsheet else
+            batch.rejected_count if batch else 0,
+            duplicate_count=batch.duplicate_count if batch else 0,
+        )
+        dialog = WarpImportPreviewDialog(
+            preview, source,
+            summary_count=len(spreadsheet.summaries) if spreadsheet else 0,
+            warnings=tuple(spreadsheet.warnings) if spreadsheet else (),
+            parent=self,
+        )
+        try:
+            confirmed = bool(dialog.exec())
+        finally:
+            dialog.deleteLater()
+        if not confirmed:
+            self._set_status("Importação cancelada. Nenhum dado foi gravado.")
+            return
+        if self.owner_id != owner_id:
+            self._set_status("A sessão mudou durante a prévia. Importe novamente.", "error")
+            return
+        valid_records = list(preview.valid_records)
+        with PERFORMANCE.time("Importação · gravação"):
+            added = self.database.add_records(valid_records, owner_id)
+            if spreadsheet is not None:
+                for summary in spreadsheet.summaries:
+                    self.database.upsert_summary(summary, self.owner_id)
         if valid_records:
             self.current_uid = valid_records[0].uid
         elif spreadsheet is not None:
@@ -615,9 +651,9 @@ class WarpPanel(QWidget):
             "success",
         )
         self.import_activity.emit(
-            self.owner_id, added, len(valid_records), Path(source).name
+            owner_id, added, len(valid_records), Path(source).name
         )
-        self.import_completed.emit(self.owner_id)
+        self.import_completed.emit(owner_id)
 
     def _import_failed(self, message: str) -> None:
         normalized = message.casefold()

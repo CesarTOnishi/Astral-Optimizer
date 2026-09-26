@@ -16,7 +16,7 @@ class NavigationSessionCacheTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.app = QApplication.instance() or QApplication([])
 
-    def test_reopening_pages_keeps_their_views_without_refreshing(self) -> None:
+    def test_reopening_pages_keeps_cached_views_but_resamples_diagnostics(self) -> None:
         with TemporaryDirectory() as directory, patch.dict(
             os.environ, {"ASTRAL_DATA_DIR": directory}
         ):
@@ -38,7 +38,7 @@ class NavigationSessionCacheTests(unittest.TestCase):
                     warps.assert_not_called()
                     planner.assert_not_called()
                     friends.assert_not_called()
-                    diagnostics.assert_not_called()
+                    self.assertEqual(diagnostics.call_count, 2)
 
                     # A fresh warp import still updates the planner immediately.
                     window.warp_panel.import_completed.emit(1)

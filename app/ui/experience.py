@@ -11,7 +11,7 @@ from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
-    QPushButton, QStackedWidget, QVBoxLayout, QWidget,
+    QPlainTextEdit, QPushButton, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 from app.ui.motion import AnimatedDialog as QDialog
@@ -20,6 +20,7 @@ from app.ui.motion import AnimatedStack as QStackedWidget
 from app.benchmark.fribbels_client import ENGINE_ROOT, ENGINE_SCRIPT, engine_available
 from app.config import APP_VERSION
 from app.paths import app_data_dir
+from app.performance import diagnostic_lines
 from app.preferences import (
     ExperiencePreferences, ExperienceSettings, THEMES,
     apply_experience_preferences, themed_color,
@@ -442,13 +443,10 @@ class DiagnosticsPanel(QWidget):
         subtitle.setObjectName("muted")
         layout.addWidget(title)
         layout.addWidget(subtitle)
-        self.summary = QLabel()
+        self.summary = QPlainTextEdit()
         self.summary.setObjectName("diagnosticsSummary")
-        self.summary.setAlignment(
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
-        )
-        self.summary.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.summary.setWordWrap(True)
+        self.summary.setReadOnly(True)
+        self.summary.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         layout.addWidget(self.summary, 1)
         actions = QHBoxLayout()
         self.refresh_button = QPushButton("Atualizar diagnóstico")
@@ -482,10 +480,12 @@ class DiagnosticsPanel(QWidget):
             f"Diretório do motor: {ENGINE_ROOT}",
             f"Node.js: {node}",
             "",
+            *diagnostic_lines(),
+            "",
             f"Dados do aplicativo: {app_data_dir()}",
             *path_lines,
         ))
-        self.summary.setText(self.details)
+        self.summary.setPlainText(self.details)
 
     @staticmethod
     def _qt_version() -> str:

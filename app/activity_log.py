@@ -147,3 +147,16 @@ class ActivityLog(QObject):
             )
             for row in rows
         )
+
+    def latest_warp_import_at(self, owner_id: int) -> str | None:
+        connection = self.connect()
+        try:
+            row = connection.execute(
+                "SELECT created_at FROM activity_events "
+                "WHERE owner_id = ? AND category = 'warps' "
+                "AND title = ? ORDER BY id DESC LIMIT 1",
+                (owner_id, "Histórico de Saltos importado"),
+            ).fetchone()
+        finally:
+            connection.close()
+        return str(row["created_at"]) if row else None

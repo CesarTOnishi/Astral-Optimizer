@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import math
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, Qt, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QAbstractItemView, QFrame, QGridLayout, QHeaderView, QHBoxLayout, QLabel,
-    QProgressBar, QScrollArea, QSizePolicy, QSpinBox, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QAbstractItemView, QCheckBox, QFrame, QGridLayout, QHeaderView, QHBoxLayout,
+    QLabel, QProgressBar, QScrollArea, QSizePolicy, QSpinBox, QStackedWidget,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from app.ui.motion import AnimatedProgressBar as QProgressBar
@@ -27,7 +27,18 @@ class PlannerPanel(QWidget):
         self.database = database
         self.user: AuthUser | None = None
         self._loading = False
+        self._pity_context: tuple[int, str] | None = None
+        self._pending_resources = False
+        self._pending_pity = False
+        self._has_imported_records = False
+        self._update_timer = QTimer(self)
+        self._update_timer.setSingleShot(True)
+        self._update_timer.setInterval(180)
+        self._update_timer.timeout.connect(self._flush_pending_updates)
         self._build_ui()
+        application = QCoreApplication.instance()
+        if application is not None:
+            application.aboutToQuit.connect(self._persist_pending_changes)
 
     def _build_ui(self) -> None:
         outer = QVBoxLayout(self)
@@ -102,17 +113,37 @@ class PlannerPanel(QWidget):
         for badge in (self.character_guarantee, self.cone_guarantee):
             badge.setObjectName("plannerGuarantee")
             badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        settings.addLayout(
-            self._field_box("CONTADOR DE PITY", self.character_pity, PITY_HELP), 1, 2
+        self.character_pity_input = self._manual_pity_field(89, 90, "Pity do personagem")
+        self.cone_pity_input = self._manual_pity_field(79, 80, "Pity do Cone de Luz")
+        self.character_guarantee_input = QCheckBox("Garantido", self.settings_card)
+        self.cone_guarantee_input = QCheckBox("Garantido", self.settings_card)
+        for field, name in (
+            (self.character_guarantee_input, "Garantia manual do personagem"),
+            (self.cone_guarantee_input, "Garantia manual do Cone de Luz"),
+        ):
+            field.setObjectName("plannerManualGuarantee")
+            field.setAccessibleName(name)
+        self.character_pity_stack = self._source_stack(
+            self.character_pity, self.character_pity_input
+        )
+        self.cone_pity_stack = self._source_stack(self.cone_pity, self.cone_pity_input)
+        self.character_guarantee_stack = self._source_stack(
+            self.character_guarantee, self.character_guarantee_input
+        )
+        self.cone_guarantee_stack = self._source_stack(
+            self.cone_guarantee, self.cone_guarantee_input
         )
         settings.addLayout(
-            self._field_box("CONTADOR DE PITY", self.cone_pity, PITY_HELP), 1, 3
+            self._field_box("CONTADOR DE PITY", self.character_pity_stack, PITY_HELP), 1, 2
         )
         settings.addLayout(
-            self._field_box("GARANTIA", self.character_guarantee, GUARANTEE_HELP), 2, 2
+            self._field_box("CONTADOR DE PITY", self.cone_pity_stack, PITY_HELP), 1, 3
         )
         settings.addLayout(
-            self._field_box("GARANTIA", self.cone_guarantee, GUARANTEE_HELP), 2, 3
+            self._field_box("GARANTIA", self.character_guarantee_stack, GUARANTEE_HELP), 2, 2
+        )
+        settings.addLayout(
+            self._field_box("GARANTIA", self.cone_guarantee_stack, GUARANTEE_HELP), 2, 3
         )
 
         self.strategy = FadeComboBox(self.settings_card)
@@ -123,6 +154,16 @@ class PlannerPanel(QWidget):
         self.strategy.setMinimumWidth(210)
         self.strategy.setMaximumWidth(300)
         settings.addLayout(self._field_box("ESTRATÉGIA", self.strategy), 3, 0, 1, 2)
+        self.use_imported_pity = QCheckBox(
+            "Usar pity e garantia importados", self.settings_card
+        )
+        self.use_imported_pity.setObjectName("plannerUseImportedPity")
+        self.use_imported_pity.setChecked(True)
+        settings.addWidget(self.use_imported_pity, 3, 2, 1, 2)
+        self.pity_source = QLabel("Origem: histórico de Saltos")
+        self.pity_source.setObjectName("plannerPitySource")
+        self.pity_source.setWordWrap(True)
+        settings.addWidget(self.pity_source, 4, 2, 1, 2)
         for column in range(4):
             settings.setColumnStretch(column, 1)
         layout.addWidget(self.settings_card, alignment=Qt.AlignmentFlag.AlignHCenter)
@@ -164,10 +205,19 @@ class PlannerPanel(QWidget):
             field.valueChanged.connect(self._resources_changed)
         self.refund.currentIndexChanged.connect(self._resources_changed)
         self.strategy.currentIndexChanged.connect(self._resources_changed)
+        self.use_imported_pity.toggled.connect(self._pity_changed)
+        for field in (self.character_pity_input, self.cone_pity_input):
+            field.valueChanged.connect(self._pity_changed)
+        for field in (self.character_guarantee_input, self.cone_guarantee_input):
+            field.toggled.connect(self._pity_changed)
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API
         super().resizeEvent(event)
         self._update_responsive_widths()
+
+    def closeEvent(self, event) -> None:  # noqa: N802 - Qt API
+        self._persist_pending_changes()
+        super().closeEvent(event)
 
     def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt API
         if (
@@ -201,6 +251,25 @@ class PlannerPanel(QWidget):
         field.setMinimumWidth(0)
         field.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         return field
+
+    @staticmethod
+    def _manual_pity_field(maximum: int, cap: int, name: str) -> QSpinBox:
+        field = FadeSpinBox()
+        field.setObjectName("plannerResourceSpin")
+        field.setRange(0, maximum)
+        field.setSuffix(f" / {cap}")
+        field.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        field.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        field.setMinimumWidth(0)
+        field.setAccessibleName(name)
+        return field
+
+    @staticmethod
+    def _source_stack(imported: QWidget, manual: QWidget) -> QStackedWidget:
+        stack = QStackedWidget()
+        stack.addWidget(imported)
+        stack.addWidget(manual)
+        return stack
 
     @staticmethod
     def _resource_field_box(
@@ -259,7 +328,9 @@ class PlannerPanel(QWidget):
         return box
 
     def set_user(self, user: AuthUser | None) -> None:
+        self._persist_pending_changes()
         self.user = user
+        self._pity_context = None
         self._loading = True
         values = self.database.planner_settings(user.id) if user else {
             "jades": 0, "passes": 0, "starlight": 0,
@@ -284,13 +355,92 @@ class PlannerPanel(QWidget):
     def _resources_changed(self) -> None:
         if self._loading or self.user is None:
             return
-        self.database.save_planner_settings(self.user.id, self._settings())
+        self._pending_resources = True
+        self._update_timer.start()
+
+    def _pity_changed(self, *_args) -> None:
+        if self._loading or self.user is None or self._pity_context is None:
+            return
+        self._show_pity_source(
+            self._pity_context[1], self.use_imported_pity.isChecked(),
+            self._has_imported_records,
+        )
+        self._pending_pity = True
+        self._update_timer.start()
+
+    def _persist_pending_changes(self) -> None:
+        self._update_timer.stop()
+        if self.user is not None and self._pending_resources:
+            self.database.save_planner_settings(self.user.id, self._settings())
+        if self.user is not None and self._pity_context is not None and self._pending_pity:
+            self.database.save_planner_pity_override(
+                self.user.id, self._pity_context[1],
+                {
+                    "use_imported": self.use_imported_pity.isChecked(),
+                    "character_pity": self.character_pity_input.value(),
+                    "character_guaranteed": self.character_guarantee_input.isChecked(),
+                    "cone_pity": self.cone_pity_input.value(),
+                    "cone_guaranteed": self.cone_guarantee_input.isChecked(),
+                },
+            )
+        self._pending_resources = False
+        self._pending_pity = False
+
+    def _flush_pending_updates(self) -> None:
+        if not (self._pending_resources or self._pending_pity):
+            return
+        self._persist_pending_changes()
         self.refresh()
 
+    def _show_pity_source(self, uid: str, imported: bool, has_records: bool = False) -> None:
+        for stack in (
+            self.character_pity_stack, self.cone_pity_stack,
+            self.character_guarantee_stack, self.cone_guarantee_stack,
+        ):
+            stack.setCurrentIndex(0 if imported else 1)
+        self.pity_source.setText(
+            f"Origem: histórico importado da UID {uid}"
+            if imported and has_records else
+            "Origem: sem histórico importado; valores considerados zero"
+            if imported else
+            f"Origem: ajuste manual para a UID {uid or 'não definida'}"
+        )
+
+    def _restore_pity_context(
+        self, owner_id: int, uid: str, character_pity: int,
+        character_guaranteed: bool, cone_pity: int, cone_guaranteed: bool,
+    ) -> None:
+        context = (owner_id, uid)
+        if self._pity_context == context:
+            return
+        saved = self.database.planner_pity_override(owner_id, uid)
+        self._loading = True
+        try:
+            self.character_pity_input.setValue(
+                int(saved["character_pity"]) if saved else character_pity
+            )
+            self.cone_pity_input.setValue(
+                int(saved["cone_pity"]) if saved else cone_pity
+            )
+            self.character_guarantee_input.setChecked(
+                bool(saved["character_guaranteed"]) if saved else character_guaranteed
+            )
+            self.cone_guarantee_input.setChecked(
+                bool(saved["cone_guaranteed"]) if saved else cone_guaranteed
+            )
+            self.use_imported_pity.setChecked(
+                bool(saved["use_imported"]) if saved else True
+            )
+            self._pity_context = context
+        finally:
+            self._loading = False
+
     def refresh(self) -> None:
+        self._persist_pending_changes()
         user = self.user
         for widget in (self.jades, self.passes, self.starlight, self.refund, self.strategy):
             widget.setEnabled(user is not None)
+        self.use_imported_pity.setEnabled(user is not None)
         if user is None:
             self.table.setRowCount(0)
             self.resources_line.setText("0 tiros disponíveis")
@@ -298,24 +448,40 @@ class PlannerPanel(QWidget):
                 "Entre em um perfil; depois informe seus recursos e escolha uma estratégia."
             )
             return
-        uids = self.database.uids(user.id)
-        uid = user.game_uid if user.game_uid in uids else self.database.latest_uid(user.id)
+        uid = user.game_uid or self.database.latest_uid(user.id)
         records = self.database.records(uid, user.id) if uid else []
+        self._has_imported_records = bool(records)
         character = pity_state(records, {"11"}, STANDARD_CHARACTER_IDS)
         cone = pity_state(records, {"12"}, STANDARD_LIGHT_CONE_IDS)
+        self._restore_pity_context(
+            user.id, uid, character.five_star, character.guaranteed,
+            cone.five_star, cone.guaranteed,
+        )
         self.character_pity.setText(f"{character.five_star}/90")
         self.cone_pity.setText(f"{cone.five_star}/80")
         self._set_guarantee(self.character_guarantee, character.guaranteed)
         self._set_guarantee(self.cone_guarantee, cone.guaranteed)
+        imported = self.use_imported_pity.isChecked()
+        self._show_pity_source(uid, imported, bool(records))
+        effective_character_pity = (
+            character.five_star if imported else self.character_pity_input.value()
+        )
+        effective_cone_pity = cone.five_star if imported else self.cone_pity_input.value()
+        effective_character_guaranteed = (
+            character.guaranteed if imported else self.character_guarantee_input.isChecked()
+        )
+        effective_cone_guaranteed = (
+            cone.guaranteed if imported else self.cone_guarantee_input.isChecked()
+        )
         values = self._settings()
         result = calculate_planner(
             jades=int(values["jades"]), passes=int(values["passes"]),
             starlight=int(values["starlight"]), refund=str(values["refund"]),
             strategy=str(values["strategy"]),
-            character_pity=character.five_star,
-            character_guaranteed=character.guaranteed,
-            light_cone_pity=cone.five_star,
-            light_cone_guaranteed=cone.guaranteed,
+            character_pity=effective_character_pity,
+            character_guaranteed=effective_character_guaranteed,
+            light_cone_pity=effective_cone_pity,
+            light_cone_guaranteed=effective_cone_guaranteed,
         )
         self.resources_line.setText(
             f"{self.jades.value():,} jades = {result.jade_warps} tiros   +   "
@@ -325,13 +491,15 @@ class PlannerPanel(QWidget):
         )
         projections = sequence_projections(
             self._strategy_goals(str(values["strategy"])), result.total_warps,
-            character.five_star, character.guaranteed,
-            cone.five_star, cone.guaranteed,
+            effective_character_pity, effective_character_guaranteed,
+            effective_cone_pity, effective_cone_guaranteed,
         )
         self._render_table(projections, result.total_warps)
         self.status.setText(
-            f"Pity sincronizado da UID {uid}." if uid else
-            "Nenhum histórico importado; pity considerado como zero."
+            f"Planejamento com dados importados da UID {uid}." if imported and records else
+            "Sem histórico importado; valores considerados zero. Desmarque a caixa para ajustá-los."
+            if imported else
+            "Planejamento com pity e garantia ajustados manualmente."
         )
 
     @staticmethod

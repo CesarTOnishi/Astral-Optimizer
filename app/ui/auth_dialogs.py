@@ -3,11 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import (
+    QDate,
     QEasingCurve,
     QParallelAnimationGroup,
     QPoint,
     QPropertyAnimation,
     QRegularExpression,
+    QSignalBlocker,
     Signal,
     QTimer,
     Qt,
@@ -15,6 +17,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QRegularExpressionValidator
 from PySide6.QtWidgets import (
     QCheckBox,
+    QDateEdit,
     QDialog,
     QFileDialog,
     QFrame,
@@ -45,13 +48,17 @@ from app.preferences import (
     ExperiencePreferences, ExperienceSettings, THEMES,
     apply_experience_preferences, motion_duration, themed_color,
 )
-from app.ui.widgets import FadeComboBox
+from app.ui.widgets import FadeComboBox, FadeSpinBox
 from app.ui.background_controls import BackgroundControls
 from app.warp import (
     WarpDatabase,
     latest_cache_candidates,
     set_webcaches_path,
     webcaches_path,
+)
+from app.notification_settings import NOTIFICATION_CATEGORIES
+from app.warp.reminder import (
+    IMPORT_REMINDER_DAYS, MAX_REMINDER_DAYS, next_import_reminder_at, utc_now,
 )
 
 
@@ -329,6 +336,7 @@ class PrivacyCheckBox(QCheckBox):
 class SettingsDialog(QDialog):
     update_requested = Signal()
     close_to_tray_changed = Signal()
+    notification_changed = Signal()
 
     def __init__(
         self,
@@ -389,6 +397,7 @@ class SettingsDialog(QDialog):
         for index, (icon, label) in enumerate((
             ("profile", "Perfil"), ("appearance", "Aparência"), ("privacy", "Privacidade"),
             ("backup", "Backup"), ("info", "Aplicativo"),
+            ("bell", "Notificações"),
         )):
             button = QPushButton(label)
             set_button_icon(button, icon, 16)
@@ -662,6 +671,74 @@ class SettingsDialog(QDialog):
         application_scroll.setWidget(app_page)
         self.settings_stack.addWidget(application_scroll)
 
+        notifications_page, notifications = self._settings_page(
+            "NOTIFICAÇÕES", "Escolha quais avisos aparecem no sino da barra superior."
+        )
+        preferences = self.warp_database.notification_preferences(user.id)
+        reminder_state = self.warp_database.import_reminder(user.id)
+        self.notification_checkboxes: dict[str, QCheckBox] = {}
+        for category, title, description in NOTIFICATION_CATEGORIES:
+            panel = QFrame()
+            panel.setObjectName("settingsUpdatePanel")
+            panel_layout = QVBoxLayout(panel)
+            panel_layout.setContentsMargins(12, 9, 12, 9)
+            panel_layout.setSpacing(3)
+            checkbox = QCheckBox(title)
+            checkbox.setObjectName("experienceCheckBox")
+            checkbox.setChecked(preferences.get(category, True))
+            checkbox.toggled.connect(
+                lambda enabled, name=category: self._set_notification_preference(name, enabled)
+            )
+            hint = QLabel(description)
+            hint.setObjectName("muted")
+            hint.setWordWrap(True)
+            panel_layout.addWidget(checkbox)
+            panel_layout.addWidget(hint)
+            if category == "warp_reminder":
+                interval_row = QHBoxLayout()
+                interval_row.setSpacing(8)
+                interval_label = QLabel("Avisar após")
+                interval_label.setObjectName("muted")
+                self.warp_reminder_days = FadeSpinBox()
+                self.warp_reminder_days.setObjectName("plannerResourceSpin")
+                self.warp_reminder_days.setRange(1, MAX_REMINDER_DAYS)
+                self.warp_reminder_days.setSuffix(" dias")
+                self.warp_reminder_days.setValue(
+                    int(reminder_state["interval_days"])
+                    if reminder_state else IMPORT_REMINDER_DAYS
+                )
+                self.warp_reminder_days.setEnabled(preferences.get(category, True))
+                self.warp_reminder_days.setAccessibleName(
+                    "Dias até o lembrete de importação de Saltos"
+                )
+                self.warp_reminder_days.valueChanged.connect(self._set_warp_reminder_days)
+                interval_row.addWidget(interval_label)
+                interval_row.addWidget(self.warp_reminder_days)
+                interval_row.addStretch(1)
+                panel_layout.addLayout(interval_row)
+                date_row = QHBoxLayout()
+                date_row.setSpacing(8)
+                date_label = QLabel("Próximo aviso")
+                date_label.setObjectName("muted")
+                self.warp_reminder_date = QDateEdit()
+                self.warp_reminder_date.setObjectName("settingsReminderDate")
+                self.warp_reminder_date.setDisplayFormat("dd/MM/yyyy")
+                self.warp_reminder_date.setCalendarPopup(True)
+                self.warp_reminder_date.setEnabled(preferences.get(category, True))
+                self.warp_reminder_date.setAccessibleName(
+                    "Data do próximo lembrete de importação de Saltos"
+                )
+                self._update_warp_reminder_date(reminder_state or {"started_at": utc_now()})
+                self.warp_reminder_date.dateChanged.connect(self._set_warp_reminder_date)
+                date_row.addWidget(date_label)
+                date_row.addWidget(self.warp_reminder_date)
+                date_row.addStretch(1)
+                panel_layout.addLayout(date_row)
+            notifications.addWidget(panel)
+            self.notification_checkboxes[category] = checkbox
+        notifications.addStretch(1)
+        self.settings_stack.addWidget(notifications_page)
+
         self.settings_message = QLabel("")
         self.settings_message.setObjectName("authMessage")
         self.settings_message.setWordWrap(True)
@@ -730,6 +807,43 @@ class SettingsDialog(QDialog):
         self.update_button.setEnabled(False)
         self.update_status.setText("Verificando nova versão…")
         self.update_requested.emit()
+
+    def _set_notification_preference(self, category: str, enabled: bool) -> None:
+        self.warp_database.set_notification_enabled(self.user.id, category, enabled)
+        if category == "warp_reminder":
+            self.warp_reminder_days.setEnabled(enabled)
+            self.warp_reminder_date.setEnabled(enabled)
+        self.notification_changed.emit()
+
+    def _set_warp_reminder_days(self, days: int) -> None:
+        state = self.warp_database.import_reminder(self.user.id) or {
+            "started_at": utc_now(),
+            "last_imported_at": "",
+            "last_reminded_at": "",
+        }
+        state["interval_days"] = days
+        state["next_due_on"] = ""
+        self.warp_database.save_import_reminder(self.user.id, state)
+        self._update_warp_reminder_date(state)
+        self.notification_changed.emit()
+
+    def _set_warp_reminder_date(self, chosen: QDate) -> None:
+        state = self.warp_database.import_reminder(self.user.id) or {
+            "started_at": utc_now(),
+            "last_imported_at": "",
+            "last_reminded_at": "",
+        }
+        state["next_due_on"] = chosen.toString("yyyy-MM-dd")
+        self.warp_database.save_import_reminder(self.user.id, state)
+        self.notification_changed.emit()
+
+    def _update_warp_reminder_date(self, state: dict) -> None:
+        due_at = next_import_reminder_at(state)
+        target = QDate.fromString(
+            due_at.astimezone().date().isoformat(), "yyyy-MM-dd"
+        ) if due_at else QDate.currentDate().addDays(IMPORT_REMINDER_DAYS)
+        with QSignalBlocker(self.warp_reminder_date):
+            self.warp_reminder_date.setDate(target)
 
     def _choose_webcaches_folder(self) -> None:
         current = webcaches_path()

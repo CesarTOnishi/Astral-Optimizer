@@ -13,6 +13,13 @@ from app.models import AccountSummary, CharacterStat, CharacterSummary, RelicSum
 from app.paths import app_data_dir
 
 
+MAX_UID_TABS = 8
+
+
+class UidTabLimitError(ValueError):
+    """A new public UID cannot be opened until another tab is closed."""
+
+
 def default_uid_tabs_path() -> Path:
     return app_data_dir() / "uid_tabs.db"
 
@@ -286,6 +293,29 @@ class UidTabStore:
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             return None, ""
 
+    def delete_account(self, owner_id: int, uid: str) -> None:
+        with closing(self.connect()) as connection:
+            connection.execute(
+                "DELETE FROM uid_account_cache WHERE owner_id = ? AND uid = ?",
+                (owner_id, uid),
+            )
+            connection.commit()
+
+    def prune_account_cache(self, owner_id: int, open_uids: list[str]) -> None:
+        with closing(self.connect()) as connection:
+            if open_uids:
+                placeholders = ",".join("?" for _ in open_uids)
+                connection.execute(
+                    f"DELETE FROM uid_account_cache WHERE owner_id = ? "
+                    f"AND uid NOT IN ({placeholders})",
+                    (owner_id, *open_uids),
+                )
+            else:
+                connection.execute(
+                    "DELETE FROM uid_account_cache WHERE owner_id = ?", (owner_id,)
+                )
+            connection.commit()
+
 
 class UidTabWorkspace:
     """Estado testável das abas, independente dos widgets e das threads Qt."""
@@ -301,6 +331,17 @@ class UidTabWorkspace:
     def restore(self, owner_id: int) -> None:
         self.owner_id = owner_id
         sessions, selected_uid = self.store.load_tabs(owner_id)
+        trimmed = len(sessions) > MAX_UID_TABS
+        if trimmed:
+            kept = sessions[:MAX_UID_TABS]
+            if selected_uid not in {session.uid for session in kept}:
+                selected = next(
+                    (session for session in sessions if session.uid == selected_uid), None
+                )
+                if selected is not None:
+                    kept[-1] = selected
+            sessions = kept
+        self.store.prune_account_cache(owner_id, [session.uid for session in sessions])
         self.sessions = OrderedDict()
         for session in sessions:
             session.account, cache_updated_at = self.store.load_account(owner_id, session.uid)
@@ -310,6 +351,8 @@ class UidTabWorkspace:
         self.selected_uid = (
             selected_uid if selected_uid in self.sessions else next(iter(self.sessions), "")
         )
+        if trimmed:
+            self.persist()
 
     def open(self, uid: str, *, source: str = "manual") -> tuple[UidTabSession, bool]:
         uid = uid.strip()
@@ -318,6 +361,10 @@ class UidTabWorkspace:
             self.selected_uid = uid
             self.persist()
             return existing, False
+        if len(self.sessions) >= MAX_UID_TABS:
+            raise UidTabLimitError(
+                f"O limite é de {MAX_UID_TABS} abas de UID. Feche uma aba para abrir outra."
+            )
         account, updated_at = self.store.load_account(self.owner_id, uid)
         session = UidTabSession(uid=uid, source=source, account=account, updated_at=updated_at)
         if account is not None:
@@ -338,6 +385,7 @@ class UidTabWorkspace:
             remaining = list(self.sessions)
             self.selected_uid = remaining[min(index, len(remaining) - 1)] if remaining else ""
         self.persist()
+        self.store.delete_account(self.owner_id, uid)
 
     def select(self, uid: str, *, persist: bool = True) -> bool:
         if uid not in self.sessions:

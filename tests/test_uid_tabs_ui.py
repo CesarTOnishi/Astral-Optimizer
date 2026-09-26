@@ -8,6 +8,9 @@ from PySide6.QtWidgets import QApplication, QTabBar, QToolButton
 
 from app.config import APP_STYLESHEET
 from app.ui.uid_tabs import UidTabsWidget
+from app.ui.main_window import MainWindow
+from unittest.mock import patch
+from tempfile import TemporaryDirectory
 
 
 class UidTabsUiTests(unittest.TestCase):
@@ -110,6 +113,29 @@ class UidTabsUiTests(unittest.TestCase):
         self.assertLessEqual(button_right, self.widget.tabs.tabRect(index).right() - 5)
         button.click()
         self.assertEqual(closed, ["601647391"])
+
+    def test_ninth_uid_shows_limit_notice_without_opening_tab(self) -> None:
+        with TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"ASTRAL_DATA_DIR": directory}
+        ):
+            window = MainWindow()
+            try:
+                with patch.object(window, "_request_uid_tab"), patch.object(
+                    window, "_activate_uid_tab"
+                ), patch("app.ui.main_window.QMessageBox.information") as notice:
+                    for index in range(8):
+                        window._open_public_uid(f"70000000{index}")
+                    window._open_public_uid(" 700000000 ")
+                    notice.assert_not_called()
+                    window._open_public_uid("799999999")
+                self.assertEqual(window.uid_tabs_widget.tabs.count(), 8)
+                self.assertEqual(len(window.uid_workspace.sessions), 8)
+                self.assertIn("8 abas", window.status_label.text())
+                notice.assert_called_once()
+                window._close_uid_tab("700000000")
+                self.assertEqual(len(window.uid_workspace.sessions), 7)
+            finally:
+                window.close()
 
 
 if __name__ == "__main__":

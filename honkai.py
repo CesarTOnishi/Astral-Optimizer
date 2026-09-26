@@ -1,4 +1,7 @@
 import sys
+from time import perf_counter
+
+_APP_START = perf_counter()
 
 from PySide6.QtCore import QEvent, QObject, QTimer, Qt
 from PySide6.QtGui import QFont, QFontDatabase, QIcon
@@ -10,6 +13,7 @@ from PySide6.QtWidgets import (
 from app.background import BackgroundSettings
 from app.config import APP_FONT_TTF, APP_ICON_ICO, APP_ICON_PNG
 from app.preferences import apply_experience_preferences, motion_duration
+from app.performance import PERFORMANCE
 from app.single_instance import SingleInstance
 from app.ui.loading import StartupSplash
 from app.ui.main_window import MainWindow
@@ -117,6 +121,10 @@ def main() -> int:
 
         def finish_opening() -> None:
             nonlocal window_ready
+            if not window_ready:
+                PERFORMANCE.record_duration(
+                    "Abertura até janela pronta", _APP_START
+                )
             splash.set_stage("Finalizando os últimos detalhes…", 92)
             app.processEvents()
             if start_in_tray:

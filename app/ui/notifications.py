@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from app.ui.icons import set_button_icon
+from app.notification_settings import notification_category
 
 from PySide6.QtCore import QObject, QPoint, Qt, Signal
 from PySide6.QtWidgets import (
@@ -31,6 +32,7 @@ class NotificationCenter(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._items: list[AppNotification] = []
+        self._enabled: dict[str, bool] = {}
 
     @property
     def items(self) -> tuple[AppNotification, ...]:
@@ -41,10 +43,24 @@ class NotificationCenter(QObject):
         return sum(item.unread for item in self._items)
 
     def add(self, key: str, title: str, message: str, kind: str = "info") -> None:
+        category = notification_category(key)
+        if category is not None and not self._enabled.get(category, True):
+            self.remove(key)
+            return
         self._items = [item for item in self._items if item.key != key]
         self._items.insert(0, AppNotification(key, title, message, kind))
         self._items = self._items[:30]
         self.changed.emit()
+
+    def set_preferences(self, enabled: dict[str, bool]) -> None:
+        self._enabled = dict(enabled)
+        remaining = [
+            item for item in self._items
+            if self._enabled.get(notification_category(item.key) or "", True)
+        ]
+        if len(remaining) != len(self._items):
+            self._items = remaining
+            self.changed.emit()
 
     def remove(self, key: str) -> None:
         remaining = [item for item in self._items if item.key != key]

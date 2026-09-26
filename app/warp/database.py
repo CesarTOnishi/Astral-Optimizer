@@ -6,6 +6,8 @@ from typing import Any
 
 from app.paths import app_data_dir
 from app.warp.models import WarpRecord, WarpSummary
+from app.warp.reminder import IMPORT_REMINDER_DAYS, reminder_interval_days, utc_now
+from app.notification_settings import CATEGORY_IDS
 
 
 def default_database_path() -> Path:
@@ -123,6 +125,56 @@ class WarpDatabase:
                     "ALTER TABLE planner_settings ADD COLUMN target_date TEXT "
                     "NOT NULL DEFAULT ''"
                 )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS planner_pity_overrides (
+                    owner_id INTEGER NOT NULL,
+                    uid TEXT NOT NULL,
+                    use_imported INTEGER NOT NULL DEFAULT 1,
+                    character_pity INTEGER NOT NULL DEFAULT 0,
+                    character_guaranteed INTEGER NOT NULL DEFAULT 0,
+                    cone_pity INTEGER NOT NULL DEFAULT 0,
+                    cone_guaranteed INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (owner_id, uid)
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS warp_import_reminders (
+                    owner_id INTEGER PRIMARY KEY,
+                    started_at TEXT NOT NULL,
+                    last_imported_at TEXT NOT NULL DEFAULT '',
+                    last_reminded_at TEXT NOT NULL DEFAULT '',
+                    interval_days INTEGER NOT NULL DEFAULT 40,
+                    next_due_on TEXT NOT NULL DEFAULT ''
+                )
+                """
+            )
+            reminder_columns = {
+                str(row[1])
+                for row in connection.execute("PRAGMA table_info(warp_import_reminders)")
+            }
+            if "interval_days" not in reminder_columns:
+                connection.execute(
+                    "ALTER TABLE warp_import_reminders ADD COLUMN interval_days "
+                    f"INTEGER NOT NULL DEFAULT {IMPORT_REMINDER_DAYS}"
+                )
+            if "next_due_on" not in reminder_columns:
+                connection.execute(
+                    "ALTER TABLE warp_import_reminders ADD COLUMN next_due_on "
+                    "TEXT NOT NULL DEFAULT ''"
+                )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS notification_preferences (
+                    owner_id INTEGER NOT NULL,
+                    category TEXT NOT NULL,
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    PRIMARY KEY (owner_id, category)
+                )
+                """
+            )
             connection.commit()
         finally:
             connection.close()
@@ -318,6 +370,9 @@ class WarpDatabase:
             "records": [dict(row) for row in records],
             "summaries": [dict(row) for row in summaries],
             "planner": self.planner_settings(owner_id),
+            "planner_pity_overrides": self.planner_pity_overrides(owner_id),
+            "warp_import_reminder": self.import_reminder(owner_id),
+            "notification_preferences": self.notification_preferences(owner_id),
         }
 
     def restore_owner(self, payload: dict[str, Any], owner_id: int) -> tuple[int, int]:
@@ -340,7 +395,165 @@ class WarpDatabase:
         planner = payload.get("planner")
         if isinstance(planner, dict):
             self.save_planner_settings(owner_id, planner)
+        overrides = payload.get("planner_pity_overrides", [])
+        if isinstance(overrides, list):
+            for item in overrides:
+                if isinstance(item, dict) and isinstance(item.get("uid"), str):
+                    self.save_planner_pity_override(owner_id, item["uid"], item)
+        reminder = payload.get("warp_import_reminder")
+        if isinstance(reminder, dict):
+            self.save_import_reminder(owner_id, reminder)
+        preferences = payload.get("notification_preferences")
+        if isinstance(preferences, dict):
+            for category, enabled in preferences.items():
+                if category in CATEGORY_IDS:
+                    self.set_notification_enabled(owner_id, category, bool(enabled))
         return added, len(records)
+
+    def import_reminder(self, owner_id: int) -> dict[str, Any] | None:
+        connection = self.connect()
+        try:
+            row = connection.execute(
+                "SELECT started_at, last_imported_at, last_reminded_at, "
+                "interval_days, next_due_on "
+                "FROM warp_import_reminders WHERE owner_id = ?", (owner_id,)
+            ).fetchone()
+        finally:
+            connection.close()
+        return dict(row) if row else None
+
+    def existing_record_keys(
+        self, owner_id: int, uids: set[str]
+    ) -> set[tuple[str, str]]:
+        if not uids:
+            return set()
+        connection = self.connect()
+        try:
+            keys: set[tuple[str, str]] = set()
+            for uid in uids:
+                rows = connection.execute(
+                    "SELECT uid, id FROM warps WHERE owner_id = ? AND uid = ?",
+                    (owner_id, uid),
+                ).fetchall()
+                keys.update((str(row["uid"]), str(row["id"])) for row in rows)
+            return keys
+        finally:
+            connection.close()
+
+    def save_import_reminder(self, owner_id: int, state: dict[str, Any]) -> None:
+        connection = self.connect()
+        try:
+            connection.execute(
+                """
+                INSERT INTO warp_import_reminders(
+                    owner_id, started_at, last_imported_at, last_reminded_at,
+                    interval_days, next_due_on
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(owner_id) DO UPDATE SET
+                    started_at = excluded.started_at,
+                    last_imported_at = excluded.last_imported_at,
+                    last_reminded_at = excluded.last_reminded_at,
+                    interval_days = excluded.interval_days,
+                    next_due_on = excluded.next_due_on
+                """,
+                (
+                    owner_id,
+                    str(state.get("started_at") or utc_now()),
+                    str(state.get("last_imported_at") or ""),
+                    str(state.get("last_reminded_at") or ""),
+                    reminder_interval_days(state),
+                    str(state.get("next_due_on") or ""),
+                ),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def notification_preferences(self, owner_id: int) -> dict[str, bool]:
+        connection = self.connect()
+        try:
+            rows = connection.execute(
+                "SELECT category, enabled FROM notification_preferences WHERE owner_id = ?",
+                (owner_id,),
+            ).fetchall()
+        finally:
+            connection.close()
+        return {str(row["category"]): bool(row["enabled"]) for row in rows}
+
+    def set_notification_enabled(
+        self, owner_id: int, category: str, enabled: bool
+    ) -> None:
+        if category not in CATEGORY_IDS:
+            raise ValueError(f"Categoria de notificação desconhecida: {category}")
+        connection = self.connect()
+        try:
+            connection.execute(
+                "INSERT INTO notification_preferences(owner_id, category, enabled) "
+                "VALUES (?, ?, ?) ON CONFLICT(owner_id, category) DO UPDATE SET "
+                "enabled = excluded.enabled",
+                (owner_id, category, int(enabled)),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def planner_pity_overrides(self, owner_id: int) -> list[dict[str, Any]]:
+        connection = self.connect()
+        try:
+            rows = connection.execute(
+                "SELECT uid, use_imported, character_pity, character_guaranteed, "
+                "cone_pity, cone_guaranteed FROM planner_pity_overrides "
+                "WHERE owner_id = ? ORDER BY uid",
+                (owner_id,),
+            ).fetchall()
+        finally:
+            connection.close()
+        return [dict(row) for row in rows]
+
+    def planner_pity_override(self, owner_id: int, uid: str) -> dict[str, Any] | None:
+        connection = self.connect()
+        try:
+            row = connection.execute(
+                "SELECT use_imported, character_pity, character_guaranteed, "
+                "cone_pity, cone_guaranteed FROM planner_pity_overrides "
+                "WHERE owner_id = ? AND uid = ?",
+                (owner_id, uid),
+            ).fetchone()
+        finally:
+            connection.close()
+        return dict(row) if row else None
+
+    def save_planner_pity_override(
+        self, owner_id: int, uid: str, settings: dict[str, Any]
+    ) -> None:
+        values = (
+            owner_id, uid,
+            int(bool(settings.get("use_imported", True))),
+            min(max(int(settings.get("character_pity", 0)), 0), 89),
+            int(bool(settings.get("character_guaranteed", False))),
+            min(max(int(settings.get("cone_pity", 0)), 0), 79),
+            int(bool(settings.get("cone_guaranteed", False))),
+        )
+        connection = self.connect()
+        try:
+            connection.execute(
+                """
+                INSERT INTO planner_pity_overrides(
+                    owner_id, uid, use_imported, character_pity,
+                    character_guaranteed, cone_pity, cone_guaranteed
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(owner_id, uid) DO UPDATE SET
+                    use_imported = excluded.use_imported,
+                    character_pity = excluded.character_pity,
+                    character_guaranteed = excluded.character_guaranteed,
+                    cone_pity = excluded.cone_pity,
+                    cone_guaranteed = excluded.cone_guaranteed
+                """,
+                values,
+            )
+            connection.commit()
+        finally:
+            connection.close()
 
     def planner_settings(self, owner_id: int) -> dict[str, Any]:
         connection = self.connect()

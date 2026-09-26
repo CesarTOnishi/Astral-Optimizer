@@ -9,7 +9,8 @@ from typing import Any
 from app.paths import app_data_dir
 
 
-MAX_SNAPSHOTS_PER_CHARACTER = 5
+DEFAULT_RETENTION_LIMIT = 5
+MAX_RETENTION_LIMIT = 50
 
 
 def default_build_history_path() -> Path:
@@ -25,6 +26,9 @@ class BuildSnapshot:
     character_name: str
     payload: dict[str, Any]
     created_at: str
+    name: str = ""
+    note: str = ""
+    favorite: bool = False
 
     @property
     def benchmark_score(self) -> float:
@@ -60,7 +64,31 @@ class BuildHistoryDatabase:
                     character_id TEXT NOT NULL,
                     character_name TEXT NOT NULL,
                     payload_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    name TEXT NOT NULL DEFAULT '',
+                    note TEXT NOT NULL DEFAULT '',
+                    favorite INTEGER NOT NULL DEFAULT 0
+                )
+                """
+            )
+            columns = {
+                str(row[1])
+                for row in connection.execute("PRAGMA table_info(build_snapshots)")
+            }
+            for column, definition in (
+                ("name", "TEXT NOT NULL DEFAULT ''"),
+                ("note", "TEXT NOT NULL DEFAULT ''"),
+                ("favorite", "INTEGER NOT NULL DEFAULT 0"),
+            ):
+                if column not in columns:
+                    connection.execute(
+                        f"ALTER TABLE build_snapshots ADD COLUMN {column} {definition}"
+                    )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS build_history_settings (
+                    owner_id INTEGER PRIMARY KEY,
+                    retention_limit INTEGER NOT NULL DEFAULT 5
                 )
                 """
             )
@@ -84,6 +112,9 @@ class BuildHistoryDatabase:
             character_name=str(row["character_name"]),
             payload=json.loads(str(row["payload_json"])),
             created_at=str(row["created_at"]),
+            name=str(row["name"]),
+            note=str(row["note"]),
+            favorite=bool(row["favorite"]),
         )
 
     def snapshots(
@@ -112,6 +143,10 @@ class BuildHistoryDatabase:
         character_id: str,
         character_name: str,
         payload: dict[str, Any],
+        *,
+        name: str = "",
+        note: str = "",
+        favorite: bool = False,
     ) -> BuildSnapshot:
         if owner_id <= 0:
             raise ValueError("Entre em um perfil para salvar builds.")
@@ -120,26 +155,37 @@ class BuildHistoryDatabase:
         connection = self.connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
-            count = int(connection.execute(
+            existing = connection.execute(
                 """
-                SELECT COUNT(*) FROM build_snapshots
+                SELECT id, favorite FROM build_snapshots
                 WHERE owner_id = ? AND uid = ? AND character_id = ?
+                ORDER BY created_at ASC, id ASC
                 """,
                 (owner_id, uid, character_id),
-            ).fetchone()[0])
-            if count >= MAX_SNAPSHOTS_PER_CHARACTER:
+            ).fetchall()
+            limit = self._retention_limit(connection, owner_id)
+            to_remove = max(0, len(existing) - limit + 1)
+            removable = [int(row["id"]) for row in existing if not row["favorite"]]
+            if len(removable) < to_remove:
                 raise ValueError(
-                    "O limite é de 5 builds salvas por personagem. Exclua uma para continuar."
+                    "O limite de builds foi atingido e as versões antigas estão "
+                    "marcadas como favoritas. Desmarque ou exclua uma para continuar."
+                )
+            for snapshot_id in removable[:to_remove]:
+                connection.execute(
+                    "DELETE FROM build_snapshots WHERE id = ?", (snapshot_id,)
                 )
             cursor = connection.execute(
                 """
                 INSERT INTO build_snapshots (
-                    owner_id, uid, character_id, character_name, payload_json
-                ) VALUES (?, ?, ?, ?, ?)
+                    owner_id, uid, character_id, character_name, payload_json,
+                    name, note, favorite
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     owner_id, uid, character_id, character_name,
                     json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+                    name.strip()[:80], note.strip()[:2000], int(favorite),
                 ),
             )
             snapshot_id = int(cursor.lastrowid)
@@ -153,6 +199,55 @@ class BuildHistoryDatabase:
         except Exception:
             connection.rollback()
             raise
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _retention_limit(connection: sqlite3.Connection, owner_id: int) -> int:
+        row = connection.execute(
+            "SELECT retention_limit FROM build_history_settings WHERE owner_id = ?",
+            (owner_id,),
+        ).fetchone()
+        return int(row[0]) if row else DEFAULT_RETENTION_LIMIT
+
+    def retention_limit(self, owner_id: int) -> int:
+        connection = self.connect()
+        try:
+            return self._retention_limit(connection, owner_id)
+        finally:
+            connection.close()
+
+    def set_retention_limit(self, owner_id: int, limit: int) -> None:
+        if owner_id <= 0:
+            raise ValueError("Entre em um perfil para configurar a retenção.")
+        if not 1 <= limit <= MAX_RETENTION_LIMIT:
+            raise ValueError(f"Escolha um limite entre 1 e {MAX_RETENTION_LIMIT}.")
+        connection = self.connect()
+        try:
+            connection.execute(
+                "INSERT INTO build_history_settings(owner_id, retention_limit) "
+                "VALUES (?, ?) ON CONFLICT(owner_id) DO UPDATE SET "
+                "retention_limit = excluded.retention_limit",
+                (owner_id, limit),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def update_metadata(
+        self, owner_id: int, snapshot_id: int, *,
+        name: str, note: str, favorite: bool,
+    ) -> bool:
+        connection = self.connect()
+        try:
+            cursor = connection.execute(
+                "UPDATE build_snapshots SET name = ?, note = ?, favorite = ? "
+                "WHERE id = ? AND owner_id = ?",
+                (name.strip()[:80], note.strip()[:2000], int(favorite),
+                 snapshot_id, owner_id),
+            )
+            connection.commit()
+            return cursor.rowcount > 0
         finally:
             connection.close()
 

@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QMenu,
+    QMessageBox,
     QPushButton,
     QSizePolicy,
     QSizeGrip,
@@ -59,17 +60,22 @@ from app.config import (
 )
 from app.models import AccountSummary, CharacterStat, CharacterSummary
 from app.preferences import ExperienceSettings, apply_experience_preferences
+from app.performance import PERFORMANCE
 from app.privacy import hide_uid_in_shared_images
 from app.relics import RelicDatabase
 from app.section_loading import LoadContext, RelicSyncWorker, SectionLoadController
 from app.session_state import ResumeState, SessionStateStore
 from app.sync_manager import BackgroundSyncManager
-from app.uid_tabs import UidTabSession, UidTabStore, UidTabWorkspace
+from app.uid_tabs import (
+    MAX_UID_TABS, UidTabLimitError, UidTabSession, UidTabStore, UidTabWorkspace,
+)
+from app.warp.reminder import import_reminder_due, reminder_interval_days, utc_now
 from app.ui.auth_dialogs import AuthDialog, SettingsDialog
 from app.ui.activity_history import ActivityHistoryButton
 from app.ui.build_history import (
     BuildComparisonDialog,
     BuildHistoryBar,
+    BuildMetadataDialog,
     ConfirmBuildDeleteDialog,
 )
 from app.ui.build_share import render_build_share_card
@@ -266,6 +272,7 @@ class MainWindow(QMainWindow):
     initial_account_sync_finished = Signal()
 
     def __init__(self) -> None:
+        window_started_at = time.perf_counter()
         super().__init__()
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setWindowTitle("Astral Optimizer")
@@ -307,6 +314,7 @@ class MainWindow(QMainWindow):
         self._build_recovery_mode = "uid_tab"
         self.activity_log = ActivityLog(self)
         self.notification_center = NotificationCenter(self)
+        self._reminder_owner_id: int | None = None
         self.benchmark_engine = BenchmarkEngine()
         self.image_loader = ImageLoader(self)
         self.section_loading = SectionLoadController(self)
@@ -379,6 +387,7 @@ class MainWindow(QMainWindow):
 
         install_motion()
         self._build_ui()
+        self._refresh_notification_preferences()
         self._configure_tray()
         self.section_loading.changed.connect(self._section_state_changed)
         self.section_loading.retry_requested.connect(self._retry_section)
@@ -408,10 +417,16 @@ class MainWindow(QMainWindow):
         self.catalog_panel.catalog_updated.connect(self._catalog_updated)
         QTimer.singleShot(0, self._show_previous_update_result)
         QTimer.singleShot(0, self._check_soft_pity_notifications)
+        QTimer.singleShot(0, self._check_warp_import_reminder)
+        self._warp_reminder_timer = QTimer(self)
+        self._warp_reminder_timer.setInterval(6 * 60 * 60 * 1000)
+        self._warp_reminder_timer.timeout.connect(self._check_warp_import_reminder)
+        self._warp_reminder_timer.start()
         QTimer.singleShot(2600, self._check_updates_automatically)
         QTimer.singleShot(3400, self._check_catalog_version)
         QTimer.singleShot(0, self._show_whats_new_if_needed)
         QTimer.singleShot(0, self._restore_resume_state)
+        PERFORMANCE.record_duration("Montagem da janela", window_started_at)
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -1034,6 +1049,7 @@ class MainWindow(QMainWindow):
         try:
             self.settings_dialog = dialog
             dialog.close_to_tray_changed.connect(self._configure_tray)
+            dialog.notification_changed.connect(self._refresh_notification_preferences)
             dialog.update_requested.connect(lambda: self.check_for_updates(manual=True))
             dialog.exec()
             self.settings_dialog = None
@@ -1115,7 +1131,7 @@ class MainWindow(QMainWindow):
             ),
             TourStep(
                 "Central de notificações",
-                "O sino reúne avisos importantes: catálogo desatualizado, nova versão, resultado do backup, relíquias alteradas e pity próximo do soft pity.",
+                "O sino reúne avisos de catálogo, atualizações, backup, relíquias, soft pity e importação de Saltos. Escolha os tipos de aviso em Configurações > Notificações.",
                 lambda: self.title_bar.notification_bell,
             ),
             TourStep(
@@ -1631,7 +1647,9 @@ class MainWindow(QMainWindow):
         self._update_sidebar_profile_layout()
         if hasattr(self, "warp_panel"):
             self.warp_panel.set_user(user)
+            self._refresh_notification_preferences()
             self._check_soft_pity_notifications()
+            self._check_warp_import_reminder()
         if hasattr(self, "planner_panel"):
             self.planner_panel.set_user(user)
         if hasattr(self, "relic_inventory_panel"):
@@ -2017,6 +2035,7 @@ class MainWindow(QMainWindow):
             self._mark_whats_new_seen()
         elif destination == "Diagnóstico":
             self.page_stack.setCurrentWidget(self.diagnostics_panel)
+            self.diagnostics_panel.refresh()
         elif destination == "Conta":
             user = self.auth_service.current_user
             if (
@@ -2103,6 +2122,66 @@ class MainWindow(QMainWindow):
             owner_id=owner_id,
             kind="success",
         )
+        state = self.warp_panel.database.import_reminder(owner_id) or {
+            "started_at": utc_now(),
+        }
+        state["last_imported_at"] = utc_now()
+        state["last_reminded_at"] = ""
+        state["next_due_on"] = ""
+        self.warp_panel.database.save_import_reminder(owner_id, state)
+        self.notification_center.remove(f"warp-import-reminder:{owner_id}")
+
+    def _check_warp_import_reminder(self) -> None:
+        if not hasattr(self, "warp_panel"):
+            return
+        user = self.auth_service.current_user
+        owner_id = user.id if user is not None else None
+        if self._reminder_owner_id is not None and self._reminder_owner_id != owner_id:
+            self.notification_center.remove(
+                f"warp-import-reminder:{self._reminder_owner_id}"
+            )
+        self._reminder_owner_id = owner_id
+        if owner_id is None:
+            return
+        database = self.warp_panel.database
+        state = database.import_reminder(owner_id)
+        if state is None:
+            previous_import = self.activity_log.latest_warp_import_at(owner_id)
+            state = {
+                "started_at": previous_import or utc_now(),
+                "last_imported_at": previous_import or "",
+                "last_reminded_at": "",
+            }
+            database.save_import_reminder(owner_id, state)
+        key = f"warp-import-reminder:{owner_id}"
+        if not database.notification_preferences(owner_id).get("warp_reminder", True):
+            self.notification_center.remove(key)
+            return
+        if import_reminder_due(state):
+            days = reminder_interval_days(state)
+            self.notification_center.add(
+                key,
+                "Hora de atualizar os Saltos",
+                "Chegou a data escolhida para atualizar o histórico. Abra Saltos para importar."
+                if state.get("next_due_on") else
+                f"Chegou o prazo de {days} {'dia' if days == 1 else 'dias'} para "
+                "atualizar o histórico. Abra Saltos para importar.",
+                "info",
+            )
+            state["last_reminded_at"] = utc_now()
+            state["next_due_on"] = ""
+            database.save_import_reminder(owner_id, state)
+
+    def _refresh_notification_preferences(self) -> None:
+        if not hasattr(self, "warp_panel"):
+            return
+        user = self.auth_service.current_user
+        preferences = (
+            self.warp_panel.database.notification_preferences(user.id)
+            if user is not None else {}
+        )
+        self.notification_center.set_preferences(preferences)
+        self._check_warp_import_reminder()
 
     def _catalog_sync_changed(self, busy: bool, message: str) -> None:
         if busy:
@@ -2610,6 +2689,9 @@ class MainWindow(QMainWindow):
         self.build_history_bar.export_requested.connect(self.export_current_build)
         self.build_history_bar.compare_requested.connect(self.compare_saved_build)
         self.build_history_bar.delete_requested.connect(self.delete_saved_build)
+        self.build_history_bar.edit_requested.connect(self.edit_saved_build)
+        self.build_history_bar.favorite_requested.connect(self.set_saved_build_favorite)
+        self.build_history_bar.retention_changed.connect(self.set_build_retention)
         layout.addWidget(self.build_history_bar)
         return frame
 
@@ -2688,9 +2770,26 @@ class MainWindow(QMainWindow):
             self.uid_tabs_widget.update_avatar(uid, pixmap)
 
     def _open_public_uid(self, uid: str, *, source: str = "manual") -> None:
+        uid = uid.strip()
         self._sync_uid_tab_owner()
+        if (
+            uid not in self.uid_workspace.sessions
+            and len(self.uid_workspace.sessions) >= MAX_UID_TABS
+        ):
+            message = (
+                f"O limite é de {MAX_UID_TABS} abas de UID. "
+                "Feche uma aba para abrir outra."
+            )
+            self.set_status(message, "error")
+            QMessageBox.information(self, "Limite de abas", message)
+            return
         self._capture_active_uid_tab(persist=False)
-        session, created = self.uid_workspace.open(uid, source=source)
+        try:
+            session, created = self.uid_workspace.open(uid, source=source)
+        except UidTabLimitError as error:
+            self.set_status(str(error), "error")
+            QMessageBox.information(self, "Limite de abas", str(error))
+            return
         if source == "friend":
             session.source = "friend"
             self.uid_workspace.persist()
@@ -2835,6 +2934,8 @@ class MainWindow(QMainWindow):
         self._show_build_content(True)
 
     def _close_uid_tab(self, uid: str) -> None:
+        if uid not in self.uid_workspace.sessions:
+            return
         if uid == self.active_uid_tab:
             self._capture_active_uid_tab()
         self._drop_uid_character_list(uid)
@@ -2850,6 +2951,16 @@ class MainWindow(QMainWindow):
             self._activate_uid_tab(next_uid)
         else:
             self.uid_tabs_widget.setVisible(False)
+            self._clear_layout(self.stat_rows)
+            self._clear_layout(self.relic_grid)
+            self.current_relic_cards = []
+            self._visible_stat_key = None
+            self._visible_stat_account = None
+            self._visible_relic_key = None
+            self._visible_relic_account = None
+            self.benchmark_results = {}
+            self.fribbels_cache = {}
+            self.unsupported_benchmark_characters = set()
             self._clear_public_build_display()
             self.set_status("Nenhuma UID aberta. Pesquise uma UID para criar uma aba.")
 
@@ -4202,7 +4313,8 @@ class MainWindow(QMainWindow):
             self.section_loading.ready("benchmark", context)
             return
         cache_key = self._benchmark_cache_key(character)
-        result = self.benchmark_engine.analyze(character)
+        with PERFORMANCE.time("Benchmark local"):
+            result = self.benchmark_engine.analyze(character)
         teammates = (
             self._custom_team(character_id)
             if self._uses_custom_team(character_id) else None
@@ -4347,7 +4459,8 @@ class MainWindow(QMainWindow):
         owner_id, uid, character_id = self._history_context()
         snapshots = self.build_history_database.snapshots(owner_id, uid, character_id)
         self.build_history_bar.set_snapshots(
-            snapshots, logged_in=self.auth_service.current_user is not None
+            snapshots, logged_in=self.auth_service.current_user is not None,
+            retention_limit=self.build_history_database.retention_limit(owner_id),
         )
         self.build_history_bar.export_button.setEnabled(
             bool(character_id and character_id in self.benchmark_results)
@@ -4366,16 +4479,42 @@ class MainWindow(QMainWindow):
             )
             return
         owner_id, uid, character_id = self._history_context()
+        dialog = BuildMetadataDialog(parent=self)
+        if not dialog.exec():
+            return
+        previous_ids = {
+            item.id for item in self.build_history_database.snapshots(
+                owner_id, uid, character_id
+            )
+        }
         try:
-            self.build_history_database.save(
-                owner_id, uid, character_id, character.name, payload
+            saved = self.build_history_database.save(
+                owner_id, uid, character_id, character.name, payload,
+                **dialog.metadata(),
             )
         except (ValueError, RuntimeError) as error:
             self.set_status(str(error), "error")
             return
+        current_ids = {
+            item.id for item in self.build_history_database.snapshots(
+                owner_id, uid, character_id
+            )
+        }
+        removed_count = len(previous_ids - current_ids)
+        removal_notice = (
+            " Uma versão antiga sem favorito foi removida."
+            if removed_count == 1 else
+            f" {removed_count} versões antigas sem favorito foram removidas."
+            if removed_count else ""
+        )
         self._refresh_build_history()
+        selected_index = self.build_history_bar.selector.findData(saved.id)
+        if selected_index >= 0:
+            self.build_history_bar.selector.setCurrentIndex(selected_index)
         self.set_status(
-            f"Build de {character.name} salva com o DPS Benchmark atual.", "success"
+            f"Build de {character.name} salva com o DPS Benchmark atual."
+            + removal_notice,
+            "success",
         )
         self.activity_log.add(
             "build",
@@ -4481,6 +4620,60 @@ class MainWindow(QMainWindow):
             self.set_status("Build salva excluída.", "success")
         else:
             self.set_status("Não foi possível encontrar a build salva.", "error")
+
+    def _selected_saved_build(self, snapshot_id: int):
+        owner_id, uid, character_id = self._history_context()
+        return next(
+            (item for item in self.build_history_database.snapshots(
+                owner_id, uid, character_id) if item.id == snapshot_id),
+            None,
+        )
+
+    def edit_saved_build(self, snapshot_id: int) -> None:
+        snapshot = self._selected_saved_build(snapshot_id)
+        if snapshot is None:
+            self._refresh_build_history()
+            self.set_status("Essa build salva não foi encontrada.", "error")
+            return
+        dialog = BuildMetadataDialog(snapshot, self)
+        if not dialog.exec():
+            return
+        owner_id, _uid, _character_id = self._history_context()
+        if self.build_history_database.update_metadata(
+            owner_id, snapshot_id, **dialog.metadata()
+        ):
+            self._refresh_build_history()
+            self.set_status("Nome, notas e favorito atualizados.", "success")
+
+    def set_saved_build_favorite(self, snapshot_id: int, favorite: bool) -> None:
+        snapshot = self._selected_saved_build(snapshot_id)
+        if snapshot is None:
+            self._refresh_build_history()
+            return
+        owner_id, _uid, _character_id = self._history_context()
+        self.build_history_database.update_metadata(
+            owner_id, snapshot_id, name=snapshot.name, note=snapshot.note,
+            favorite=favorite,
+        )
+        self._refresh_build_history()
+        self.set_status(
+            "Build marcada como favorita." if favorite else "Favorito removido.",
+            "success",
+        )
+
+    def set_build_retention(self, limit: int) -> None:
+        owner_id, _uid, _character_id = self._history_context()
+        try:
+            self.build_history_database.set_retention_limit(owner_id, limit)
+        except ValueError as error:
+            self.set_status(str(error), "error")
+            return
+        self._refresh_build_history()
+        self.set_status(
+            f"Limite de {limit} versões por personagem salvo. "
+            "O excedente sem favorito será removido ao salvar outra build.",
+            "success",
+        )
 
     def _fribbels_benchmark_ready(self, cache_key: str, payload: object) -> None:
         if not isinstance(payload, dict):

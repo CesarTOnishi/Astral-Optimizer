@@ -2,19 +2,29 @@ from __future__ import annotations
 
 import html
 import json
+from dataclasses import dataclass
 from pathlib import Path
 import re
+from time import perf_counter
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 from PySide6.QtCore import QThread, Signal
 
+from app.performance import PERFORMANCE
 from app.warp.cache_settings import webcaches_path
 from app.warp.models import WarpRecord
 from app.warp.starrailstation import import_starrailstation_xlsx
 
 
 GACHA_TYPES = ("11", "12", "1", "2", "21", "22")
+
+
+@dataclass(frozen=True, slots=True)
+class WarpImportBatch:
+    records: list[WarpRecord]
+    rejected_count: int = 0
+    duplicate_count: int = 0
 DEFAULT_CACHE_ROOTS = tuple(
     root
     for drive in "CDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -105,7 +115,9 @@ def _page_url(base_url: str, gacha_type: str, page: int, end_id: str) -> str:
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), ""))
 
 
-def fetch_warp_history(base_url: str, progress=None) -> list[WarpRecord]:  # type: ignore[no-untyped-def]
+def fetch_warp_history(
+    base_url: str, progress=None, stats: dict[str, int] | None = None
+) -> list[WarpRecord]:  # type: ignore[no-untyped-def]
     records: dict[tuple[str, str], WarpRecord] = {}
     for gacha_type in GACHA_TYPES:
         page = 1
@@ -126,10 +138,25 @@ def fetch_warp_history(base_url: str, progress=None) -> list[WarpRecord]:  # typ
             if not items:
                 break
             for item in items:
-                record = WarpRecord.from_api(item)
-                if record.id:
-                    records[(record.uid, record.id)] = record
-            last_id = str(items[-1].get("id", ""))
+                try:
+                    record = WarpRecord.from_api(item)
+                except (TypeError, ValueError, AttributeError):
+                    if stats is not None:
+                        stats["rejected"] = stats.get("rejected", 0) + 1
+                    continue
+                if not record.id or not record.uid:
+                    if stats is not None:
+                        stats["rejected"] = stats.get("rejected", 0) + 1
+                    continue
+                key = (record.uid, record.id)
+                if key in records and stats is not None:
+                    stats["duplicates"] = stats.get("duplicates", 0) + 1
+                records[key] = record
+            last_id = next(
+                (str(item.get("id", "")) for item in reversed(items)
+                 if isinstance(item, dict) and item.get("id")),
+                "",
+            )
             if not last_id or last_id == end_id or len(items) < 20:
                 break
             end_id = last_id
@@ -148,6 +175,7 @@ class WarpImportWorker(QThread):
         self.target_uid = target_uid
 
     def run(self) -> None:
+        started_at = perf_counter()
         try:
             path = self.cache_path or find_latest_cache()
             if path is None:
@@ -173,7 +201,14 @@ class WarpImportWorker(QThread):
                     "O arquivo não contém um link válido. Abra o Histórico de Saltos no jogo, "
                     "espere a lista carregar e feche completamente o jogo antes de importar."
                 )
-            records = fetch_warp_history(url, self.progress.emit)
-            self.succeeded.emit(records, str(path))
+            stats: dict[str, int] = {}
+            records = fetch_warp_history(url, self.progress.emit, stats)
+            self.succeeded.emit(WarpImportBatch(
+                records, stats.get("rejected", 0), stats.get("duplicates", 0)
+            ), str(path))
         except Exception as error:
             self.failed.emit(str(error))
+        finally:
+            PERFORMANCE.record_duration(
+                "Importação · leitura e rede", started_at
+            )

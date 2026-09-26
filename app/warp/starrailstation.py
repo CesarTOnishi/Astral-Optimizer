@@ -21,6 +21,7 @@ class StarRailStationImport:
     records: list[WarpRecord]
     summaries: list[WarpSummary]
     warnings: list[str]
+    rejected_count: int = 0
 
 
 def _sheet_type(name: str) -> str | None:
@@ -153,14 +154,18 @@ def import_starrailstation_xlsx(path: Path, uid: str) -> StarRailStationImport:
                 collaboration_rows[kind].append(row)
 
         records: list[WarpRecord] = []
+        rejected_count = 0
         for sheet_name in reader.sheets:
             default_type = _sheet_type(sheet_name)
             if default_type is None:
                 continue
             rows = reader.rows(sheet_name)
             for row in rows[1:]:
+                if not any(row.values()):
+                    continue
                 developer = row.get("G", "").split(",")
                 if len(developer) != 4 or not row.get("E"):
+                    rejected_count += 1
                     continue
                 item_id, _manual, _banner_id, record_id = developer
                 gacha_type = default_type
@@ -171,26 +176,30 @@ def import_starrailstation_xlsx(path: Path, uid: str) -> StarRailStationImport:
                     gacha_type = "22"
                 rank = len(row.get("B", ""))
                 if rank not in (3, 4, 5) or not record_id:
+                    rejected_count += 1
                     continue
-                records.append(WarpRecord(
-                    id=record_id,
-                    uid=uid,
-                    gacha_type=gacha_type,
-                    item_id=item_id,
-                    name=row.get("C", "Item desconhecido"),
-                    item_type="Character" if int(item_id) < 20000 else "Light Cone",
-                    rank_type=rank,
-                    time=_excel_time(row["E"]),
-                    banner_title=banner_name,
-                    banner_id=_banner_id.strip(),
-                    featured_name=_featured_name_for_record(
-                        banners_by_title,
-                        banner_name,
-                        row.get("C", "Item desconhecido"),
-                        rank,
-                        float(row["E"]),
-                    ),
-                ))
+                try:
+                    records.append(WarpRecord(
+                        id=record_id,
+                        uid=uid,
+                        gacha_type=gacha_type,
+                        item_id=item_id,
+                        name=row.get("C", "Item desconhecido"),
+                        item_type="Character" if int(item_id) < 20000 else "Light Cone",
+                        rank_type=rank,
+                        time=_excel_time(row["E"]),
+                        banner_title=banner_name,
+                        banner_id=_banner_id.strip(),
+                        featured_name=_featured_name_for_record(
+                            banners_by_title,
+                            banner_name,
+                            row.get("C", "Item desconhecido"),
+                            rank,
+                            float(row["E"]),
+                        ),
+                    ))
+                except (TypeError, ValueError, OverflowError):
+                    rejected_count += 1
 
         summaries: list[WarpSummary] = []
         warnings: list[str] = []
@@ -241,7 +250,7 @@ def import_starrailstation_xlsx(path: Path, uid: str) -> StarRailStationImport:
                 featured_pity=featured_pity,
                 featured_item_type="Character" if kind == "21" else "Light Cone",
             ))
-        return StarRailStationImport(uid, records, summaries, warnings)
+        return StarRailStationImport(uid, records, summaries, warnings, rejected_count)
     except (KeyError, ET.ParseError, zipfile.BadZipFile) as error:
         raise ValueError("O arquivo não é um backup válido do Star Rail Station.") from error
     finally:

@@ -7,12 +7,18 @@ from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QComboBox,
+    QCheckBox,
     QDialog,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
+    QPlainTextEdit,
     QPushButton,
+    QSizePolicy,
+    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -47,6 +53,9 @@ class BuildHistoryBar(QFrame):
     export_requested = Signal()
     compare_requested = Signal(int)
     delete_requested = Signal(int)
+    edit_requested = Signal(int)
+    favorite_requested = Signal(int, bool)
+    retention_changed = Signal(int)
 
     def __init__(self, parent: QWidget | None = None, *, wide: bool = False) -> None:
         super().__init__(parent)
@@ -55,77 +64,127 @@ class BuildHistoryBar(QFrame):
         title.setObjectName("buildHistoryTitle")
         self.counter = QLabel("0/5")
         self.counter.setObjectName("buildHistoryCounter")
+        self.counter.setFixedHeight(20)
         self.selector = QComboBox()
         self.selector.setObjectName("buildHistorySelector")
+        self.selector.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         self.selector.currentIndexChanged.connect(self._sync_actions)
-        self.save_button = QPushButton("＋ Salvar atual")
+        self.save_button = QPushButton("Salvar")
         self.save_button.setObjectName("buildHistorySave")
-        self.export_button = QPushButton("↗ Exportar PNG")
+        self.export_button = QPushButton("Exportar")
+        self.export_button.setToolTip("Exportar a build atual em PNG")
         self.export_button.setObjectName("buildHistoryExport")
         self.compare_button = QPushButton("Comparar")
         self.compare_button.setObjectName("buildHistoryCompare")
         self.delete_button = QPushButton("Excluir")
         self.delete_button.setObjectName("buildHistoryDelete")
+        self.edit_button = QPushButton("Editar")
+        self.edit_button.setObjectName("buildHistoryEdit")
+        self.favorite_button = QPushButton("☆ Favorito")
+        self.favorite_button.setObjectName("buildHistoryFavorite")
+        self.retention_label = QLabel("Máx. versões")
+        self.retention_label.setObjectName("buildHistoryRetentionLabel")
+        self.retention_spin = QSpinBox()
+        self.retention_spin.setObjectName("buildHistoryRetention")
+        self.retention_spin.setRange(1, 50)
+        self.retention_spin.setValue(5)
+        self.retention_spin.setToolTip("Versões por personagem. Ao salvar, versões antigas sem favorito são removidas primeiro.")
+        self.retention_spin.setAccessibleName("Limite de versões de build por personagem")
+        self.retention_spin.valueChanged.connect(self.retention_changed)
+        self._favorites: dict[int, bool] = {}
         self.save_button.clicked.connect(self.save_requested)
         self.export_button.clicked.connect(self.export_requested)
         self.compare_button.clicked.connect(self._compare)
         self.delete_button.clicked.connect(self._delete)
+        self.edit_button.clicked.connect(self._edit)
+        self.favorite_button.clicked.connect(self._favorite)
 
-        actions = QHBoxLayout()
-        actions.setSpacing(5)
-        actions.addWidget(self.save_button, 1)
-        actions.addWidget(self.export_button)
-        actions.addWidget(self.compare_button)
-        actions.addWidget(self.delete_button)
+        self._action_buttons = (
+            self.save_button, self.export_button, self.compare_button,
+            self.edit_button, self.favorite_button, self.delete_button,
+        )
+        for button in self._action_buttons:
+            button.setFixedWidth(92 if button is not self.favorite_button else 106)
+        self.retention_spin.setFixedWidth(62)
+        self._controls_host = QWidget()
+        self._controls_host.setSizePolicy(
+            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed
+        )
+        self._controls = QGridLayout(self._controls_host)
+        self._controls.setContentsMargins(0, 0, 0, 0)
+        self._controls.setHorizontalSpacing(5)
+        self._controls.setVerticalSpacing(5)
+        self._controls.setColumnStretch(8, 1)
+        self._columns = 0
 
-        if wide:
-            layout = QHBoxLayout(self)
-            layout.setContentsMargins(12, 9, 12, 9)
-            layout.setSpacing(10)
-            heading = QVBoxLayout()
-            heading.setSpacing(2)
-            heading.addWidget(title)
-            heading.addWidget(self.counter, alignment=Qt.AlignmentFlag.AlignLeft)
-            layout.addLayout(heading)
-            self.selector.setMinimumWidth(170)
-            layout.addWidget(self.selector, 1)
-            layout.addLayout(actions)
-        else:
-            layout = QVBoxLayout(self)
-            layout.setContentsMargins(9, 7, 9, 8)
-            layout.setSpacing(6)
-            heading = QHBoxLayout()
-            heading.addWidget(title)
-            heading.addStretch(1)
-            heading.addWidget(self.counter)
-            layout.addLayout(heading)
-            layout.addWidget(self.selector)
-            layout.addLayout(actions)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(9, 7, 9, 8)
+        layout.setSpacing(6)
+        heading = QHBoxLayout()
+        heading.addWidget(title)
+        heading.addStretch(1)
+        heading.addWidget(self.counter)
+        layout.addLayout(heading)
+        layout.addWidget(self.selector)
+        layout.addWidget(self._controls_host)
+        self._arrange_controls(2)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         self.set_snapshots([], logged_in=False)
         self.export_button.setEnabled(False)
 
+    def _arrange_controls(self, columns: int) -> None:
+        if columns == self._columns:
+            return
+        self._columns = columns
+        for widget in (*self._action_buttons, self.retention_label, self.retention_spin):
+            self._controls.removeWidget(widget)
+        for index, button in enumerate(self._action_buttons):
+            self._controls.addWidget(button, index // columns, index % columns)
+        row = (len(self._action_buttons) - 1) // columns
+        if columns < 6:
+            row += 1
+        retention_column = 6 if columns == 6 else 0
+        self._controls.addWidget(self.retention_label, row, retention_column)
+        self._controls.addWidget(self.retention_spin, row, retention_column + 1)
+        self._controls.invalidate()
+        self._controls_host.updateGeometry()
+        self.updateGeometry()
+
+    def resizeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
+        width = event.size().width()
+        self._arrange_controls(6 if width >= 790 else 3 if width >= 480 else 2)
+        super().resizeEvent(event)
+
     def set_snapshots(
-        self, snapshots: list[BuildSnapshot], *, logged_in: bool = True
+        self, snapshots: list[BuildSnapshot], *, logged_in: bool = True,
+        retention_limit: int = 5,
     ) -> None:
         selected = self.selected_id()
+        self._favorites = {item.id: item.favorite for item in snapshots}
         self.selector.blockSignals(True)
         self.selector.clear()
         if snapshots:
             for index, snapshot in enumerate(snapshots, start=1):
+                title = snapshot.name or f"Build {len(snapshots) - index + 1}"
                 label = (
-                    f"Build {len(snapshots) - index + 1} · "
+                    f"{'★ ' if snapshot.favorite else ''}{title} · "
                     f"{snapshot.benchmark_score:.1f}% {snapshot.benchmark_grade} · "
                     f"{team_mode(snapshot.payload)} · "
                     f"{snapshot_date(snapshot.created_at)}"
                 )
                 self.selector.addItem(label, snapshot.id)
+                self.selector.setItemData(index - 1, snapshot.note or label, Qt.ItemDataRole.ToolTipRole)
             restored = self.selector.findData(selected)
             self.selector.setCurrentIndex(max(0, restored))
         else:
             self.selector.addItem("Nenhuma build salva", None)
         self.selector.blockSignals(False)
-        self.counter.setText(f"{len(snapshots)}/5")
-        self.save_button.setEnabled(logged_in and len(snapshots) < 5)
+        self.counter.setText(f"{len(snapshots)}/{retention_limit}")
+        self.retention_spin.blockSignals(True)
+        self.retention_spin.setValue(retention_limit)
+        self.retention_spin.blockSignals(False)
+        self.retention_spin.setEnabled(logged_in)
+        self.save_button.setEnabled(logged_in)
         self.save_button.setToolTip(
             "Salvar a build e o benchmark exibidos agora"
             if logged_in else "Entre em um perfil para salvar builds"
@@ -139,7 +198,18 @@ class BuildHistoryBar(QFrame):
     def _sync_actions(self) -> None:
         enabled = self.selected_id() > 0
         self.compare_button.setEnabled(enabled)
+        self.edit_button.setEnabled(enabled)
+        self.favorite_button.setEnabled(enabled)
+        self.favorite_button.setText("★ Favorito" if self._favorites.get(self.selected_id()) else "☆ Favorito")
         self.delete_button.setEnabled(enabled)
+
+    def _edit(self) -> None:
+        if self.selected_id():
+            self.edit_requested.emit(self.selected_id())
+
+    def _favorite(self) -> None:
+        if self.selected_id():
+            self.favorite_requested.emit(self.selected_id(), not self._favorites.get(self.selected_id(), False))
 
     def _compare(self) -> None:
         if self.selected_id():
@@ -148,6 +218,83 @@ class BuildHistoryBar(QFrame):
     def _delete(self) -> None:
         if self.selected_id():
             self.delete_requested.emit(self.selected_id())
+
+
+class BuildMetadataDialog(QDialog):
+    def __init__(self, snapshot: BuildSnapshot | None = None,
+                 parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Editar build" if snapshot else "Salvar build")
+        self.setObjectName("buildMetadataDialog")
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setModal(True)
+        self.setFixedWidth(410)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(1, 1, 1, 1)
+        card = QFrame()
+        card.setObjectName("buildMetadataCard")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(20, 18, 20, 20)
+        layout.setSpacing(9)
+        header = QHBoxLayout()
+        title = QLabel("EDITAR BUILD" if snapshot else "SALVAR BUILD ATUAL")
+        title.setObjectName("buildMetadataTitle")
+        close = QPushButton("×")
+        close.setObjectName("dialogCloseButton")
+        close.setFixedSize(30, 28)
+        close.setAccessibleName("Fechar sem salvar")
+        close.clicked.connect(self.reject)
+        header.addWidget(title)
+        header.addStretch(1)
+        header.addWidget(close)
+        layout.addLayout(header)
+        name_label = QLabel("NOME  ·  OPCIONAL")
+        name_label.setObjectName("buildMetadataLabel")
+        layout.addWidget(name_label)
+        self.name_edit = QLineEdit(snapshot.name if snapshot else "")
+        self.name_edit.setMaxLength(80)
+        self.name_edit.setPlaceholderText("Ex.: Time de quebra")
+        self.name_edit.setAccessibleName("Nome da build")
+        layout.addWidget(self.name_edit)
+        note_label = QLabel("NOTAS  ·  OPCIONAL")
+        note_label.setObjectName("buildMetadataLabel")
+        layout.addWidget(note_label)
+        self.note_edit = QPlainTextEdit(snapshot.note if snapshot else "")
+        self.note_edit.setObjectName("buildMetadataNote")
+        self.note_edit.setPlaceholderText("Estratégia, equipamento ou contexto desta versão")
+        self.note_edit.setAccessibleName("Notas da build")
+        self.note_edit.setMaximumHeight(100)
+        layout.addWidget(self.note_edit)
+        self.favorite_check = QCheckBox("Marcar como favorita")
+        self.favorite_check.setChecked(snapshot.favorite if snapshot else False)
+        self.favorite_check.setToolTip("Favoritas não são removidas automaticamente ao atingir o limite.")
+        layout.addWidget(self.favorite_check)
+        if snapshot is None:
+            retention_hint = QLabel(
+                "Ao atingir o limite, a versão mais antiga sem favorito será removida."
+            )
+            retention_hint.setWordWrap(True)
+            retention_hint.setObjectName("buildMetadataHint")
+            layout.addWidget(retention_hint)
+        actions = QHBoxLayout()
+        cancel = QPushButton("Cancelar")
+        cancel.setObjectName("secondaryButton")
+        cancel.clicked.connect(self.reject)
+        confirm = QPushButton("Salvar alterações" if snapshot else "Salvar build")
+        confirm.setObjectName("primaryButton")
+        confirm.clicked.connect(self.accept)
+        actions.addWidget(cancel, 1)
+        actions.addWidget(confirm, 1)
+        layout.addLayout(actions)
+        outer.addWidget(card)
+
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "name": self.name_edit.text().strip(),
+            "note": self.note_edit.toPlainText().strip()[:2000],
+            "favorite": self.favorite_check.isChecked(),
+        }
 
 
 class BuildComparisonDialog(QDialog):

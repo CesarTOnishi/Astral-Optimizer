@@ -10,6 +10,7 @@ from typing import Any
 from PySide6.QtCore import QThread, Signal
 
 from app.models import CharacterSummary
+from app.performance import PERFORMANCE
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -112,7 +113,8 @@ class FribbelsBenchmarkWorker(QThread):
 
     def run(self) -> None:
         try:
-            result = calculate(self.character, teammates=self.teammates)
+            with PERFORMANCE.time("Benchmark Fribbels"):
+                result = calculate(self.character, teammates=self.teammates)
         except Exception as exc:
             self.failed.emit(self.request_key, str(exc))
         else:

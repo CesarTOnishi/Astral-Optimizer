@@ -90,6 +90,49 @@ class UidViewCacheTests(unittest.TestCase):
             finally:
                 window.close()
 
+    def test_closing_last_uid_releases_visible_widgets_and_saved_snapshot(self) -> None:
+        with TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"ASTRAL_DATA_DIR": directory}
+        ):
+            window = MainWindow()
+            try:
+                account = sample_account("601000003", "Fechada")
+                session, _created = window.uid_workspace.open(account.uid)
+                token = window.uid_workspace.begin_request(account.uid)
+                self.assertTrue(
+                    window.uid_workspace.complete_request(account.uid, token, account)
+                )
+                window.uid_tabs_widget.add_or_update(account.uid, session.title)
+                window.active_uid_tab = account.uid
+                window.build_source = "manual"
+                window.current_account = account
+                window.current_uid = account.uid
+                window.current_character_id = account.characters[0].avatar_id
+                window._use_character_list(account)
+                context = window.section_loading.begin_context(
+                    window.uid_workspace.owner_id, account.uid
+                )
+                with patch.object(
+                    window.image_loader, "load",
+                    side_effect=lambda _url, callback: callback(QPixmap(1, 1)),
+                ):
+                    window._display_stats(account.characters[0])
+                    window._display_relics(account.characters[0], context=context)
+                self.assertTrue(window.current_relic_cards)
+
+                window._close_uid_tab(account.uid)
+
+                self.assertEqual(window.uid_tabs_widget.tabs.count(), 0)
+                self.assertEqual(window.current_relic_cards, [])
+                self.assertEqual(window.relic_grid.count(), 0)
+                self.assertEqual(window.stat_rows.count(), 0)
+                self.assertIsNone(window.current_account)
+                self.assertEqual(window.uid_workspace.store.load_account(
+                    window.uid_workspace.owner_id, account.uid
+                ), (None, ""))
+            finally:
+                window.close()
+
 
 if __name__ == "__main__":
     unittest.main()
