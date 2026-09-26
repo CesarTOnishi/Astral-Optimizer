@@ -4,7 +4,7 @@
 
   **Builds, relíquias, benchmark, catálogo e Saltos de Honkai: Star Rail em um único aplicativo para Windows.**
 
-  [![Versão](https://img.shields.io/badge/versão-1.3.0-7edcff?style=for-the-badge)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
+  [![Versão](https://img.shields.io/badge/versão-1.4.0-7edcff?style=for-the-badge)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
   [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-357ec7?style=for-the-badge&logo=windows11)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
   [![PySide6](https://img.shields.io/badge/UI-PySide6-41cd52?style=for-the-badge&logo=qt&logoColor=white)](https://doc.qt.io/qtforpython-6/)
@@ -20,27 +20,20 @@ O **Astral Optimizer** é um aplicativo desktop local para consultar contas púb
 
 O aplicativo não solicita acesso à conta HoYoverse. As consultas utilizam apenas o Showcase público configurado dentro do jogo. Perfis, históricos e configurações permanecem no computador do usuário.
 
-## Novidades da versão 1.3.0
+## Novidades da versão 1.4.0
 
-Esta versão amplia o acompanhamento de Saltos, migra o backup para o OneDrive e moderniza a experiência visual do aplicativo.
+Esta versão melhora a navegação, o desempenho e o controle sobre Saltos e builds.
 
-- sincronização da conta durante a tela de carregamento ao abrir o aplicativo;
-- consultas públicas em abas com avatar, apelido, cache local, atualização individual e restauração por perfil;
-- dashboard da UID principal com avatar do jogo, personagens, benchmarks, Saltos e relíquias;
-- central de notificações para atualização do aplicativo e catálogo, backup, mudanças de relíquias e soft pity;
-- Central de novidades ilustrada, acessível pelo ícone ao lado do sino, com atalhos para cada recurso novo;
-- modo de privacidade que oculta a UID das imagens compartilhadas;
-- análises de Saltos com gráficos por mês e versão, média de pity, histórico de 50/50 e detecção de lacunas;
-- exportação do histórico de Saltos para CSV/JSON e cartão PNG compartilhável com todos os resultados 5★, pity, garantia e estatísticas;
-- planejamento sequencial com estratégias de S1 ou Eidolons, chances e estimativas otimista, média e pessimista;
-- seis temas globais aplicados imediatamente e opção para reduzir animações;
-- configurações reorganizadas em Perfil, Aparência, Privacidade, Backup e Aplicativo;
-- tutorial guiado de 20 etapas com balões apontando para os controles reais;
-- atalhos de teclado, estados vazios explicativos, diagnóstico técnico e botões para copiar detalhes de erros;
-- seletor de edições de banner, histórico visual somente de 5★ e identificação persistente das edições.
-- backup automático e manual em pasta sincronizada pelo OneDrive, com verificação de integridade e restauração;
-- novo sistema de ícones, animações, barras de rolagem e cartões responsivos em toda a interface;
-- ícones próprios para atributos básicos, atributos em combate e estatísticas das relíquias.
+- Builds, Conta e Inventário de Relíquias receberam layouts mais compactos e responsivos, preservando benchmark, comparação e dano por habilidade;
+- abas de UID reorganizáveis e limitadas a oito, com cache de sessão, atualização individual e transição suave;
+- telas já visitadas reutilizam dados da sessão para reduzir atrasos ao navegar;
+- instância única, opção de iniciar com o Windows e opção de manter o aplicativo na bandeja ao fechar;
+- Planejador com pity e garantia manuais opcionais, sem perder os valores importados;
+- prévia da importação de Saltos com contagens de registros novos, duplicados e rejeitados;
+- lembrete de importação de Saltos configurável, inicialmente em 40 dias, e preferências por tipo de notificação;
+- histórico de builds com nomes, notas, favoritos e retenção configurável;
+- Diagnóstico com tempos de operações e consumo de memória observados na sessão;
+- tarefas em segundo plano, histórico de atividades, ajuda contextual e recuperação de erros de consulta.
 
 ## Principais recursos
 
@@ -49,7 +42,7 @@ Esta versão amplia o acompanhamento de Saltos, migra o backup para o OneDrive e
 | Consulta por UID | Abas reorganizáveis com perfil público, cache, personagens, nível, Eidolons, Cones, relíquias e atributos |
 | DPS Benchmark | Pontuação, classificação, atributos em combate e dano por habilidade com o motor Fribbels |
 | Times | Time padrão e composição customizada com Eidolons, Cones e sobreposições |
-| Histórico de builds | Até cinco versões por personagem, comparação, exclusão e registro do time utilizado |
+| Histórico de builds | Versões com nomes, notas, favoritos, comparação e retenção configurável por personagem |
 | Exportação | Cartão PNG da build para compartilhar no Discord e em outras redes |
 | Relíquias | Inventário persistente, pontuação, filtros e histórico de portadores |
 | Saltos | Cache/XLSX, pity, garantido, 50/50, 75/25, edições, gráficos e exportação CSV/JSON |
@@ -69,7 +62,7 @@ Esta versão amplia o acompanhamento de Saltos, migra o backup para o OneDrive e
 
 Pesquise qualquer UID válido sem substituir a conta principal salva no perfil local.
 
-Cada consulta pública abre uma aba própria na área de Builds, identificada pelo apelido e avatar da conta. As abas podem ser reorganizadas por arraste e fechadas pelo botão **×**. Pesquisar uma UID já aberta apenas seleciona a aba existente.
+Cada consulta pública abre uma aba própria na área de Builds, identificada pelo apelido e avatar da conta. Até oito abas podem ficar abertas; ao atingir o limite, o aplicativo mostra um aviso. As abas podem ser reorganizadas por arraste e fechadas pelo botão **×**. Pesquisar uma UID já aberta apenas seleciona a aba existente.
 
 O aplicativo preserva, por perfil local, a ordem das abas, a aba selecionada, o personagem ativo e a posição de rolagem. Na próxima abertura, os últimos dados salvos aparecem imediatamente com a data da atualização; as UIDs não são consultadas automaticamente. Use o botão de atualização da barra de abas para consultar somente a conta atual. Se a rede falhar, o último conteúdo válido permanece disponível.
 
@@ -111,7 +104,7 @@ No modo customizado é possível pesquisar personagens, definir Eidolons, escolh
 
 ## Histórico e exportação de builds
 
-Cada perfil pode guardar até cinco versões de uma build para o mesmo personagem e UID. O snapshot registra equipamentos, atributos, benchmark e o modo do time.
+Cada perfil pode guardar versões de uma build para o mesmo personagem e UID, com limite configurável de 1 a 50 (padrão: cinco). Cada versão pode ter nome, notas e marcação de favorito. O snapshot registra equipamentos, atributos, benchmark e o modo do time.
 
 Na comparação, ganhos aparecem em verde, perdas em vermelho e valores sem alteração em cinza. Qualquer snapshot pode ser excluído. O botão **Exportar PNG** gera um cartão 1200×675 com personagem, Cone, equipe, atributos, relíquias e DPS Benchmark.
 
@@ -145,6 +138,8 @@ A aba **Saltos** aceita:
 - arquivo `data_*` do cache local do jogo;
 - backup `.xlsx` exportado pelo Star Rail Station, limitado a 5 MB.
 
+Antes de confirmar a importação, uma prévia informa quantos registros serão adicionados, quantos são duplicados e quantos foram rejeitados. **Cancelar** mantém o histórico sem alterações.
+
 Categorias reconhecidas:
 
 - Evento de Personagem;
@@ -170,7 +165,7 @@ Dados antigos podem receber o identificador da edição ao reimportar o XLSX, se
 
 ## Planejador de tiros
 
-O Planejador lê automaticamente pity e garantia dos banners limitados e combina esses dados com:
+O Planejador lê automaticamente pity e garantia dos banners limitados. A caixa **Usar pity e garantia importados** começa marcada; ao desmarcá-la, é possível informar valores manuais. Marcá-la novamente restaura os valores atuais do histórico. O Planejador combina esses dados com:
 
 - Jades Estelares;
 - Passes Especiais;
@@ -190,11 +185,11 @@ Clicar no perfil da barra lateral também abre esse dashboard. A página mantém
 
 A **Central de novidades** apresenta as principais mudanças da versão instalada em cartões ilustrados e responsivos. Ela é aberta automaticamente uma vez após cada atualização e continua disponível pelo ícone ao lado do sino de notificações; os botões de cada cartão levam diretamente ao recurso apresentado.
 
-As Configurações são divididas em **Perfil**, **Aparência**, **Privacidade**, **Backup** e **Aplicativo**. Os temas Astral, Obsidiana, Aurora, Jade Estelar, Carmesim e Alto contraste são aplicados imediatamente em toda a interface.
+As Configurações são divididas em **Perfil**, **Aparência**, **Privacidade**, **Notificações**, **Backup** e **Aplicativo**. Os temas Astral, Obsidiana, Aurora, Jade Estelar, Carmesim e Alto contraste são aplicados imediatamente em toda a interface.
 
 A navegação e as configurações usam ícones SVG consistentes. Textos e números priorizam legibilidade, enquanto a fonte temática permanece nos títulos da marca. Painéis e tabelas têm menos bordas, a seleção mantém um marcador lateral e o cabeçalho compacto da conta dá mais espaço aos indicadores. Miniaturas de Cones e equipamentos preservam a arte completa.
 
-Em **Aplicativo**, também é possível selecionar manualmente a pasta `webCaches` usada pela importação de Saltos ou restaurar a localização automática.
+Em **Aplicativo**, também é possível selecionar manualmente a pasta `webCaches` usada pela importação de Saltos ou restaurar a localização automática. Iniciar com o Windows e permanecer na bandeja ao fechar são opções independentes, inicialmente desligadas.
 
 A opção **Reduzir animações** diminui transições em computadores mais fracos. Na primeira abertura, um tutorial de 20 etapas escurece a interface, destaca os controles reais e explica as principais funções. Ele pode ser revisto pelas Configurações ou com `F1`.
 
@@ -209,13 +204,13 @@ Atalhos disponíveis:
 - `Ctrl+Shift+D`: abrir o Diagnóstico;
 - `F1`: rever o tutorial.
 
-A página de Diagnóstico mostra versão, sistema, caminhos dos bancos e estado do motor Fribbels. Mensagens de erro importantes possuem o botão **Copiar detalhes** para facilitar pedidos de suporte.
+A página de Diagnóstico mostra versão, sistema, caminhos dos bancos, estado do motor Fribbels, memória residente e tempos das operações observadas na sessão. Mensagens de erro importantes possuem o botão **Copiar detalhes** para facilitar pedidos de suporte.
 
 Falhas de consulta ao Enka.Network são classificadas como UID inválida, conta inexistente, limite temporário, serviço indisponível, tempo esgotado, problema de conexão ou erro inesperado. Um painel de recuperação oferece apenas as ações adequadas ao caso: **Tentar novamente**, **Continuar com dados salvos**, **Verificar conexão** e **Copiar detalhes**. Uma atualização com erro nunca apaga a última consulta válida armazenada.
 
 ## Notificações e privacidade
 
-O sino no topo concentra alertas de catálogo desatualizado, nova versão, sucesso ou falha de backup, alterações nas relíquias após sincronizar a conta e pity próximo do soft pity.
+O sino no topo concentra alertas de catálogo desatualizado, nova versão, sucesso ou falha de backup, alterações nas relíquias após sincronizar a conta, pity próximo do soft pity e lembrete de importação do histórico de Saltos. Em **Configurações → Notificações**, cada tipo pode ser ativado separadamente; o lembrete começa em 40 dias e permite ajustar o intervalo e a próxima data.
 
 Em **Configurações → Privacidade**, a opção de ocultar a UID remove o identificador tanto do cartão PNG compartilhado quanto do nome sugerido para o arquivo. A preferência é armazenada separadamente para cada perfil local.
 
@@ -295,7 +290,7 @@ Para publicar uma atualização:
 2. execute os testes;
 3. recompile o motor e o executável;
 4. gere o pacote da Release;
-5. crie uma Release normal com a tag correspondente, como `v1.3.0`;
+5. crie uma Release normal com a tag correspondente, como `v1.4.0`;
 6. anexe o ZIP e seu `.sha256`.
 
 O atualizador consulta a Release mais recente no máximo uma vez a cada seis horas e também possui verificação manual. Bancos e configurações em `%LOCALAPPDATA%\AstralOptimizer` não são substituídos durante a atualização.
@@ -337,7 +332,7 @@ python -m unittest discover -s tests -v
 python -m compileall -q app tests
 ```
 
-Os 129 testes cobrem autenticação, abas e cache de UID, recuperação de falhas do Enka.Network, respostas assíncronas, benchmark, catálogo, histórico de builds, dashboard da conta, planejamento sequencial, relíquias, privacidade, notificações, preferências, tutorial, sincronização, atualizador, importação e análises de Saltos e separação das edições.
+Os testes cobrem autenticação, abas e cache de UID, recuperação de falhas do Enka.Network, respostas assíncronas, benchmark, catálogo, histórico de builds, dashboard da conta, planejamento sequencial, relíquias, privacidade, notificações, preferências, tutorial, sincronização, atualizador, importação e análises de Saltos e separação das edições.
 
 ## Estrutura do projeto
 

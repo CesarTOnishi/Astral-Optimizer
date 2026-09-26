@@ -27,67 +27,67 @@ class InstalledRelease:
 
 CURRENT_RELEASE = InstalledRelease(
     version=APP_VERSION,
-    headline="Uma experiência mais visual, segura e completa",
+    headline="Mais controle e agilidade no seu dia a dia",
     summary=(
         "Conheça as principais melhorias disponíveis nesta versão e abra cada "
         "recurso diretamente por esta central."
     ),
     highlights=(
         ReleaseHighlight(
-            title="Cartão avançado de Saltos",
+            title="Saltos sob seu controle",
             description=(
-                "Transforme seu histórico em uma imagem pronta para compartilhar, "
-                "agora com estatísticas completas."
+                "Confira os registros antes de importar e escolha quando receber "
+                "o próximo lembrete de atualização."
             ),
             details=(
-                "Todos os resultados 5★ e seus pitys",
-                "Média, mediana, melhor e pior pity",
-                "Cores diferentes para pity baixo, médio e alto",
+                "Prévia de novos, duplicados e rejeitados",
+                "Confirmação antes de gravar o histórico",
+                "Lembrete configurável, inicialmente em 40 dias",
             ),
             action_label="Abrir Saltos",
             destination="Saltos",
             artwork="warps",
         ),
         ReleaseHighlight(
-            title="Importação guiada do jogo",
+            title="Planejamento mais flexível",
             description=(
-                "Um vídeo curto mostra como preparar o Histórico de Saltos antes "
-                "de importar."
+                "Use o pity e a garantia importados ou informe valores manuais "
+                "quando o histórico estiver incompleto."
             ),
             details=(
-                "Tutorial disponível sempre que precisar",
-                "Seleção manual da pasta webCaches",
-                "Detecção da versão de cache mais recente",
+                "Alternância sem perder os dados importados",
+                "Origem dos valores indicada na tela",
+                "Edição de recursos com resposta mais rápida",
             ),
-            action_label="Ver área de importação",
-            destination="Saltos",
+            action_label="Abrir Planejador",
+            destination="Planejador",
             artwork="import",
         ),
         ReleaseHighlight(
-            title="Backup pelo OneDrive",
+            title="Builds e relíquias renovadas",
             description=(
-                "Proteja seu histórico em uma pasta sincronizada, sem entregar sua "
-                "senha da Microsoft ao Astral."
+                "Analise personagens e equipamentos em telas mais compactas, "
+                "com navegação que preserva os dados durante a sessão."
             ),
             details=(
-                "Backup automático após cada importação",
-                "Arquivos versionados e verificados por integridade",
-                "Restauração do último backup válido",
+                "Histórico de builds com notas e favoritos",
+                "Retenção configurável de versões salvas",
+                "Inventário responsivo e acesso mais rápido",
             ),
-            action_label="Configurar backup",
-            destination="Backup",
+            action_label="Abrir Builds",
+            destination="Builds",
             artwork="backup",
         ),
         ReleaseHighlight(
-            title="Design e experiência renovados",
+            title="Mais conforto ao navegar",
             description=(
-                "A interface ganhou ícones próprios, movimentos mais suaves e uma "
-                "organização visual mais consistente."
+                "Abas de UID, tarefas em segundo plano e novas opções de "
+                "inicialização deixam o aplicativo mais prático."
             ),
             details=(
-                "Ícones reais para atributos e relíquias",
-                "Cartões e barras de rolagem aprimorados",
-                "Seis temas com aplicação imediata",
+                "Até oito abas de UID com cache de sessão",
+                "Início com o Windows e permanência na bandeja opcionais",
+                "Tempos e memória da sessão no Diagnóstico",
             ),
             action_label="Abrir configurações",
             destination="Configurações",

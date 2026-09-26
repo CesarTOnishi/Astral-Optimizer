@@ -122,7 +122,7 @@ class UidTabsUiTests(unittest.TestCase):
             try:
                 with patch.object(window, "_request_uid_tab"), patch.object(
                     window, "_activate_uid_tab"
-                ), patch("app.ui.main_window.QMessageBox.information") as notice:
+                ), patch("app.ui.main_accounts.QMessageBox.information") as notice:
                     for index in range(8):
                         window._open_public_uid(f"70000000{index}")
                     window._open_public_uid(" 700000000 ")

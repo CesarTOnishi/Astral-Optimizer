@@ -68,7 +68,7 @@ class CustomTeamTests(unittest.TestCase):
 
     def test_edit_default_switches_to_custom_before_dialog_and_cancel_preserves_copy(self):
         w = self.window
-        with patch("app.ui.main_window.CustomTeamDialog") as dialog_type:
+        with patch("app.ui.main_builds.CustomTeamDialog") as dialog_type:
             def cancel():
                 self.assertTrue(w._uses_custom_team("1220"))
                 return 0
@@ -109,7 +109,7 @@ class CustomTeamTests(unittest.TestCase):
         w.use_custom_team()
         edited = deepcopy(TEAM)
         edited[2]["teamOrnamentSet"] = "Ornament"
-        with patch("app.ui.main_window.CustomTeamDialog") as dialog_type:
+        with patch("app.ui.main_builds.CustomTeamDialog") as dialog_type:
             dialog_type.return_value.exec.return_value = 1
             dialog_type.return_value.team.return_value = edited
             w.open_custom_team_dialog(2)

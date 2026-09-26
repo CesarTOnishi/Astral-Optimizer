@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 APP_NAME = "Astral Optimizer"
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.4.0"
 GITHUB_REPOSITORY = "CesarTOnishi/Astral-Optimizer"
 APP_USER_AGENT = f"AstralOptimizer/{APP_VERSION} (PySide6)"
 APP_ASSETS_DIR = Path(__file__).resolve().parent / "assets"
