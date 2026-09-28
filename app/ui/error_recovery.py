@@ -71,9 +71,8 @@ class EnkaErrorRecoveryPanel(QFrame):
         content.addLayout(self.actions)
         outer.addLayout(content, 1)
 
-    @staticmethod
-    def _button(text: str, icon: str) -> QPushButton:
-        button = QPushButton(text)
+    def _button(self, text: str, icon: str) -> QPushButton:
+        button = QPushButton(text, self)
         button.setObjectName("enkaRecoveryAction")
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)

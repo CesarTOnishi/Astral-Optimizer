@@ -8,6 +8,8 @@ import enka
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
 from app.config import APP_USER_AGENT
+from app.catalog.repository import CatalogRepository
+from app.catalog.sync import ensure_relic_set_catalog
 from app.models import AccountSummary
 from app.parsers import account_from_showcase
 
@@ -33,6 +35,13 @@ class AccountFetchError:
 
 def classify_account_error(error: BaseException) -> AccountFetchError:
     details = f"{type(error).__name__}: {error}"
+    if isinstance(error, GameAssetsUnavailableError):
+        return AccountFetchError(
+            "game_assets_unavailable",
+            "Dados do jogo ainda indisponíveis",
+            str(error),
+            details,
+        )
     if isinstance(error, enka.errors.WrongUIDFormatError):
         return AccountFetchError(
             "invalid_uid",
@@ -140,6 +149,81 @@ def ensure_account_error(error: object) -> AccountFetchError:
     )
 
 
+class GameAssetsUnavailableError(RuntimeError):
+    """Os dados locais do jogo não cobrem o personagem ou equipamento consultado."""
+
+
+def _raw_has_unknown_assets(client: enka.HSRClient, payload: dict) -> bool:
+    """Evita processar uma build com IDs que o cache do enka ainda não conhece."""
+    assets = client._assets
+    profile = payload.get("detailInfo") or {}
+    for character in profile.get("avatarDetailList") or payload.get("avatarInfoList") or []:
+        if assets.character_data.get(str(character.get("avatarId", ""))) is None:
+            return True
+        cone = character.get("equipment") or {}
+        if cone and assets.light_cones_data.get(str(cone.get("tid", ""))) is None:
+            return True
+        for relic in character.get("relicList") or []:
+            if assets.relic_data.get(str(relic.get("tid", ""))) is None:
+                return True
+    return False
+
+
+def _showcase_has_missing_assets(showcase: object) -> bool:
+    for character in showcase.characters:
+        if not character.name or character.name.isdecimal() or not character.stats:
+            return True
+        if character.light_cone and (
+            not character.light_cone.name
+            or character.light_cone.name.isdecimal()
+            or character.light_cone.icon.light_cone_id == 0
+        ):
+            return True
+        if any(
+            not relic.set_name or relic.set_name.isdecimal() or not relic.icon
+            for relic in character.relics
+        ):
+            return True
+    return False
+
+
+async def _complete_showcase_names(showcase: object) -> None:
+    """Complementa traduções ainda ausentes no mapa de texto do Enka."""
+    if not any(
+        character.name.isdecimal()
+        or (character.light_cone and character.light_cone.name.isdecimal())
+        or any(relic.set_name.isdecimal() for relic in character.relics)
+        for character in showcase.characters
+    ):
+        return
+
+    catalog = CatalogRepository()
+    missing_sets = {
+        str(relic.set_id)
+        for character in showcase.characters
+        for relic in character.relics
+        if relic.set_name.isdecimal() and not catalog.relic_set_name(str(relic.set_id))
+    }
+    if missing_sets:
+        try:
+            await asyncio.to_thread(ensure_relic_set_catalog, missing_sets)
+        except (OSError, ValueError):
+            pass  # A validação abaixo informa que os dados continuam indisponíveis.
+        catalog.reload()
+
+    character_names = {item.id: item.name for item in catalog.characters()}
+    cone_names = {item.id: item.name for item in catalog.light_cones()}
+    for character in showcase.characters:
+        if character.name.isdecimal():
+            character.name = character_names.get(str(character.id), character.name)
+        cone = character.light_cone
+        if cone and cone.name.isdecimal():
+            cone.name = cone_names.get(str(cone.id), cone.name)
+        for relic in character.relics:
+            if relic.set_name.isdecimal():
+                relic.set_name = catalog.relic_set_name(str(relic.set_id)) or relic.set_name
+
+
 class AccountFetchWorker(QThread):
     succeeded = Signal(object)
     failed = Signal(object)
@@ -163,7 +247,22 @@ class AccountFetchWorker(QThread):
             headers=headers,
             timeout=15,
         ) as client:
-            showcase = await client.fetch_showcase(self.uid)
+            raw = await client.fetch_showcase(self.uid, raw=True)
+            refreshed = False
+            if _raw_has_unknown_assets(client, raw):
+                await client.update_assets()
+                refreshed = True
+            showcase = client.parse_showcase(raw)
+            await _complete_showcase_names(showcase)
+            if _showcase_has_missing_assets(showcase) and not refreshed:
+                await client.update_assets()
+                showcase = client.parse_showcase(raw)
+                await _complete_showcase_names(showcase)
+            if _showcase_has_missing_assets(showcase):
+                raise GameAssetsUnavailableError(
+                    "Os dados atuais do jogo ainda não incluem todos os personagens, "
+                    "cones ou relíquias desta conta. Tente consultar novamente mais tarde."
+                )
         return account_from_showcase(showcase)
 
 

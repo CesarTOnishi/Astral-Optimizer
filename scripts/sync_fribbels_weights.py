@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -113,11 +114,10 @@ def main() -> None:
                     "main_stats": main_stats,
                 }
 
-    head = (repository / ".git" / "HEAD").read_text(encoding="ascii").strip()
-    if head.startswith("ref: "):
-        commit = (repository / ".git" / head[5:]).read_text(encoding="ascii").strip()
-    else:
-        commit = head
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repository, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
     output = Path(__file__).resolve().parents[1] / "app" / "benchmark" / "fribbels_weights.json"
     payload = {
         "source": "https://github.com/fribbels/hsr-optimizer",

@@ -49,6 +49,14 @@ class EnkaErrorRecoveryPanelTests(unittest.TestCase):
             self.assertFalse(panel.continue_button.isHidden())
             self.assertFalse(panel.connection_button.isHidden())
             self.assertFalse(panel.copy_button.isHidden())
+            for button in (
+                panel.retry_button,
+                panel.continue_button,
+                panel.connection_button,
+                panel.copy_button,
+            ):
+                self.assertIs(button.parentWidget(), panel)
+                self.assertFalse(button.isWindow())
 
             invalid = classify_account_error(enka.errors.WrongUIDFormatError())
             panel.show_error(invalid, has_saved_data=False)

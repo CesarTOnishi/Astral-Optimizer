@@ -1,11 +1,12 @@
 import os
 from tempfile import TemporaryDirectory
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtNetwork import QNetworkReply
 from PySide6.QtWidgets import QApplication
 
 from app.ui.image_loader import ImageLoader
@@ -52,6 +53,26 @@ class ImageLoaderCacheTests(unittest.TestCase):
             loader._remember("large", pixmap)
             self.assertEqual(len(loader.cache), 0)
             self.assertEqual(loader._cache_bytes, 0)
+
+    def test_pearl_icon_uses_local_asset_when_enka_image_is_missing(self) -> None:
+        url = "https://enka.network/ui/hsr/SpriteOutput/AvatarRoundIcon/1503.png"
+        fallback = ImageLoader._profile_icon_fallback(url)
+        self.assertIsNotNone(fallback)
+        self.assertEqual(fallback.name, "1503.webp")
+        self.assertFalse(QPixmap(str(fallback)).isNull())
+
+        with TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"ASTRAL_DATA_DIR": directory}
+        ):
+            loader = ImageLoader()
+            reply = Mock()
+            reply.error.return_value = QNetworkReply.NetworkError.ContentNotFoundError
+            loader.replies[reply] = url
+            received = []
+            loader.pending[url] = [received.append]
+            loader._finished(reply)
+            self.assertEqual(len(received), 1)
+            self.assertFalse(received[0].isNull())
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@
 
   **Builds, relíquias, benchmark, catálogo e Saltos de Honkai: Star Rail em um único aplicativo para Windows.**
 
-  [![Versão](https://img.shields.io/badge/versão-1.4.0-7edcff?style=for-the-badge)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
+  [![Versão](https://img.shields.io/badge/versão-1.4.1-7edcff?style=for-the-badge)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
   [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-357ec7?style=for-the-badge&logo=windows11)](https://github.com/CesarTOnishi/Astral-Optimizer/releases)
   [![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
   [![PySide6](https://img.shields.io/badge/UI-PySide6-41cd52?style=for-the-badge&logo=qt&logoColor=white)](https://doc.qt.io/qtforpython-6/)
@@ -20,9 +20,17 @@ O **Astral Optimizer** é um aplicativo desktop local para consultar contas púb
 
 O aplicativo não solicita acesso à conta HoYoverse. As consultas utilizam apenas o Showcase público configurado dentro do jogo. Perfis, históricos e configurações permanecem no computador do usuário.
 
-## Novidades da versão 1.4.0
+## Novidades da versão 1.4.1
 
-Esta versão melhora a navegação, o desempenho e o controle sobre Saltos e builds.
+Esta atualização recupera a compatibilidade das consultas com os dados do jogo 4.6 e atualiza o motor de análise.
+
+- O catálogo reconhece novos personagens, Cones de Luz e conjuntos de relíquias, incluindo Pearl;
+- a consulta atualiza os dados da Enka quando encontra IDs desconhecidos e preserva nomes e atributos disponíveis;
+- a imagem de perfil usa a arte local quando o CDN da Enka ainda não publicou um ícone;
+- o motor Fribbels e os pesos de relíquias foram atualizados para o catálogo recente;
+- corrigidos uma falha de leitura de atributos e botões de erro que apareciam como janelas extras.
+
+### Recursos da versão 1.4
 
 - Builds, Conta e Inventário de Relíquias receberam layouts mais compactos e responsivos, preservando benchmark, comparação e dano por habilidade;
 - abas de UID reorganizáveis e limitadas a oito, com cache de sessão, atualização individual e transição suave;
@@ -237,7 +245,7 @@ Não é necessário instalar Python, Node.js ou npm. Não execute o programa dir
 
 - Windows 10 ou 11;
 - Python 3.11 ou superior;
-- Node.js 24 ou superior para recompilar o motor;
+- Node.js 26 ou superior para recompilar e testar o motor (requisito do Fribbels);
 - npm 11 ou superior;
 - Git.
 
@@ -290,7 +298,7 @@ Para publicar uma atualização:
 2. execute os testes;
 3. recompile o motor e o executável;
 4. gere o pacote da Release;
-5. crie uma Release normal com a tag correspondente, como `v1.4.0`;
+5. crie uma Release normal com a tag correspondente, como `v1.4.1`;
 6. anexe o ZIP e seu `.sha256`.
 
 O atualizador consulta a Release mais recente no máximo uma vez a cada seis horas e também possui verificação manual. Bancos e configurações em `%LOCALAPPDATA%\AstralOptimizer` não são substituídos durante a atualização.

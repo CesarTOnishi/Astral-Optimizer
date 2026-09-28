@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import shutil
 from urllib.request import Request, urlopen
+from uuid import uuid4
 
 from PySide6.QtCore import QThread, Signal
 
@@ -23,6 +24,7 @@ CATALOG_FILES = (
     "light_cone_promotions.json",
     "paths.json",
     "elements.json",
+    "relic_sets.json",
 )
 REPOSITORY = "Mar-7th/StarRailRes"
 API_COMMIT_URL = f"https://api.github.com/repos/{REPOSITORY}/commits/master"
@@ -58,6 +60,32 @@ def latest_catalog_commit() -> str:
     if len(sha) != 40:
         raise ValueError("Não foi possível identificar a versão do StarRailRes.")
     return sha
+
+
+def ensure_relic_set_catalog(required_ids: set[str]) -> Path:
+    """Obtém os nomes dos conjuntos quando o mapa de texto do Enka está atrasado."""
+    target = catalog_cache_dir() / "relic_sets.json"
+    if target.is_file():
+        try:
+            cached = json.loads(target.read_text(encoding="utf-8"))
+            if isinstance(cached, dict) and all(
+                isinstance(cached.get(set_id), dict)
+                and cached[set_id].get("name")
+                for set_id in required_ids
+            ):
+                return target
+        except (OSError, ValueError):
+            pass
+    payload = _download_json(
+        f"https://raw.githubusercontent.com/{REPOSITORY}/master/index_min/pt/relic_sets.json"
+    )
+    temporary = target.with_name(f".{uuid4().hex}-relic_sets.json")
+    try:
+        temporary.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return target
 
 
 def synchronize_catalog(progress: Callable[[str], None] | None = None) -> str:

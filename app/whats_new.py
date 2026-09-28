@@ -27,70 +27,70 @@ class InstalledRelease:
 
 CURRENT_RELEASE = InstalledRelease(
     version=APP_VERSION,
-    headline="Mais controle e agilidade no seu dia a dia",
+    headline="Compatibilidade com os dados do jogo 4.6",
     summary=(
-        "Conheça as principais melhorias disponíveis nesta versão e abra cada "
-        "recurso diretamente por esta central."
+        "Esta atualização melhora a consulta de personagens e equipamentos "
+        "novos e atualiza o motor de análise."
     ),
     highlights=(
         ReleaseHighlight(
-            title="Saltos sob seu controle",
+            title="Consultas recuperadas",
             description=(
-                "Confira os registros antes de importar e escolha quando receber "
-                "o próximo lembrete de atualização."
+                "O app agora atualiza os dados da Enka quando encontra um ID "
+                "novo e interpreta a resposta recebida novamente."
             ),
             details=(
-                "Prévia de novos, duplicados e rejeitados",
-                "Confirmação antes de gravar o histórico",
-                "Lembrete configurável, inicialmente em 40 dias",
+                "Corrigida a falha ao ler alguns atributos",
+                "Nomes complementados pelo catálogo quando necessário",
+                "Aviso claro se os dados do jogo ainda estiverem indisponíveis",
             ),
-            action_label="Abrir Saltos",
-            destination="Saltos",
+            action_label="Abrir Conta",
+            destination="Conta",
             artwork="warps",
         ),
         ReleaseHighlight(
-            title="Planejamento mais flexível",
+            title="Pearl e novos equipamentos",
             description=(
-                "Use o pity e a garantia importados ou informe valores manuais "
-                "quando o histórico estiver incompleto."
+                "Personagens, Cones de Luz e conjuntos de relíquias novos "
+                "entram no catálogo assim que os dados públicos chegam."
             ),
             details=(
-                "Alternância sem perder os dados importados",
-                "Origem dos valores indicada na tela",
-                "Edição de recursos com resposta mais rápida",
+                "Pearl reconhecida pelo catálogo",
+                "Nomes de conjuntos complementados pelo StarRailRes",
+                "Dados essenciais ausentes são indicados na tela",
             ),
-            action_label="Abrir Planejador",
-            destination="Planejador",
+            action_label="Abrir Catálogo",
+            destination="Personagens e Cones",
             artwork="import",
         ),
         ReleaseHighlight(
-            title="Builds e relíquias renovadas",
+            title="Motor de análise atualizado",
             description=(
-                "Analise personagens e equipamentos em telas mais compactas, "
-                "com navegação que preserva os dados durante a sessão."
+                "O motor Fribbels, os pesos de relíquias e os times padrão "
+                "acompanham o catálogo recente."
             ),
             details=(
-                "Histórico de builds com notas e favoritos",
-                "Retenção configurável de versões salvas",
-                "Inventário responsivo e acesso mais rápido",
+                "Fribbels atualizado para os dados recentes",
+                "Pesos e times padrão sincronizados",
+                "Sem alterações locais nas regras de pontuação",
             ),
             action_label="Abrir Builds",
             destination="Builds",
             artwork="backup",
         ),
         ReleaseHighlight(
-            title="Mais conforto ao navegar",
+            title="Imagens e janelas corrigidas",
             description=(
-                "Abas de UID, tarefas em segundo plano e novas opções de "
-                "inicialização deixam o aplicativo mais prático."
+                "O retrato local aparece quando o CDN da Enka ainda não "
+                "publicou o ícone de um personagem novo."
             ),
             details=(
-                "Até oito abas de UID com cache de sessão",
-                "Início com o Windows e permanência na bandeja opcionais",
-                "Tempos e memória da sessão no Diagnóstico",
+                "Fallback local para imagens de personagens novos",
+                "Botões de recuperação não abrem janelas extras",
+                "Consulta preserva dados válidos quando possível",
             ),
-            action_label="Abrir configurações",
-            destination="Configurações",
+            action_label="Abrir Builds",
+            destination="Builds",
             artwork="experience",
         ),
     ),

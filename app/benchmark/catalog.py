@@ -11,7 +11,6 @@ GAME_DATA_PATH = FRIBBELS_ROOT / "src" / "data" / "game_data.json"
 PT_DATA_PATH = FRIBBELS_ROOT / "public" / "locales" / "pt_BR" / "gameData.yaml"
 ASSETS_PATH = FRIBBELS_ROOT / "public" / "assets"
 
-
 @dataclass(frozen=True, slots=True)
 class CatalogEntry:
     id: str

@@ -1,6 +1,6 @@
 {
   "source": "https://github.com/fribbels/hsr-optimizer",
-  "commit": "e227708a0f3dd2312f4440155a5f2e3a7aecc505",
+  "commit": "90827dafe4f977ad14a7d76d7fd4c811c33fc553",
   "characters": {
     "1001": {
       "name": "March7th",
@@ -3044,7 +3044,7 @@
         "DefenceAddedRatio": 0.0,
         "HPDelta": 0.0,
         "HPAddedRatio": 0.0,
-        "SpeedDelta": 1.0,
+        "SpeedDelta": 0.0,
         "CriticalChance": 1.0,
         "CriticalDamage": 1.0,
         "StatusProbability": 0.0,

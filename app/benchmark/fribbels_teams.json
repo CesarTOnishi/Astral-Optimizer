@@ -1,6 +1,6 @@
 {
   "source": "fribbels/hsr-optimizer",
-  "source_commit": "unknown",
+  "source_commit": "90827dafe4f977ad14a7d76d7fd4c811c33fc553",
   "teams": {
     "1001": {
       "name": "Time padrão Fribbels · 7 de Março",
@@ -151,11 +151,11 @@
       "name": "Time padrão Fribbels · Saber",
       "members": [
         {
-          "character_id": "1507",
-          "name": "Mortenax Blade",
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
           "eidolon": 0,
-          "light_cone_id": "23059",
-          "light_cone": "Reforjado nas Chamas do Inferno",
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
           "superimposition": 1
         },
         {
@@ -325,11 +325,11 @@
       "name": "Time padrão Fribbels · Clara",
       "members": [
         {
-          "character_id": "1403",
-          "name": "Tribbie",
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
           "eidolon": 0,
-          "light_cone_id": "23038",
-          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
           "superimposition": 1
         },
         {
@@ -470,27 +470,27 @@
       "name": "Time padrão Fribbels · Topaz e Dinheirinho",
       "members": [
         {
-          "character_id": "1220",
-          "name": "Feixiao",
+          "character_id": "1504",
+          "name": "Ashveil",
           "eidolon": 0,
-          "light_cone_id": "23031",
-          "light_cone": "Eu Me Aventuro para Caçar",
+          "light_cone_id": "23056",
+          "light_cone": "O Fim de uma Mentira",
           "superimposition": 1
         },
         {
-          "character_id": "1403",
-          "name": "Tribbie",
+          "character_id": "1507",
+          "name": "Mortenax Blade",
           "eidolon": 0,
-          "light_cone_id": "23038",
-          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "light_cone_id": "23059",
+          "light_cone": "Reforjado nas Chamas do Inferno",
           "superimposition": 1
         },
         {
-          "character_id": "1414",
-          "name": "Permansor Terrae",
+          "character_id": "1217b1",
+          "name": "Huohuo",
           "eidolon": 0,
-          "light_cone_id": "23051",
-          "light_cone": "Ainda que o Caminho Seja Longo",
+          "light_cone_id": "23017",
+          "light_cone": "Noite Aterrorizante",
           "superimposition": 1
         }
       ]
@@ -565,11 +565,11 @@
           "superimposition": 1
         },
         {
-          "character_id": "1309",
-          "name": "Robin",
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
           "eidolon": 0,
-          "light_cone_id": "23026",
-          "light_cone": "Luzes Noturnas",
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
           "superimposition": 1
         },
         {
@@ -615,19 +615,19 @@
       "name": "Time padrão Fribbels · Yanqing",
       "members": [
         {
-          "character_id": "1101",
-          "name": "Bronya",
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
           "eidolon": 0,
-          "light_cone_id": "23003",
-          "light_cone": "Mas a Batalha Não Acabou",
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
           "superimposition": 1
         },
         {
-          "character_id": "1309",
-          "name": "Robin",
+          "character_id": "1306b1",
+          "name": "Sparkle",
           "eidolon": 0,
-          "light_cone_id": "23026",
-          "light_cone": "Luzes Noturnas",
+          "light_cone_id": "23021",
+          "light_cone": "Fuga Terrena",
           "superimposition": 1
         },
         {
@@ -681,11 +681,11 @@
           "superimposition": 1
         },
         {
-          "character_id": "1406",
-          "name": "Cipher",
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
           "eidolon": 0,
-          "light_cone_id": "23043",
-          "light_cone": "Mentiras Dançando ao Vento",
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
           "superimposition": 1
         },
         {
@@ -768,12 +768,12 @@
           "superimposition": 5
         },
         {
-          "character_id": "1202",
-          "name": "Tingyun",
-          "eidolon": 6,
-          "light_cone_id": "21004",
-          "light_cone": "Memórias do Passado",
-          "superimposition": 5
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
+          "eidolon": 0,
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
+          "superimposition": 1
         },
         {
           "character_id": "1217b1",
@@ -963,11 +963,11 @@
       "name": "Time padrão Fribbels · Acheron",
       "members": [
         {
-          "character_id": "1406",
-          "name": "Cipher",
+          "character_id": "1004b1",
+          "name": "Welt",
           "eidolon": 0,
-          "light_cone_id": "23043",
-          "light_cone": "Mentiras Dançando ao Vento",
+          "light_cone_id": "23004",
+          "light_cone": "Em Nome do Mundo",
           "superimposition": 1
         },
         {
@@ -1195,11 +1195,11 @@
       "name": "Time padrão Fribbels · A Herta",
       "members": [
         {
-          "character_id": "1314",
-          "name": "Jade",
+          "character_id": "1405",
+          "name": "Anaxa",
           "eidolon": 0,
-          "light_cone_id": "23028",
-          "light_cone": "A Esperança é Inestimável",
+          "light_cone_id": "23041",
+          "light_cone": "A Vida Forjada em Chamas",
           "superimposition": 1
         },
         {
@@ -1224,11 +1224,11 @@
       "name": "Time padrão Fribbels · Aglaea",
       "members": [
         {
-          "character_id": "1313",
-          "name": "Sunday",
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
           "eidolon": 0,
-          "light_cone_id": "23034",
-          "light_cone": "Uma Ascensão Aterrada",
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
           "superimposition": 1
         },
         {
@@ -1290,11 +1290,11 @@
           "superimposition": 1
         },
         {
-          "character_id": "1403",
-          "name": "Tribbie",
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
           "eidolon": 0,
-          "light_cone_id": "23038",
-          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
           "superimposition": 1
         },
         {
@@ -1348,11 +1348,11 @@
           "superimposition": 1
         },
         {
-          "character_id": "1309",
-          "name": "Robin",
+          "character_id": "1504",
+          "name": "Ashveil",
           "eidolon": 0,
-          "light_cone_id": "23026",
-          "light_cone": "Luzes Noturnas",
+          "light_cone_id": "23056",
+          "light_cone": "O Fim de uma Mentira",
           "superimposition": 1
         },
         {
@@ -1369,11 +1369,11 @@
       "name": "Time padrão Fribbels · Castorice",
       "members": [
         {
-          "character_id": "1415",
-          "name": "Cyrene",
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
           "eidolon": 0,
-          "light_cone_id": "23052",
-          "light_cone": "Instante de Eterno Amor",
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
           "superimposition": 1
         },
         {
@@ -1398,11 +1398,19 @@
       "name": "Time padrão Fribbels · Phainon",
       "members": [
         {
-          "character_id": "1306b1",
-          "name": "Sparkle",
+          "character_id": "1415",
+          "name": "Cyrene",
           "eidolon": 0,
-          "light_cone_id": "21018",
-          "light_cone": "Dance! Dance! Dance!",
+          "light_cone_id": "23052",
+          "light_cone": "Instante de Eterno Amor",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
+          "eidolon": 0,
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
           "superimposition": 1
         },
         {
@@ -1411,14 +1419,6 @@
           "eidolon": 0,
           "light_cone_id": "23048",
           "light_cone": "Era Gravada pelo Sangue Dourado",
-          "superimposition": 1
-        },
-        {
-          "character_id": "1313",
-          "name": "Sunday",
-          "eidolon": 0,
-          "light_cone_id": "23034",
-          "light_cone": "Uma Ascensão Aterrada",
           "superimposition": 1
         }
       ]
@@ -1522,11 +1522,11 @@
           "superimposition": 1
         },
         {
-          "character_id": "1407",
-          "name": "Castorice",
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
           "eidolon": 0,
-          "light_cone_id": "23040",
-          "light_cone": "O Adeus Mais Belo",
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
           "superimposition": 1
         },
         {
@@ -1572,19 +1572,19 @@
       "name": "Time padrão Fribbels · Cyrene",
       "members": [
         {
-          "character_id": "1407",
-          "name": "Castorice",
-          "eidolon": 0,
-          "light_cone_id": "23040",
-          "light_cone": "O Adeus Mais Belo",
-          "superimposition": 1
-        },
-        {
           "character_id": "1413",
           "name": "Noite Eterna",
           "eidolon": 0,
           "light_cone_id": "23049",
           "light_cone": "Ao Brilho Estelar da Noite Eterna",
+          "superimposition": 1
+        },
+        {
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
+          "eidolon": 0,
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
           "superimposition": 1
         },
         {
@@ -1601,11 +1601,11 @@
       "name": "Time padrão Fribbels · Sparxie",
       "members": [
         {
-          "character_id": "1306b1",
-          "name": "Sparkle",
+          "character_id": "1506",
+          "name": "Loba Prateada Nv. 999",
           "eidolon": 0,
-          "light_cone_id": "23003",
-          "light_cone": "Mas a Batalha Não Acabou",
+          "light_cone_id": "23057",
+          "light_cone": "Bem-vindo à Cidade Cósmica",
           "superimposition": 1
         },
         {
@@ -1617,11 +1617,11 @@
           "superimposition": 5
         },
         {
-          "character_id": "1217b1",
-          "name": "Huohuo",
+          "character_id": "1503",
+          "name": "Pearl",
           "eidolon": 0,
-          "light_cone_id": "23017",
-          "light_cone": "Noite Aterrorizante",
+          "light_cone_id": "23055",
+          "light_cone": "Colors for Tomorrow",
           "superimposition": 1
         }
       ]
@@ -1630,27 +1630,27 @@
       "name": "Time padrão Fribbels · Yao Guang",
       "members": [
         {
-          "character_id": "1501",
-          "name": "Sparxie",
+          "character_id": "1505",
+          "name": "Evanescia",
           "eidolon": 0,
-          "light_cone_id": "23053",
-          "light_cone": "Deslumbramento Por Um Mundo Florido",
+          "light_cone_id": "23058",
+          "light_cone": "Um Encontro na Próxima Primavera",
           "superimposition": 1
         },
         {
-          "character_id": "1306b1",
-          "name": "Sparkle",
-          "eidolon": 0,
-          "light_cone_id": "23003",
-          "light_cone": "Mas a Batalha Não Acabou",
-          "superimposition": 1
+          "character_id": "8010",
+          "name": "Stelle",
+          "eidolon": 6,
+          "light_cone_id": "24006",
+          "light_cone": "Euforia Repleta de Bênçãos",
+          "superimposition": 5
         },
         {
-          "character_id": "1217b1",
-          "name": "Huohuo",
+          "character_id": "1503",
+          "name": "Pearl",
           "eidolon": 0,
-          "light_cone_id": "23017",
-          "light_cone": "Noite Aterrorizante",
+          "light_cone_id": "23055",
+          "light_cone": "Colors for Tomorrow",
           "superimposition": 1
         }
       ]
@@ -1696,11 +1696,11 @@
           "superimposition": 1
         },
         {
-          "character_id": "1403",
-          "name": "Tribbie",
+          "character_id": "1513",
+          "name": "Aventurine - Veraneio",
           "eidolon": 0,
-          "light_cone_id": "23038",
-          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "light_cone_id": "23064",
+          "light_cone": "Surfando a Onda do Verão",
           "superimposition": 1
         },
         {
@@ -1733,11 +1733,11 @@
           "superimposition": 5
         },
         {
-          "character_id": "1217b1",
-          "name": "Huohuo",
+          "character_id": "1503",
+          "name": "Pearl",
           "eidolon": 0,
-          "light_cone_id": "23017",
-          "light_cone": "Noite Aterrorizante",
+          "light_cone_id": "23055",
+          "light_cone": "Colors for Tomorrow",
           "superimposition": 1
         }
       ]
@@ -1762,11 +1762,11 @@
           "superimposition": 5
         },
         {
-          "character_id": "1217b1",
-          "name": "Huohuo",
+          "character_id": "1503",
+          "name": "Pearl",
           "eidolon": 0,
-          "light_cone_id": "23017",
-          "light_cone": "Noite Aterrorizante",
+          "light_cone_id": "23055",
+          "light_cone": "Colors for Tomorrow",
           "superimposition": 1
         }
       ]
@@ -1783,11 +1783,11 @@
           "superimposition": 1
         },
         {
-          "character_id": "1403",
-          "name": "Tribbie",
+          "character_id": "1513",
+          "name": "Aventurine - Veraneio",
           "eidolon": 0,
-          "light_cone_id": "23038",
-          "light_cone": "Se o Tempo Fosse Uma Flor",
+          "light_cone_id": "23064",
+          "light_cone": "Surfando a Onda do Verão",
           "superimposition": 1
         },
         {
@@ -1804,20 +1804,20 @@
       "name": "Time padrão Fribbels · Himeko - Nova",
       "members": [
         {
-          "character_id": "1313",
-          "name": "Sunday",
+          "character_id": "1004b1",
+          "name": "Welt",
           "eidolon": 0,
-          "light_cone_id": "23034",
-          "light_cone": "Uma Ascensão Aterrada",
+          "light_cone_id": "23004",
+          "light_cone": "Em Nome do Mundo",
           "superimposition": 1
         },
         {
-          "character_id": "1306b1",
-          "name": "Sparkle",
+          "character_id": "1512",
+          "name": "Robin - Summeretto",
           "eidolon": 0,
-          "light_cone_id": "21018",
-          "light_cone": "Dance! Dance! Dance!",
-          "superimposition": 5
+          "light_cone_id": "23063",
+          "light_cone": "Levanta e Canta",
+          "superimposition": 1
         },
         {
           "character_id": "1414",

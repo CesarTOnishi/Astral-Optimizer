@@ -231,7 +231,12 @@ def account_from_showcase(showcase: Any) -> AccountSummary:
         light_cone = character.light_cone
         element_value = str(getattr(character.element, "value", character.element))
         path_value = str(getattr(character.path, "value", character.path))
-        raw = character.model_dump(mode="json")
+        # O campo calculado do enka-py procura um bônus elemental com next().
+        # Personagens sem esse atributo fazem model_dump lançar StopIteration,
+        # embora os dados necessários para a build estejam disponíveis.
+        raw = character.model_dump(
+            mode="json", exclude={"highest_dmg_bonus_stat"}
+        )
         fribbels_avatar_id = f"{character.id}b1" if character.enhanced else str(character.id)
         raw["fribbels_payload"] = {
             "avatarId": fribbels_avatar_id,

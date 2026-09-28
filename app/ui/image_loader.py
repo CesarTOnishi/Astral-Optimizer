@@ -104,7 +104,7 @@ class ImageLoader(QObject):
     def _profile_icon_fallback(url: str) -> Path | None:
         """Resolve avatares novos que ainda não foram publicados no CDN do Enka."""
         match = re.search(
-            r"/AvatarRoundIcon/Avatar/(\d+)\.png(?:\?.*)?$",
+            r"/AvatarRoundIcon/(?:Avatar/)?(\d+)\.png(?:\?.*)?$",
             url,
             flags=re.IGNORECASE,
         )

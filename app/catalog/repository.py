@@ -70,6 +70,10 @@ class CatalogRepository:
             items = list(fallback.values())
         return sorted(items, key=lambda item: (-item.rarity, item.name.casefold()))
 
+    def relic_set_name(self, set_id: str) -> str:
+        data = self._data.get("relic_sets", {}).get(str(set_id), {})
+        return str(data.get("name", "")) if isinstance(data, dict) else ""
+
     def skills_for(self, character: CatalogCharacter) -> list[CatalogSkill]:
         source = self._data.get("character_skills", {})
         result: list[CatalogSkill] = []
