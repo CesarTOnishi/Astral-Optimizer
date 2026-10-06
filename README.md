@@ -27,7 +27,8 @@ Esta atualização melhora as imagens compartilhadas de builds e Saltos e esclar
 - O cartão de build exportado foi redesenhado em 1920 × 1080, com habilidades, Eidolons, cone, relíquias e indicadores reais da personagem;
 - o relatório de Saltos usa tickets compactos com retrato, data, pity de obtenção e resultado da disputa;
 - a exportação da edição selecionada apresenta seus próprios totais de saltos, Jades equivalentes e período;
-- a classificação do 50/50 considera o destaque da edição e distingue vitórias, derrotas e resultados garantidos;
+- corrigida a classificação dos resultados de 50/50 no histórico de Saltos, distinguindo vitórias, derrotas e obtenções garantidas;
+- corrigido o ícone da Pearl na seleção de edições do histórico de Saltos;
 - retratos e ícones locais foram ajustados para reduzir imagens ausentes nas exportações.
 
 ### Recursos da versão 1.4
