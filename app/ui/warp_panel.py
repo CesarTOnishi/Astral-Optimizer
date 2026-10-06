@@ -41,8 +41,8 @@ from app.ui.contextual_help import (
 from app.ui.experience import copy_error_details
 from app.ui.warp_import_tutorial import WarpImportTutorialDialog
 from app.ui.warp_import_preview import WarpImportPreviewDialog
-from app.ui.warp_share import build_warp_share_data, render_warp_share_card
-from app.ui.widgets import AvatarLabel, FadeComboBox, FRIBBELS_ASSETS
+from app.ui.warp_share import build_warp_share_data, render_warp_share_pages, warp_share_page_paths
+from app.ui.widgets import AvatarLabel, FadeComboBox, FRIBBELS_ASSETS, rounded_pixmap
 from app.warp import (
     StarRailStationImport,
     WarpDatabase,
@@ -59,6 +59,7 @@ from app.warp.statistics import (
     STANDARD_CHARACTER_IDS,
     STANDARD_LIGHT_CONE_IDS,
     classify_five_star_history,
+    featured_names_by_edition,
     five_star_history,
     pity_state,
 )
@@ -816,6 +817,7 @@ class WarpPanel(QWidget):
             f"Todos os saltos · {total_in_category} tiros",
             ALL_BANNERS,
         )
+        featured_by_edition = featured_names_by_edition(selected)
         for key, group in sorted(
             groups.items(),
             key=lambda pair: max(r.time for r in pair[1]),
@@ -833,6 +835,9 @@ class WarpPanel(QWidget):
             featured_names = list(dict.fromkeys(
                 record.featured_name for record in group if record.featured_name
             ))
+            featured_name = featured_by_edition.get(
+                (self.selected_gacha_type, key), ""
+            )
             names = Counter(record.name for record in five_stars)
             obtained_names = ", ".join(
                 f"{name} ×{count}" if count > 1 else name
@@ -852,16 +857,26 @@ class WarpPanel(QWidget):
                 f"{len(group)} tiros",
             ) if part)
             portrait = next(
-                (record for record in five_stars if record.name == record.featured_name),
+                (record for record in five_stars if record.name == featured_name),
                 five_stars[0],
             )
-            icon_path = FRIBBELS_ASSETS / "icon" / "avatar" / f"{portrait.item_id}.webp"
-            if not icon_path.exists():
+            avatar_path = FRIBBELS_ASSETS / "icon" / "avatar" / f"{portrait.item_id}.webp"
+            is_avatar = avatar_path.is_file()
+            icon_path = avatar_path
+            if not is_avatar:
                 icon_path = (
                     FRIBBELS_ASSETS / "icon" / "light_cone" / f"{portrait.item_id}.webp"
                 )
+            icon = QIcon()
+            if icon_path.exists():
+                pixmap = QPixmap(str(icon_path))
+                if not pixmap.isNull():
+                    icon = QIcon(
+                        rounded_pixmap(pixmap, 36, 18)
+                        if is_avatar else pixmap
+                    )
             self.edition_selector.addItem(
-                QIcon(str(icon_path)) if icon_path.exists() else QIcon(),
+                icon,
                 label,
                 key,
             )
@@ -1024,7 +1039,6 @@ class WarpPanel(QWidget):
             edition_title=self.edition_selector.currentText() or "Todos os saltos",
         )
         privacy_enabled = hide_uid_in_shared_images(self.owner_id)
-        card = render_warp_share_card(data, hide_uid=privacy_enabled)
         pictures = QStandardPaths.writableLocation(
             QStandardPaths.StandardLocation.PicturesLocation
         )
@@ -1038,7 +1052,7 @@ class WarpPanel(QWidget):
         )
         path, _selected = QFileDialog.getSaveFileName(
             self,
-            "Exportar cartão de resultados de Saltos",
+            "Exportar galeria de resultados de Saltos",
             suggested,
             "Imagem PNG (*.png)",
         )
@@ -1046,12 +1060,17 @@ class WarpPanel(QWidget):
             return
         if not path.casefold().endswith(".png"):
             path += ".png"
-        if not card.save(path, "PNG"):
-            self._set_status("Não foi possível salvar o cartão de Saltos.", "error")
+        pages = render_warp_share_pages(data, hide_uid=privacy_enabled)
+        output_paths = warp_share_page_paths(Path(path), len(pages))
+        if not all(page.save(str(output), "PNG") for page, output in zip(pages, output_paths)):
+            self._set_status("Não foi possível salvar a galeria de Saltos.", "error")
             return
-        self._set_status(
-            "Cartão de resultados exportado e pronto para compartilhar.", "success"
+        message = (
+            "Galeria de resultados exportada e pronta para compartilhar."
+            if len(pages) == 1 else
+            f"{len(pages)} páginas de resultados exportadas e prontas para compartilhar."
         )
+        self._set_status(message, "success")
 
     def _export_history(self, format_name: str) -> None:
         if self.owner_id is None or not self.current_uid or not self.current_records:

@@ -1,4 +1,5 @@
 from pathlib import Path
+from dataclasses import replace
 import sqlite3
 import tempfile
 import unittest
@@ -14,6 +15,7 @@ from app.warp.starrailstation import (
 from app.warp.statistics import (
     STANDARD_CHARACTER_IDS,
     classify_five_star_history,
+    featured_names_by_edition,
     five_star_history,
     pity_state,
 )
@@ -229,6 +231,36 @@ class WarpTests(unittest.TestCase):
             [item.outcome for item in chronological],
             ["lost", "guaranteed", "won"],
         )
+
+    def test_pearl_edition_infers_featured_and_silver_wolf_loses(self) -> None:
+        records = [
+            replace(warp(1, 5, "1101"), name="Bronya", banner_id="2139"),
+            replace(warp(2, 5, "1503"), name="Pearl", banner_id="2139"),
+            replace(warp(3, 5, "1101"), name="Bronya", banner_id="2139"),
+            replace(warp(4, 5, "1503"), name="Pearl", banner_id="2139"),
+            replace(warp(5, 5, "1006"), name="Loba Prateada", banner_id="2139"),
+        ]
+        self.assertEqual(featured_names_by_edition(records)[("11", "2139")], "Pearl")
+        outcomes = list(reversed(classify_five_star_history(
+            five_star_history(records), STANDARD_CHARACTER_IDS, "50/50"
+        )))
+        self.assertEqual(
+            [result.outcome for result in outcomes],
+            ["lost", "guaranteed", "lost", "guaranteed", "lost"],
+        )
+        self.assertTrue(pity_state(records, {"11"}, STANDARD_CHARACTER_IDS).guaranteed)
+
+    def test_silver_wolf_without_featured_evidence_is_not_called_a_win(self) -> None:
+        record = replace(warp(1, 5, "1006"), name="Loba Prateada", banner_id="old")
+        result = classify_five_star_history(
+            five_star_history([record]), STANDARD_CHARACTER_IDS, "50/50"
+        )[0]
+        self.assertEqual(result.outcome, "neutral")
+        featured = replace(record, featured_name="Loba Prateada")
+        result = classify_five_star_history(
+            five_star_history([featured]), STANDARD_CHARACTER_IDS, "50/50"
+        )[0]
+        self.assertEqual(result.outcome, "won")
 
     def test_fate_and_regular_banners_have_separate_pity(self) -> None:
         regular = [warp(index, 3, gacha_type="11") for index in range(1, 11)]

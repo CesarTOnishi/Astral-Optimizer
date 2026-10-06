@@ -21,7 +21,7 @@ from app.section_loading import LoadContext
 from app.ui.build_history import (
     BuildComparisonDialog, BuildHistoryBar, BuildMetadataDialog, ConfirmBuildDeleteDialog,
 )
-from app.ui.build_share import render_build_share_card
+from app.ui.build_share import bundled_share_icon, render_build_share_card, share_details
 from app.ui.contextual_help import BENCHMARK_HELP, RELIC_GRADE_HELP, ContextHelpButton
 from app.ui.motion import AnimatedStack as QStackedWidget
 from app.ui.team_dialog import CustomTeamDialog
@@ -1183,27 +1183,42 @@ class BuildActions:
             return
 
         relic_visuals = []
+        raw_relics = character.raw.get("relics", []) if isinstance(character.raw, dict) else []
         for index, relic in enumerate(character.relics):
             icon = QPixmap()
+            if isinstance(raw_relics, list) and index < len(raw_relics):
+                raw_relic = raw_relics[index]
+                relic_id = str(raw_relic.get("id", "")) if isinstance(raw_relic, dict) else ""
+                if relic_id.isdecimal() and len(relic_id) >= 4:
+                    set_id = relic_id[1:-1]
+                    slot_index = (int(relic_id[-1]) - 1) % 4
+                    icon = QPixmap(str(
+                        FRIBBELS_ASSETS / "icon" / "relic" / f"{set_id}_{slot_index}.webp"
+                    ))
             if index < len(self.current_relic_cards):
                 current_icon = self.current_relic_cards[index].icon.pixmap()
-                if current_icon is not None:
+                if icon.isNull() and current_icon is not None:
                     icon = current_icon
             relic_visuals.append(
                 (relic, self.benchmark_engine.rate_relic(character, relic), icon)
             )
         user = self.auth_service.current_user
         privacy_enabled = bool(user and hide_uid_in_shared_images(user.id))
-        card = render_build_share_card(
-            character,
-            result,
-            self.current_uid,
-            self.character_art.source,
-            self.light_cone_banner.source,
-            list(payload.get("stats", [])),
-            relic_visuals,
-            custom_team=self._uses_custom_team(self.current_character_id),
-            hide_uid=privacy_enabled,
+        uid = self.current_uid
+        artwork = self.character_art.source
+        cone_art = self.light_cone_banner.source
+        custom_team = self._uses_custom_team(self.current_character_id)
+        stats = list(payload.get("stats", []))
+        known_stats = {str(stat.get("key", "")) for stat in stats}
+        for stat in character.stats:
+            if stat.key in {"HealRatio", "OutgoingHealingBoost"} and stat.key not in known_stats:
+                stats.insert(-1 if stats else 0, {
+                    "key": stat.key,
+                    "name": stat.name,
+                    "formatted": stat.formatted_value,
+                })
+        details = share_details(
+            character, getattr(getattr(self, "catalog_panel", None), "repository", None)
         )
         safe_name = "".join(
             value if value.isalnum() else "_" for value in character.name
@@ -1211,7 +1226,7 @@ class BuildActions:
         pictures = QStandardPaths.writableLocation(
             QStandardPaths.StandardLocation.PicturesLocation
         )
-        suffix = "privada" if privacy_enabled else self.current_uid
+        suffix = "privada" if privacy_enabled else uid
         suggested = f"{pictures}/AstralOptimizer_{safe_name}_{suffix}.png"
         path, _selected_filter = QFileDialog.getSaveFileName(
             self,
@@ -1223,17 +1238,64 @@ class BuildActions:
             return
         if not path.casefold().endswith(".png"):
             path += ".png"
-        if not card.save(path, "PNG"):
-            self.set_status("Não foi possível salvar a imagem da build.", "error")
+        urls = {
+            str(entry.get("url", "")) for entry in details["skills"]
+        } | set(details["eidolons"])
+        urls.discard("")
+        loaded = {url: icon for url in urls if not (icon := bundled_share_icon(url)).isNull()}
+        pending = urls - loaded.keys()
+
+        def finish_export() -> None:
+            card = render_build_share_card(
+                character, result, uid, artwork, cone_art, stats, relic_visuals,
+                custom_team=custom_team, hide_uid=privacy_enabled,
+                skills=[
+                    (item["level"], item["boosted"], loaded.get(item["url"], QPixmap()))
+                    for item in details["skills"]
+                ],
+                eidolons=[loaded.get(url, QPixmap()) for url in details["eidolons"]],
+                cone_stats=details["cone_stats"], cone_rarity=details["cone_rarity"],
+            )
+            if not card.save(path, "PNG"):
+                self.set_status("Não foi possível salvar a imagem da build.", "error")
+                return
+            missing = [url.rsplit("/", 1)[-1] for url in urls if loaded.get(url, QPixmap()).isNull()]
+            missing.extend(
+                f"habilidade {index + 1}"
+                for index, item in enumerate(details["skills"])
+                if not item["url"]
+            )
+            missing.extend(
+                f"eidolon {index + 1}"
+                for index, url in enumerate(details["eidolons"])
+                if not url
+            )
+            if missing:
+                self.set_status(
+                    "Cartão salvo; ícones indisponíveis: " + ", ".join(sorted(missing)),
+                    "error",
+                )
+            else:
+                self.set_status("Cartão da build exportado e pronto para compartilhar.", "success")
+            self.activity_log.add(
+                "build", "Build exportada",
+                f"Cartão de {character.name} salvo como imagem PNG.",
+                owner_id=user.id if user is not None else 0, kind="success",
+            )
+
+        if not pending:
+            finish_export()
             return
-        self.set_status("Cartão da build exportado e pronto para compartilhar.", "success")
-        self.activity_log.add(
-            "build",
-            "Build exportada",
-            f"Cartão de {character.name} salvo como imagem PNG.",
-            owner_id=user.id if user is not None else 0,
-            kind="success",
-        )
+        self.set_status("Preparando ícones da build para exportação…", "info")
+
+        def on_icon(url: str, pixmap: QPixmap) -> None:
+            loaded[url] = pixmap
+            pending.discard(url)
+            if not pending:
+                finish_export()
+
+        for url in urls:
+            self.image_loader.load(url, lambda pixmap, source=url: on_icon(source, pixmap))
 
     def compare_saved_build(self, snapshot_id: int) -> None:
         payload = self._build_snapshot_payload()

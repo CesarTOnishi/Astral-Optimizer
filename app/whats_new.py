@@ -27,71 +27,71 @@ class InstalledRelease:
 
 CURRENT_RELEASE = InstalledRelease(
     version=APP_VERSION,
-    headline="Compatibilidade com os dados do jogo 4.6",
+    headline="Cartões e histórico de Saltos renovados",
     summary=(
-        "Esta atualização melhora a consulta de personagens e equipamentos "
-        "novos e atualiza o motor de análise."
+        "Esta atualização melhora as imagens compartilhadas de builds e Saltos "
+        "e esclarece os resultados de 50/50."
     ),
     highlights=(
         ReleaseHighlight(
-            title="Consultas recuperadas",
+            title="Cartão de build renovado",
             description=(
-                "O app agora atualiza os dados da Enka quando encontra um ID "
-                "novo e interpreta a resposta recebida novamente."
+                "A exportação da build apresenta a personagem, seus equipamentos "
+                "e seus atributos em uma composição 1920 × 1080."
             ),
             details=(
-                "Corrigida a falha ao ler alguns atributos",
-                "Nomes complementados pelo catálogo quando necessário",
-                "Aviso claro se os dados do jogo ainda estiverem indisponíveis",
-            ),
-            action_label="Abrir Conta",
-            destination="Conta",
-            artwork="warps",
-        ),
-        ReleaseHighlight(
-            title="Pearl e novos equipamentos",
-            description=(
-                "Personagens, Cones de Luz e conjuntos de relíquias novos "
-                "entram no catálogo assim que os dados públicos chegam."
-            ),
-            details=(
-                "Pearl reconhecida pelo catálogo",
-                "Nomes de conjuntos complementados pelo StarRailRes",
-                "Dados essenciais ausentes são indicados na tela",
-            ),
-            action_label="Abrir Catálogo",
-            destination="Personagens e Cones",
-            artwork="import",
-        ),
-        ReleaseHighlight(
-            title="Motor de análise atualizado",
-            description=(
-                "O motor Fribbels, os pesos de relíquias e os times padrão "
-                "acompanham o catálogo recente."
-            ),
-            details=(
-                "Fribbels atualizado para os dados recentes",
-                "Pesos e times padrão sincronizados",
-                "Sem alterações locais nas regras de pontuação",
-            ),
-            action_label="Abrir Builds",
-            destination="Builds",
-            artwork="backup",
-        ),
-        ReleaseHighlight(
-            title="Imagens e janelas corrigidas",
-            description=(
-                "O retrato local aparece quando o CDN da Enka ainda não "
-                "publicou o ícone de um personagem novo."
-            ),
-            details=(
-                "Fallback local para imagens de personagens novos",
-                "Botões de recuperação não abrem janelas extras",
-                "Consulta preserva dados válidos quando possível",
+                "Habilidades e Eidolons conforme os dados da personagem",
+                "Relíquias e cone com atributos reais",
+                "Benchmark e equipe integrados ao cartão",
             ),
             action_label="Abrir Builds",
             destination="Builds",
             artwork="experience",
+        ),
+        ReleaseHighlight(
+            title="Histórico de Saltos para compartilhar",
+            description=(
+                "O relatório exportado reúne resultados 5★ em tickets compactos "
+                "com retrato, data e número de saltos."
+            ),
+            details=(
+                "Resultados em ordem cronológica inversa",
+                "Páginas adicionais quando há muitos resultados",
+                "Vitória, derrota e garantia identificadas por texto e símbolo",
+            ),
+            action_label="Abrir Saltos",
+            destination="Saltos",
+            artwork="warps",
+        ),
+        ReleaseHighlight(
+            title="Totais corretos por edição",
+            description=(
+                "Ao exportar uma edição específica, o cabeçalho agora usa "
+                "somente seus saltos, Jades equivalentes e período."
+            ),
+            details=(
+                "Filtro da edição aplicado aos totais",
+                "Jades rotulados como valor equivalente",
+                "Categoria inteira preservada em Todos os saltos",
+            ),
+            action_label="Abrir Saltos",
+            destination="Saltos",
+            artwork="import",
+        ),
+        ReleaseHighlight(
+            title="Resultados de 50/50 mais claros",
+            description=(
+                "A classificação usa os dados do histórico e o destaque "
+                "identificado para a edição do banner."
+            ),
+            details=(
+                "Ganhou, perdeu e garantido exibidos separadamente",
+                "Personagens repetidos permanecem individuais",
+                "Retratos locais usados quando disponíveis",
+            ),
+            action_label="Abrir Saltos",
+            destination="Saltos",
+            artwork="backup",
         ),
     ),
 )

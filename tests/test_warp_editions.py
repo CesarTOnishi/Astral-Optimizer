@@ -7,11 +7,13 @@ from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QApplication
 
 from app.warp.database import WarpDatabase
 from app.warp.models import WarpRecord
-from app.ui.warp_panel import WarpPanel
+from app.ui.warp_panel import FRIBBELS_ASSETS, WarpPanel
+from app.ui.widgets import rounded_pixmap
 
 
 def record(number, rank=3, banner="a", item="20001"):
@@ -93,6 +95,31 @@ class EditionTests(unittest.TestCase):
             self.assertEqual(panel.table.rowCount(), 1)
             self.assertEqual(panel.table.item(0, 0).text(), "Item 23000")
             self.assertEqual(panel.table.item(0, 5).text(), "★★★★★")
+            panel.close()
+
+    def test_pearl_edition_shows_pearl_instead_of_first_bronya(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = WarpDatabase(Path(directory) / "warps.db")
+            with patch("app.ui.warp_panel.WarpDatabase", return_value=database):
+                panel = WarpPanel()
+            records = [
+                replace(record(1, 5, "2139", "1101"), name="Bronya"),
+                replace(record(2, 5, "2139", "1503"), name="Pearl"),
+                replace(record(3, 5, "2139", "1006"), name="Loba Prateada"),
+            ]
+            panel._render_records(records)
+            index = panel.edition_selector.findData("2139")
+            self.assertGreater(index, 0)
+            pearl_path = FRIBBELS_ASSETS / "icon" / "avatar" / "1503.webp"
+            expected = rounded_pixmap(QPixmap(str(pearl_path)), 36, 18).toImage()
+            displayed = panel.edition_selector.itemIcon(index).pixmap(36, 36).toImage()
+            self.assertEqual(
+                displayed, expected,
+            )
+            self.assertEqual(displayed.pixelColor(0, 0).alpha(), 0)
+            self.assertGreater(displayed.pixelColor(18, 18).alpha(), 0)
+            panel.edition_selector.setCurrentIndex(index)
+            self.assertEqual(panel.table.item(0, 4).toolTip(), "PERDEU 50/50")
             panel.close()
 
     def test_api_banner_id_is_optional(self):
